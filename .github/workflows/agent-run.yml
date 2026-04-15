@@ -1,0 +1,45 @@
+name: WM Agent Run
+
+on:
+  workflow_call:
+    inputs:
+      task_name:
+        required: true
+        type: string
+      event_name:
+        required: true
+        type: string
+      event_json:
+        required: true
+        type: string
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Install gh-wm
+        run: go install github.com/gh-wm/gh-wm@latest
+        env:
+          GOBIN: ${{ runner.temp }}/bin
+
+      - name: Add gh-wm to PATH
+        run: echo "${{ runner.temp }}/bin" >> "$GITHUB_PATH"
+
+      - name: Run task
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EVENT_NAME: ${{ inputs.event_name }}
+          EVENT_JSON: ${{ inputs.event_json }}
+          TASK_NAME: ${{ inputs.task_name }}
+        run: |
+          printf '%s' "$EVENT_JSON" > event.json
+          gh-wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload event.json

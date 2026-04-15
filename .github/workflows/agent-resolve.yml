@@ -1,0 +1,49 @@
+name: WM Agent Resolve
+
+on:
+  workflow_call:
+    inputs:
+      event_name:
+        required: true
+        type: string
+      event_json:
+        required: true
+        type: string
+    outputs:
+      tasks:
+        description: JSON array of matching task names
+        value: ${{ jobs.resolve.outputs.tasks }}
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      tasks: ${{ steps.match.outputs.tasks }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Install gh-wm
+        run: go install github.com/gh-wm/gh-wm@latest
+        env:
+          GOBIN: ${{ runner.temp }}/bin
+
+      - name: Add gh-wm to PATH
+        run: echo "${{ runner.temp }}/bin" >> "$GITHUB_PATH"
+
+      - name: Match tasks
+        id: match
+        env:
+          EVENT_NAME: ${{ inputs.event_name }}
+          EVENT_JSON: ${{ inputs.event_json }}
+        run: |
+          printf '%s' "$EVENT_JSON" > event.json
+          TASKS=$(gh-wm resolve --repo-root . --event-name "$EVENT_NAME" --payload event.json --json)
+          {
+            echo "tasks<<WM_DELIM"
+            echo "$TASKS"
+            echo "WM_DELIM"
+          } >> "$GITHUB_OUTPUT"

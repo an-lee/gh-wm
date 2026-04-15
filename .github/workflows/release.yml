@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Build binaries
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          mkdir -p dist
+          GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o dist/gh-wm_linux_amd64 .
+          GOOS=linux GOARCH=arm64 go build -ldflags "-s -w" -o dist/gh-wm_linux_arm64 .
+          GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w" -o dist/gh-wm_darwin_amd64 .
+          GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w" -o dist/gh-wm_darwin_arm64 .
+          (cd dist && sha256sum gh-wm_* > SHA256SUMS)
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
