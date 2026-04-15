@@ -1,0 +1,86 @@
+package config
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestParseGlobal(t *testing.T) {
+	t.Parallel()
+	g, err := ParseGlobal([]byte(`version: 1
+engine: codex
+max_turns: 50
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.Engine != "codex" || g.MaxTurns != 50 {
+		t.Fatalf("got %+v", g)
+	}
+	if _, err := ParseGlobal([]byte(`[`)); err == nil {
+		t.Fatal("expected yaml error")
+	}
+}
+
+func TestDefaultGlobal(t *testing.T) {
+	t.Parallel()
+	g := DefaultGlobal(nil)
+	if g.Engine != "claude" || g.MaxTurns != 100 {
+		t.Fatalf("defaults: %+v", g)
+	}
+	g2 := DefaultGlobal(&GlobalConfig{Version: 2})
+	if g2.Version != 2 || g2.Engine != "claude" {
+		t.Fatalf("preserve version: %+v", g2)
+	}
+}
+
+func TestLoad(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	wm := filepath.Join(root, DirName)
+	if err := os.MkdirAll(wm, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg := filepath.Join(wm, "config.yml")
+	if err := os.WriteFile(cfg, []byte(`version: 1
+engine: claude
+max_turns: 10
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tasksDir := filepath.Join(wm, TasksDir)
+	if err := os.MkdirAll(tasksDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	taskPath := filepath.Join(tasksDir, "hello.md")
+	content := `---
+name: hello
+on:
+  issues:
+    types: [opened]
+---
+
+body
+`
+	if err := os.WriteFile(taskPath, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	g, tasks, err := Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.MaxTurns != 10 || len(tasks) != 1 {
+		t.Fatalf("g=%+v tasks=%d", g, len(tasks))
+	}
+	if tasks[0].Name != "hello" || tasks[0].Body != "body" {
+		t.Fatalf("task: %+v", tasks[0])
+	}
+}
+
+func TestLoad_MissingConfig(t *testing.T) {
+	t.Parallel()
+	if _, _, err := Load(t.TempDir()); err == nil {
+		t.Fatal("expected error")
+	}
+}

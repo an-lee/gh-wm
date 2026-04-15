@@ -29,7 +29,7 @@ func init() {
 	resolveCmd.Flags().BoolVar(&resolveJSON, "json", true, "print JSON array to stdout")
 }
 
-func runResolve(_ *cobra.Command, _ []string) error {
+func runResolve(cmd *cobra.Command, _ []string) error {
 	evName := resolveEvent
 	if evName == "" {
 		evName = os.Getenv("GITHUB_EVENT_NAME")
@@ -49,13 +49,14 @@ func runResolve(_ *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
+	out := cmd.OutOrStdout()
 	if !resolveJSON {
 		for _, n := range names {
-			fmt.Println(n)
+			fmt.Fprintln(out, n)
 		}
 		return nil
 	}
-	enc := json.NewEncoder(os.Stdout)
+	enc := json.NewEncoder(out)
 	enc.SetEscapeHTML(false)
 	return enc.Encode(names)
 }
