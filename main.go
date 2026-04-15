@@ -1,4 +1,13 @@
 package main
 
-// Stub main until CLI package is added (commit: feat(cli)).
-func main() {}
+import (
+	"os"
+
+	"github.com/gh-wm/gh-wm/cmd"
+)
+
+func main() {
+	if err := cmd.Execute(); err != nil {
+		os.Exit(1)
+	}
+}
