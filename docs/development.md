@@ -39,7 +39,7 @@ go install github.com/gh-wm/gh-wm@latest
 | [`internal/templates/`](../internal/templates/) | Embedded files for `gh wm init`. |
 | [`internal/ghclient/`](../internal/ghclient/) | `gh api` helpers (labels, comments). |
 | [`internal/checkpoint/`](../internal/checkpoint/checkpoint.go) | Checkpoint HTML comments. |
-| [`.github/workflows/`](../.github/workflows/) | Reusable Actions + release. |
+| [`.github/workflows/`](../.github/workflows/) | CI + reusable workflows + release. |
 
 ## Extending `on:` matching
 
