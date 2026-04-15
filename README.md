@@ -2,6 +2,18 @@
 
 `gh-wm` is a **Go** [`gh` CLI extension](https://docs.github.com/en/github-cli/github-cli/creating-github-cli-extensions) that runs **gh-aw–compatible** task files (Markdown + YAML frontmatter) from `.wm/tasks/` without compiling to lockfiles, without AWF, and without enforcing `safe-outputs` (those fields are treated as hints).
 
+## Documentation
+
+Full docs for humans and AI agents live in **[`docs/`](docs/README.md)**:
+
+| Doc | Contents |
+|-----|----------|
+| [docs/README.md](docs/README.md) | Index and mental model |
+| [docs/architecture.md](docs/architecture.md) | Pipelines, code map, GitHub Actions |
+| [docs/task-format.md](docs/task-format.md) | `.wm/config.yml`, `on:` semantics, gh-aw notes |
+| [docs/cli-reference.md](docs/cli-reference.md) | Commands, flags, environment variables |
+| [docs/development.md](docs/development.md) | Contributing and extending the Go codebase |
+
 ## Install
 
 ```bash
@@ -63,13 +75,15 @@ Tasks are `.wm/tasks/<name>.md` with YAML frontmatter compatible with [GitHub Ag
 
 Optional **`wm:`** block (ignored by gh-aw) for gh-wm-only options, e.g. `state_labels`.
 
-## Architecture
+## Architecture (summary)
 
 1. **One caller workflow** (`wm-agent.yml`) listens for broad events and schedule crons.
 2. **Resolve job** runs `gh wm resolve` → JSON list of matching tasks.
 3. **Matrix job** runs `gh wm run --task <name>` in parallel for each match (`fail-fast: false`).
 
 After changing any task’s `on:` triggers, run **`gh wm upgrade`** to refresh `wm-agent.yml`.
+
+Details: [docs/architecture.md](docs/architecture.md).
 
 ## License
 
