@@ -27,7 +27,7 @@ func runUpgrade(_ *cobra.Command, _ []string) error {
 	}
 	repo := os.Getenv("GH_WM_REPO")
 	if repo == "" {
-		repo = "gh-wm/gh-wm"
+		repo = "an-lee/gh-wm"
 	}
 	ghDir := filepath.Join(cwd, ".github", "workflows")
 	if err := os.MkdirAll(ghDir, 0o755); err != nil {

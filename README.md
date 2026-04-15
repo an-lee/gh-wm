@@ -25,7 +25,7 @@ go build -o gh-wm .
 As a `gh` extension (after publishing releases):
 
 ```bash
-gh extension install gh-wm/gh-wm
+gh extension install an-lee/gh-wm
 ```
 
 ## Quick start (in a repository)
@@ -41,7 +41,7 @@ This creates:
 - `.github/workflows/wm-agent.yml` — **auto-generated** caller workflow (do not edit by hand)
 - `CLAUDE.md` if missing
 
-Set where reusable workflows live (default `gh-wm/gh-wm`):
+Set where reusable workflows live (default `an-lee/gh-wm`):
 
 ```bash
 export GH_WM_REPO=your-org/gh-wm

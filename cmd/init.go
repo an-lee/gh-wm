@@ -44,7 +44,7 @@ func runInit(_ *cobra.Command, _ []string) error {
 	}
 	repo := os.Getenv("GH_WM_REPO")
 	if repo == "" {
-		repo = "gh-wm/gh-wm"
+		repo = "an-lee/gh-wm"
 	}
 	if err := gen.WriteWMAgent(ghDir, repo, schedules); err != nil {
 		return err
