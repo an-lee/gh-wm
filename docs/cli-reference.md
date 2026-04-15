@@ -54,6 +54,16 @@ The extension is invoked as **`gh wm <subcommand>`** when installed via `gh exte
 
 ---
 
+## `add`
+
+**Purpose:** Copy or download a gh-aw-style Markdown file into `.wm/tasks/` (validates YAML frontmatter).
+
+**Usage:** `gh wm add <url-or-path>`
+
+Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run `gh wm upgrade`. See [`cmd/add.go`](../cmd/add.go).
+
+---
+
 ## `resolve`
 
 **Purpose:** Print matching **task names** for a GitHub event (JSON array by default).
@@ -75,7 +85,7 @@ The extension is invoked as **`gh wm <subcommand>`** when installed via `gh exte
 
 ## `run`
 
-**Purpose:** Execute **one** task: load `.wm/tasks/<task>.md`, build prompt, run agent subprocess.
+**Purpose:** Execute **one** task: load `.wm/tasks/<task>.md`, optional state labels, run agent, then **`safe-outputs:`** steps on success.
 
 **Usage:** `gh wm run --task <name>`
 
@@ -88,16 +98,20 @@ The extension is invoked as **`gh wm <subcommand>`** when installed via `gh exte
 | `--event-name` | `$GITHUB_EVENT_NAME` | Event name |
 | `--payload` | `$GITHUB_EVENT_PATH` | Path to event JSON |
 
-**Behavior:** 45-minute [`context.WithTimeout`](../cmd/run.go) around [`engine.RunTask`](../internal/engine/runner.go). Stdout/stderr from agent printed to stderr.
+**Timeout:** Uses `timeout-minutes` from task frontmatter (default **45**, max **480**). See [`cmd/run.go`](../cmd/run.go).
 
 **Agent invocation ([`internal/engine/agent.go`](../internal/engine/agent.go)):**
 
 | Variable | Meaning |
 |----------|---------|
-| `WM_AGENT_CMD` | If set, split on whitespace: first token = executable, rest + prompt = args. |
-| _(default)_ | `claude -p <prompt>` |
+| `WM_AGENT_CMD` | If set, split on whitespace: first token = executable, rest + prompt = args. Overrides `engine:`. |
+| `WM_ENGINE_CODEX_CMD` | When `engine: codex` and `WM_AGENT_CMD` unset: full command prefix before prompt (otherwise runs `codex -p`). |
+| _(default)_ | `claude -p <prompt>` when `engine:` is `claude` or empty. |
+| `copilot` | **`engine: copilot`** requires `WM_AGENT_CMD` (no default CLI). |
 
-Environment passed to subprocess includes `GITHUB_REPOSITORY` (from env) and `WM_TASK=<task name>`.
+Subprocess env includes `GITHUB_REPOSITORY`, `WM_TASK`, and **`WM_TASK_TOOLS`** when `tools:` is set in the task frontmatter (JSON for structured values).
+
+**Post-agent:** `safe-outputs` keys drive [`internal/output`](../internal/output/) (PR / labels / comment). **`WM_CHECKPOINT=1`** enables loading/posting checkpoint comments ([`internal/engine/runner.go`](../internal/engine/runner.go)).
 
 **Secrets (CI):** `ANTHROPIC_API_KEY` is expected by reusable workflow for Claude Code; ensure the agent you invoke uses it as required.
 
@@ -105,21 +119,27 @@ Environment passed to subprocess includes `GITHUB_REPOSITORY` (from env) and `WM
 
 ## `status`
 
-**Purpose:** List open issues with common agent labels (wrapper around `gh`).
+**Purpose:** List issues with agent-related labels.
 
 **Usage:** `gh wm status`
 
-Runs approximately: `gh issue list --label agent,agent:working,agent:review …` ([`cmd/status.go`](../cmd/status.go)).
+**Flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--all` | `false` | Use `gh search issues` across visible repositories instead of `gh issue list` for the current repo |
+
+See [`cmd/status.go`](../cmd/status.go).
 
 ---
 
 ## `logs`
 
-**Purpose:** Show recent **`wm-agent`** workflow runs (not fully issue-scoped yet).
+**Purpose:** List **`wm-agent`** workflow runs; prefers runs whose **title contains** `#<issue-number>`.
 
 **Usage:** `gh wm logs <issue-number>`
 
-**Note:** Issue number is validated but listing uses `gh run list --workflow wm-agent.yml` ([`cmd/logs.go`](../cmd/logs.go))—treat as a quick visibility helper.
+If none match, prints recent runs with a note. See [`cmd/logs.go`](../cmd/logs.go).
 
 ---
 
@@ -128,7 +148,10 @@ Runs approximately: `gh issue list --label agent,agent:working,agent:review …`
 | Variable | Used by |
 |----------|---------|
 | `GITHUB_EVENT_NAME`, `GITHUB_EVENT_PATH` | `resolve`, `run` when flags omitted |
-| `GITHUB_REPOSITORY` | Passed to agent; should be set in Actions |
+| `GITHUB_REPOSITORY` | Agent + `gh` outputs; required for labels/comments |
 | `WM_SCHEDULE_CRON` | `resolve` schedule narrowing ([`resolver.go`](../internal/engine/resolver.go)) |
 | `WM_AGENT_CMD` | Override agent command ([`agent.go`](../internal/engine/agent.go)) |
+| `WM_ENGINE_CODEX_CMD` | Codex CLI prefix when `engine: codex` |
+| `WM_TASK_TOOLS` | Set automatically from `tools:` (read by agent) |
+| `WM_CHECKPOINT` | Set to `1` to enable checkpoint load/post |
 | `GH_WM_REPO` | `init`, `upgrade` for reusable workflow owner/repo |

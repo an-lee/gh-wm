@@ -19,6 +19,8 @@ type TaskContext struct {
 	CommentID   int64
 	LabelName   string
 	ScheduleCron string // when event is schedule, which cron fired
+	// CheckpointHint is injected into the agent prompt when WM_CHECKPOINT=1 and a prior checkpoint exists.
+	CheckpointHint string
 }
 
 // AgentResult is produced after running the agent subprocess.

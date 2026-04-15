@@ -1,6 +1,6 @@
 # gh-wm documentation
 
-**gh-wm** is a Go [`gh` CLI extension](https://docs.github.com/en/github-cli/github-cli/creating-github-cli-extensions) that runs **gh-aw–compatible** task files (Markdown + YAML frontmatter) from `.wm/tasks/` **without** compiling to lockfiles, without AWF, and without enforcing `safe-outputs` (those fields are treated as hints).
+**gh-wm** is a Go [`gh` CLI extension](https://docs.github.com/en/github-cli/github-cli/creating-github-cli-extensions) that runs **gh-aw–compatible** task files (Markdown + YAML frontmatter) from `.wm/tasks/` **without** compiling to lockfiles, without AWF, and without enforcing gh-aw **limits** in `safe-outputs` (those keys still **select** optional post-agent steps such as PR creation and comments).
 
 This folder is the **canonical reference** for how the project works and how to extend it.
 
@@ -22,6 +22,6 @@ This folder is the **canonical reference** for how the project works and how to 
 
 ## One-sentence mental model
 
-**GitHub delivers an event → `gh wm resolve` lists matching task names → Actions runs `gh wm run --task <name>` per match; each run loads the task markdown body as the agent prompt and invokes the agent CLI (default: `claude -p`).**
+**GitHub delivers an event → `gh wm resolve` lists matching task names → Actions runs `gh wm run --task <name>` per match; each run runs the agent (default: `claude -p`), then optional `safe-outputs` steps (`gh pr create`, labels, issue/PR comment) and `wm.state_labels` updates.**
 
 For install and a minimal user quick start, see the repository [README](../README.md).

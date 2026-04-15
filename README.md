@@ -1,6 +1,6 @@
 # gh-wm — Workflow Manager for personal agentic development
 
-`gh-wm` is a **Go** [`gh` CLI extension](https://docs.github.com/en/github-cli/github-cli/creating-github-cli-extensions) that runs **gh-aw–compatible** task files (Markdown + YAML frontmatter) from `.wm/tasks/` without compiling to lockfiles, without AWF, and without enforcing `safe-outputs` (those fields are treated as hints).
+`gh-wm` is a **Go** [`gh` CLI extension](https://docs.github.com/en/github-cli/github-cli/creating-github-cli-extensions) that runs **gh-aw–compatible** task files (Markdown + YAML frontmatter) from `.wm/tasks/` without compiling to lockfiles, without AWF, and without enforcing gh-aw **limits** in `safe-outputs` (keys still **select** optional post-agent steps).
 
 ## Documentation
 
@@ -54,16 +54,17 @@ gh wm upgrade
 |--------|---------|
 | `gh wm init` | Scaffold `.wm/`, tasks, and `wm-agent.yml` |
 | `gh wm upgrade` | Regenerate `wm-agent.yml` (union of schedules from tasks) |
+| `gh wm add <url-or-path>` | Add a task `.md` under `.wm/tasks/` (then run `upgrade`) |
 | `gh wm assign <n>` | Add label (default `agent`) to issue `#n` |
 | `gh wm resolve` | List task names matching `GITHUB_EVENT` / payload |
-| `gh wm run --task <name>` | Run one task for the current event |
-| `gh wm status` | List issues with agent-related labels |
-| `gh wm logs <n>` | List recent `wm-agent` workflow runs |
+| `gh wm run --task <name>` | Run one task (agent + optional `safe-outputs` / labels) |
+| `gh wm status` | List issues with agent-related labels (`--all` = `gh search`) |
+| `gh wm logs <n>` | List `wm-agent` runs (best-effort match on `#n` in title) |
 
 ### CI entrypoints
 
 - **`gh wm resolve`** — reads `--payload` (or `GITHUB_EVENT_PATH`), prints JSON array of matching task names.
-- **`gh wm run --task …`** — runs the agent (default: `claude -p` with task body + `CLAUDE.md`). Override with `WM_AGENT_CMD`.
+- **`gh wm run --task …`** — runs the agent (default: `claude -p` with task body + `CLAUDE.md`; `timeout-minutes` from frontmatter). Override with `WM_AGENT_CMD`. On success, runs `safe-outputs` steps (e.g. PR, comment) and optional `wm.state_labels`. Use `WM_CHECKPOINT=1` for checkpoint load/post.
 
 ### Secrets
 

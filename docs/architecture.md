@@ -9,7 +9,7 @@
 
 ## High-level pipeline
 
-Each task conceptually follows **trigger → resolve → run agent**. The current codebase implements **event matching** and **agent execution**; structured “output handlers” (auto-open PR, post comment) as separate Go modules are part of the long-term design but **not** wired in `engine` yet—the agent is expected to use Git/`gh` itself.
+Each task follows **trigger → resolve → run agent → optional outputs**. After a **successful** agent run, [`internal/output`](../internal/output/) runs steps implied by `safe-outputs:` keys (hints only; not enforced like gh-aw). If `wm.state_labels` is set, [`internal/engine/state.go`](../internal/engine/state.go) updates labels around the run.
 
 ```mermaid
 flowchart LR
@@ -24,7 +24,8 @@ flowchart LR
 
   subgraph engine [Go engine]
     Resolve[ResolveMatchingTasks]
-    Run[RunTask plus runAgent]
+    Run[RunTask]
+    Out[RunSuccessOutputs]
   end
 
   subgraph agent [Agent subprocess]
@@ -39,19 +40,23 @@ flowchart LR
   WD --> Resolve
   Resolve --> Run
   Run --> Claude
+  Claude --> Out
 ```
+
+Optional **checkpoints** ([`internal/checkpoint`](../internal/checkpoint/checkpoint.go)): when `WM_CHECKPOINT=1`, the runner loads the latest checkpoint from issue comments into the prompt before the agent, and posts a new checkpoint comment after a successful run (before/after also tied to outputs and state labels—see [`internal/engine/runner.go`](../internal/engine/runner.go)).
 
 ## Code map
 
 | Concern | Location | Role |
 |---------|----------|------|
-| CLI entry | [`cmd/`](../cmd/) | Cobra commands: `init`, `upgrade`, `assign`, `resolve`, `run`, `status`, `logs`. |
+| CLI entry | [`cmd/`](../cmd/) | Cobra commands: `init`, `upgrade`, `assign`, `resolve`, `run`, `status`, `logs`, `add`. |
 | Config + tasks | [`internal/config/`](../internal/config/) | Load `.wm/config.yml`, parse `.wm/tasks/*.md` frontmatter ([`frontmatter.go`](../internal/config/frontmatter.go)). |
 | Event → task names | [`internal/trigger/match.go`](../internal/trigger/match.go) | `MatchOnOR`: implements `on:` OR-semantics against [`types.GitHubEvent`](../internal/types/types.go). |
-| Orchestration | [`internal/engine/`](../internal/engine/) | `ResolveMatchingTasks` ([`resolver.go`](../internal/engine/resolver.go)), `RunTask` + `runAgent` ([`runner.go`](../internal/engine/runner.go), [`agent.go`](../internal/engine/agent.go)). |
+| Orchestration | [`internal/engine/`](../internal/engine/) | `ResolveMatchingTasks` ([`resolver.go`](../internal/engine/resolver.go)), `RunTask` ([`runner.go`](../internal/engine/runner.go)), `runAgent` ([`agent.go`](../internal/engine/agent.go)), state labels ([`state.go`](../internal/engine/state.go)). |
+| Post-agent steps | [`internal/output/`](../internal/output/) | `RunSuccessOutputs`: `create-pull-request`, `add-labels`, `add-comment` when keys exist under `safe-outputs:`. |
 | `wm-agent.yml` generation | [`internal/gen/wmagent.go`](../internal/gen/wmagent.go), [`schedules.go`](../internal/gen/schedules.go) | Union of `on.schedule` strings; writes caller workflow. |
-| Embedded templates | [`internal/templates/`](../internal/templates/) | Starters for init (`config.yml`, tasks, `CLAUDE.md`). |
-| Optional checkpoint format | [`internal/checkpoint/`](../internal/checkpoint/checkpoint.go) | Encode/decode `<!-- wm-checkpoint: … -->` comments (library present; not yet integrated into `RunTask`). |
+| Embedded templates | [`internal/templates/`](../internal/templates/) | Starters for `gh wm init` (`config.yml`, tasks, `CLAUDE.md`). |
+| GitHub API helpers | [`internal/ghclient/`](../internal/ghclient/) | Labels, issue comments (`gh api`). |
 
 ## GitHub Actions: two reusable workflows
 
@@ -86,11 +91,11 @@ flowchart LR
 
 ## Run behavior details
 
-- [`engine.RunTask`](../internal/engine/runner.go) loads config + tasks, finds the task by filename stem, builds [`TaskContext`](../internal/types/types.go) (repo path, `GITHUB_REPOSITORY`, issue/PR numbers from payload), then calls `runAgent`.
-- [`runAgent`](../internal/engine/agent.go) builds the prompt from the task body + optional context files from `context.files` in `.wm/config.yml`, then runs `WM_AGENT_CMD` if set, else `claude -p <prompt>`.
-- **Timeout**: The `run` command uses a **45-minute** context timeout ([`cmd/run.go`](../cmd/run.go)); `timeout-minutes` in frontmatter is not yet applied as a hard deadline in code.
+- [`engine.RunTask`](../internal/engine/runner.go) loads config + tasks, builds [`TaskContext`](../internal/types/types.go), optionally loads checkpoint text, applies **working** label if `wm.state_labels` is set, runs `runAgent`, then on success runs **`output.RunSuccessOutputs`** (PR / labels / comment), posts a checkpoint comment if `WM_CHECKPOINT=1`, then applies **done** labels; on failure it applies **failed** labels.
+- [`runAgent`](../internal/engine/agent.go) builds the prompt from the task body + `context.files` + optional checkpoint hint; sets `WM_TASK_TOOLS` when `tools:` is present; selects CLI via `WM_AGENT_CMD` or `engine:` (`claude`, `codex`, `copilot` requires `WM_AGENT_CMD`).
+- **Timeout**: [`cmd/run`](../cmd/run.go) uses `timeout-minutes` from task frontmatter (default 45, max 480).
 
 ## Security posture (minimal)
 
 - No sandbox or `safe-outputs` enforcement in-process; workflow permissions and branch protection apply.
-- Draft PR defaults live in config for **future** automation; agent behavior depends on the invoked CLI.
+- Draft PR defaults in `safe-outputs` / `.wm/config.yml` feed `gh pr create` when `create-pull-request` is listed.

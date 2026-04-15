@@ -48,7 +48,7 @@ Loaded by [`config.Load`](../internal/config/config.go). Struct: [`GlobalConfig`
 | `model` | Reserved for agent configuration (not consumed by `runAgent` today). |
 | `max_turns` | Reserved (defaulted in [`DefaultGlobal`](../internal/config/config.go)). |
 | `context.files` | Paths **relative to repo root** read and **appended** to the prompt ([`engine/agent.go`](../internal/engine/agent.go)). |
-| `pr.draft`, `pr.reviewers` | Intended for future PR automation; not applied by the runner today. |
+| `pr.draft`, `pr.reviewers` | Defaults merged with `safe-outputs.create-pull-request` for `gh pr create`. |
 
 Starter template: [`internal/templates/data/config.yml`](../internal/templates/data/config.yml).
 
@@ -78,20 +78,32 @@ In frontmatter, `on.schedule` is a **string** (see [`Task.ScheduleString`](../in
 | `hourly` | `0 * * * *` |
 | other | used as-is (must be valid cron for GitHub Actions) |
 
-## gh-aw fields — expectations
+## `safe-outputs:` — implemented vs hints
 
-| Field | In gh-wm today |
-|-------|------------------|
+Keys under `safe-outputs:` select **post-agent** behavior in [`internal/output`](../internal/output/). **Limits** (`max:`, etc.) are **not enforced**; they are gh-aw-compatible hints only.
+
+| Key | When present | Behavior |
+|-----|----------------|----------|
+| `create-pull-request` | Yes | After success, if `git` has commits ahead of `origin/<default-branch>`, `git push` + `gh pr create` (draft/labels from block + global `pr.*`). |
+| `add-labels` | Yes | After success, adds each name in `add-labels.labels` via `gh api`. |
+| `add-comment` | Yes | After success, posts agent stdout/summary as `gh issue comment` or `gh pr comment`. |
+
+**Order of execution:** create-pull-request → add-labels → add-comment.
+
+Other gh-aw keys (`create-issue`, `create-discussion`, …) are **not** implemented as automated outputs yet.
+
+## Other frontmatter fields
+
+| Field | In gh-wm |
+|-------|----------|
 | `on:` | **Used** for matching (see table above). |
 | `description:` | Stored in frontmatter; useful for humans/tools. |
-| `engine:` | Read for future use; default agent still `claude -p` unless `WM_AGENT_CMD` is set. |
-| `safe-outputs:` | **Not enforced**. Treat as **hints** for authors and agents. |
-| `timeout-minutes:` | **Not wired** to `run` timeout (CLI uses a fixed long timeout). |
-| `permissions:`, `network:`, `imports:` | Not interpreted; consider documenting in your task if migrating from gh-aw. |
+| `engine:` | Selects backend when `WM_AGENT_CMD` is unset: `claude` (default), `codex` (`codex -p` or `WM_ENGINE_CODEX_CMD`), `copilot` requires `WM_AGENT_CMD`. |
+| `timeout-minutes:` | **Used** by [`cmd/run`](../cmd/run.go) for the context timeout (capped). |
+| `tools:` | Serialized to env **`WM_TASK_TOOLS`** for the agent subprocess (JSON if structured). |
+| `permissions:`, `network:`, `imports:` | Not interpreted. |
 
 ## `wm:` extension (gh-wm–specific)
-
-Parsed as YAML into frontmatter; intended for options **ignored by gh-aw**, e.g.:
 
 ```yaml
 wm:
@@ -101,14 +113,13 @@ wm:
     failed: "agent:failed"
 ```
 
-[`WMExtension`](../internal/config/types.go) defines `state_labels`. **Applying** these labels during runs is not implemented in the engine yet—this is reserved for stateful workflows.
+If set, [`engine/state.go`](../internal/engine/state.go) adds/removes these labels around the run (requires `GITHUB_REPOSITORY` and an issue/PR number in the event).
 
-## Checkpoint comments (optional future use)
+## Checkpoint comments (optional)
 
-Format supported by [`checkpoint.Encode`](../internal/checkpoint/checkpoint.go):
+Set **`WM_CHECKPOINT=1`** to:
 
-```html
-<!-- wm-checkpoint: {"branch":"…","sha":"…","step":"…",…} -->
-```
+1. Load the latest `<!-- wm-checkpoint: … -->` from issue comments into the prompt ([`checkpoint.ParseLatest`](../internal/checkpoint/checkpoint.go)).
+2. After a successful run, post a new checkpoint comment with the latest agent summary.
 
-The engine does not automatically read or write these yet; integrations can use the package directly.
+Format is defined in [`checkpoint.Encode`](../internal/checkpoint/checkpoint.go).

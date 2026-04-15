@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gh-wm/gh-wm/internal/config"
 	"github.com/gh-wm/gh-wm/internal/engine"
 	"github.com/spf13/cobra"
 )
@@ -47,7 +48,22 @@ func runRun(_ *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Minute)
+	_, tasks, err := config.Load(runRepoRoot)
+	if err != nil {
+		return err
+	}
+	var task *config.Task
+	for _, t := range tasks {
+		if t.Name == runTask {
+			task = t
+			break
+		}
+	}
+	if task == nil {
+		return fmt.Errorf("task not found: %s", runTask)
+	}
+	min := task.TimeoutMinutes(45)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(min)*time.Minute)
 	defer cancel()
 	res, err := engine.RunTask(ctx, runRepoRoot, runTask, ev)
 	if res != nil {

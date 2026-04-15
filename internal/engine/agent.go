@@ -18,7 +18,6 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 	if prompt == "" {
 		prompt = task.Name + ": process repository event."
 	}
-	// Append context files
 	for _, f := range glob.Context.Files {
 		p := filepath.Join(tc.RepoPath, f)
 		b, err := os.ReadFile(p)
@@ -27,11 +26,14 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 		}
 		prompt += "\n\n---\n## " + f + "\n\n" + string(b)
 	}
-	engine := task.Engine()
-	if engine == "" {
-		engine = glob.Engine
+	if strings.TrimSpace(tc.CheckpointHint) != "" {
+		prompt += "\n\n---\n## Previous checkpoint\n\n" + strings.TrimSpace(tc.CheckpointHint)
 	}
-	_ = engine // future: switch copilot/codex
+
+	engineName := task.Engine()
+	if engineName == "" {
+		engineName = glob.Engine
+	}
 
 	cmdLine := os.Getenv("WM_AGENT_CMD")
 	var cmd *exec.Cmd
@@ -39,14 +41,30 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 		args := strings.Fields(cmdLine)
 		cmd = exec.CommandContext(ctx, args[0], append(args[1:], prompt)...)
 	} else {
-		// Default: claude -p (Claude Code CLI)
-		cmd = exec.CommandContext(ctx, "claude", "-p", prompt)
+		switch strings.ToLower(strings.TrimSpace(engineName)) {
+		case "codex":
+			if alt := strings.TrimSpace(os.Getenv("WM_ENGINE_CODEX_CMD")); alt != "" {
+				a := strings.Fields(alt)
+				cmd = exec.CommandContext(ctx, a[0], append(a[1:], prompt)...)
+			} else {
+				cmd = exec.CommandContext(ctx, "codex", "-p", prompt)
+			}
+		case "copilot":
+			err := fmt.Errorf("engine copilot: set WM_AGENT_CMD to invoke your Copilot-compatible CLI")
+			return &types.AgentResult{Success: false, ExitCode: -1, Stderr: err.Error()}, err
+		default:
+			cmd = exec.CommandContext(ctx, "claude", "-p", prompt)
+		}
 	}
 	cmd.Dir = tc.RepoPath
-	cmd.Env = append(os.Environ(),
+	env := append(os.Environ(),
 		"GITHUB_REPOSITORY="+tc.Repo,
 		fmt.Sprintf("WM_TASK=%s", tc.TaskName),
 	)
+	if tools := task.ToolsYAML(); tools != "" {
+		env = append(env, "WM_TASK_TOOLS="+tools)
+	}
+	cmd.Env = env
 	out, err := cmd.CombinedOutput()
 	res := &types.AgentResult{
 		Stdout:   string(out),
