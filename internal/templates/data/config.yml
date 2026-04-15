@@ -1,0 +1,13 @@
+version: 1
+
+engine: claude
+model: claude-sonnet-4-20250514
+max_turns: 100
+
+context:
+  files:
+    - CLAUDE.md
+
+pr:
+  draft: true
+  reviewers: []
