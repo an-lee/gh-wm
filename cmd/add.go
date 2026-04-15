@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gh-wm/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/spf13/cobra"
 )
 

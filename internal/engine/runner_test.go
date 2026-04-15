@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gh-wm/gh-wm/internal/types"
+	"github.com/an-lee/gh-wm/internal/types"
 )
 
 func TestRunTask_Minimal(t *testing.T) {

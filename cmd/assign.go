@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/gh-wm/gh-wm/internal/ghclient"
+	"github.com/an-lee/gh-wm/internal/ghclient"
 	"github.com/spf13/cobra"
 )
 

@@ -7,8 +7,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/gh-wm/gh-wm/internal/config"
-	"github.com/gh-wm/gh-wm/internal/types"
+	"github.com/an-lee/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/types"
 )
 
 const maxCommentBody = 60000

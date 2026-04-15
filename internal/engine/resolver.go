@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gh-wm/gh-wm/internal/config"
-	"github.com/gh-wm/gh-wm/internal/trigger"
-	"github.com/gh-wm/gh-wm/internal/types"
+	"github.com/an-lee/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/trigger"
+	"github.com/an-lee/gh-wm/internal/types"
 )
 
 // ResolveMatchingTasks returns task names that match the event.

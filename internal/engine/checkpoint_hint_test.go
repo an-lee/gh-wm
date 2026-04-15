@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/gh-wm/gh-wm/internal/types"
+	"github.com/an-lee/gh-wm/internal/types"
 )
 
 func installFakeGH(t *testing.T) {

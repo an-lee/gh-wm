@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/gh-wm/gh-wm/cmd"
+	"github.com/an-lee/gh-wm/cmd"
 )
 
 func main() {

@@ -6,18 +6,18 @@
 
 Full docs for humans and AI agents live under **[`docs/`](docs/README.md)** (Markdown in [`docs/content/`](docs/content/), Hugo in the same folder). A browsable HTML version is published at **[https://gh-wm.github.io/gh-wm/](https://gh-wm.github.io/gh-wm/)**.
 
-| Doc | Contents |
-|-----|----------|
-| [docs/content/_index.md](docs/content/_index.md) | Index and mental model |
-| [docs/content/architecture.md](docs/content/architecture.md) | Pipelines, code map, GitHub Actions |
-| [docs/content/task-format.md](docs/content/task-format.md) | `.wm/config.yml`, `on:` semantics, gh-aw notes |
-| [docs/content/cli-reference.md](docs/content/cli-reference.md) | Commands, flags, environment variables |
-| [docs/content/development.md](docs/content/development.md) | Contributing and extending the Go codebase |
+| Doc                                                            | Contents                                       |
+| -------------------------------------------------------------- | ---------------------------------------------- |
+| [docs/content/\_index.md](docs/content/_index.md)              | Index and mental model                         |
+| [docs/content/architecture.md](docs/content/architecture.md)   | Pipelines, code map, GitHub Actions            |
+| [docs/content/task-format.md](docs/content/task-format.md)     | `.wm/config.yml`, `on:` semantics, gh-aw notes |
+| [docs/content/cli-reference.md](docs/content/cli-reference.md) | Commands, flags, environment variables         |
+| [docs/content/development.md](docs/content/development.md)     | Contributing and extending the Go codebase     |
 
 ## Install
 
 ```bash
-go install github.com/gh-wm/gh-wm@latest
+go install github.com/an-lee/gh-wm@latest
 # or build from this repo
 go build -o gh-wm .
 ```
@@ -50,16 +50,16 @@ gh wm upgrade
 
 ## Commands
 
-| Command | Purpose |
-|--------|---------|
-| `gh wm init` | Scaffold `.wm/`, tasks, and `wm-agent.yml` |
-| `gh wm upgrade` | Regenerate `wm-agent.yml` (union of schedules from tasks) |
-| `gh wm add <url-or-path>` | Add a task `.md` under `.wm/tasks/` (then run `upgrade`) |
-| `gh wm assign <n>` | Add label (default `agent`) to issue `#n` |
-| `gh wm resolve` | List task names matching `GITHUB_EVENT` / payload |
-| `gh wm run --task <name>` | Run one task (agent + optional `safe-outputs` / labels) |
-| `gh wm status` | List issues with agent-related labels (`--all` = `gh search`) |
-| `gh wm logs <n>` | List `wm-agent` runs (best-effort match on `#n` in title) |
+| Command                   | Purpose                                                       |
+| ------------------------- | ------------------------------------------------------------- |
+| `gh wm init`              | Scaffold `.wm/`, tasks, and `wm-agent.yml`                    |
+| `gh wm upgrade`           | Regenerate `wm-agent.yml` (union of schedules from tasks)     |
+| `gh wm add <url-or-path>` | Add a task `.md` under `.wm/tasks/` (then run `upgrade`)      |
+| `gh wm assign <n>`        | Add label (default `agent`) to issue `#n`                     |
+| `gh wm resolve`           | List task names matching `GITHUB_EVENT` / payload             |
+| `gh wm run --task <name>` | Run one task (agent + optional `safe-outputs` / labels)       |
+| `gh wm status`            | List issues with agent-related labels (`--all` = `gh search`) |
+| `gh wm logs <n>`          | List `wm-agent` runs (best-effort match on `#n` in title)     |
 
 ### CI entrypoints
 

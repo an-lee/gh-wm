@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gh-wm/gh-wm/internal/config"
-	"github.com/gh-wm/gh-wm/internal/types"
+	"github.com/an-lee/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/types"
 )
 
 func TestRunAgent_WM_AGENT_CMD(t *testing.T) {

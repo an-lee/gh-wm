@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gh-wm/gh-wm/internal/config"
-	"github.com/gh-wm/gh-wm/internal/types"
+	"github.com/an-lee/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/types"
 )
 
 // runAgent invokes the configured AI CLI with task body + optional context files.

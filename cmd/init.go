@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gh-wm/gh-wm/internal/gen"
-	"github.com/gh-wm/gh-wm/internal/templates"
+	"github.com/an-lee/gh-wm/internal/gen"
+	"github.com/an-lee/gh-wm/internal/templates"
 	"github.com/spf13/cobra"
 )
 

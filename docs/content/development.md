@@ -21,7 +21,7 @@ go build -o gh-wm .
 Install via module path:
 
 ```bash
-go install github.com/gh-wm/gh-wm@latest
+go install github.com/an-lee/gh-wm@latest
 ```
 
 ## Documentation site (Hugo)
@@ -36,21 +36,21 @@ Deployment runs via [`.github/workflows/pages.yml`](../../.github/workflows/page
 
 ## Repository layout
 
-| Path | Role |
-|------|------|
-| [`main.go`](../../main.go) | Calls `cmd.Execute()`. |
-| [`cmd/`](../../cmd/) | Cobra commands; keep thin—delegate to `internal/`. |
-| [`internal/config/`](../../internal/config/) | YAML + markdown frontmatter loading. |
-| [`internal/engine/`](../../internal/engine/) | Resolve + run + agent + state labels + checkpoint wiring. |
-| [`internal/output/`](../../internal/output/) | Post-agent steps from `safe-outputs:` keys. |
-| [`internal/trigger/`](../../internal/trigger/) | `on:` matching (`match.go`). |
-| [`internal/types/`](../../internal/types/) | `GitHubEvent`, `TaskContext`, `AgentResult`. |
-| [`internal/gen/`](../../internal/gen/) | `wm-agent.yml` and schedule collection. |
-| [`internal/templates/`](../../internal/templates/) | Embedded files for `gh wm init`. |
-| [`internal/ghclient/`](../../internal/ghclient/) | `gh api` helpers (labels, comments). |
-| [`internal/checkpoint/`](../../internal/checkpoint/checkpoint.go) | Checkpoint HTML comments. |
-| [`docs/`](../../docs/) | Hugo site ([`hugo.toml`](../../docs/hugo.toml), [`content/`](../../docs/content/)) for [GitHub Pages](https://gh-wm.github.io/gh-wm/). |
-| [`.github/workflows/`](../../.github/workflows/) | CI + reusable workflows + release + Pages. |
+| Path                                                              | Role                                                                                                                                   |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| [`main.go`](../../main.go)                                        | Calls `cmd.Execute()`.                                                                                                                 |
+| [`cmd/`](../../cmd/)                                              | Cobra commands; keep thin—delegate to `internal/`.                                                                                     |
+| [`internal/config/`](../../internal/config/)                      | YAML + markdown frontmatter loading.                                                                                                   |
+| [`internal/engine/`](../../internal/engine/)                      | Resolve + run + agent + state labels + checkpoint wiring.                                                                              |
+| [`internal/output/`](../../internal/output/)                      | Post-agent steps from `safe-outputs:` keys.                                                                                            |
+| [`internal/trigger/`](../../internal/trigger/)                    | `on:` matching (`match.go`).                                                                                                           |
+| [`internal/types/`](../../internal/types/)                        | `GitHubEvent`, `TaskContext`, `AgentResult`.                                                                                           |
+| [`internal/gen/`](../../internal/gen/)                            | `wm-agent.yml` and schedule collection.                                                                                                |
+| [`internal/templates/`](../../internal/templates/)                | Embedded files for `gh wm init`.                                                                                                       |
+| [`internal/ghclient/`](../../internal/ghclient/)                  | `gh api` helpers (labels, comments).                                                                                                   |
+| [`internal/checkpoint/`](../../internal/checkpoint/checkpoint.go) | Checkpoint HTML comments.                                                                                                              |
+| [`docs/`](../../docs/)                                            | Hugo site ([`hugo.toml`](../../docs/hugo.toml), [`content/`](../../docs/content/)) for [GitHub Pages](https://gh-wm.github.io/gh-wm/). |
+| [`.github/workflows/`](../../.github/workflows/)                  | CI + reusable workflows + release + Pages.                                                                                             |
 
 ## Extending `on:` matching
 

@@ -27,7 +27,7 @@ jobs:
           go-version: stable
 
       - name: Install gh-wm
-        run: go install github.com/gh-wm/gh-wm@latest
+        run: go install github.com/an-lee/gh-wm@latest
         env:
           GOBIN: ${{ runner.temp }}/bin
 

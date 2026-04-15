@@ -3,7 +3,7 @@ package trigger
 import (
 	"strings"
 
-	"github.com/gh-wm/gh-wm/internal/types"
+	"github.com/an-lee/gh-wm/internal/types"
 )
 
 // MatchOnOR returns true if any sub-trigger in on: matches (gh-aw / Actions semantics).

@@ -24,7 +24,7 @@ disableKinds = ['taxonomy', 'term']
   UseHugoToc = true
   disableThemeToggle = false
   DateFormat = '2006-01-02'
-  github_repo = 'https://github.com/gh-wm/gh-wm'
+  github_repo = 'https://github.com/an-lee/gh-wm'
   github_branch = 'main'
 
   [params.homeInfoParams]

@@ -1,7 +1,7 @@
 package gen
 
 import (
-	"github.com/gh-wm/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/config"
 )
 
 // CollectSchedulesFromTasksDir reads all tasks and unions on.schedule strings.

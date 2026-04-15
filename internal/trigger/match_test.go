@@ -3,7 +3,7 @@ package trigger
 import (
 	"testing"
 
-	"github.com/gh-wm/gh-wm/internal/types"
+	"github.com/an-lee/gh-wm/internal/types"
 )
 
 func TestMatchOnOR_Nil(t *testing.T) {

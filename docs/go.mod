@@ -1,4 +1,4 @@
-module github.com/gh-wm/gh-wm/docs
+module github.com/an-lee/gh-wm/docs
 
 go 1.26.1
 

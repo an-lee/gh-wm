@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/gh-wm/gh-wm/internal/config"
-	"github.com/gh-wm/gh-wm/internal/types"
+	"github.com/an-lee/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/types"
 )
 
 func TestRunSuccessOutputs_NilShortCircuit(t *testing.T) {

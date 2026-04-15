@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gh-wm/gh-wm/internal/config"
-	"github.com/gh-wm/gh-wm/internal/ghclient"
-	"github.com/gh-wm/gh-wm/internal/types"
+	"github.com/an-lee/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/ghclient"
+	"github.com/an-lee/gh-wm/internal/types"
 )
 
 func runLabelOutput(_ context.Context, _ *config.GlobalConfig, task *config.Task, tc *types.TaskContext, _ *types.AgentResult) error {
