@@ -1,6 +1,6 @@
 # CLI reference
 
-The extension is invoked as **`gh wm <subcommand>`** when installed via `gh extension install`. Building from source produces a binary named **`gh-wm`** (same commands as the root Cobra app in [`cmd/root.go`](../cmd/root.go)).
+The extension is invoked as **`gh wm <subcommand>`** when installed via `gh extension install`. Building from source produces a binary named **`gh-wm`** (same commands as the root Cobra app in [`cmd/root.go`](../../cmd/root.go)).
 
 ## Global
 
@@ -15,12 +15,12 @@ The extension is invoked as **`gh wm <subcommand>`** when installed via `gh exte
 
 **Usage:** `gh wm init`
 
-**Steps (see [`cmd/init.go`](../cmd/init.go)):**
+**Steps (see [`cmd/init.go`](../../cmd/init.go)):**
 
 1. Create `.wm/tasks/`.
-2. Write embedded `config.yml` and starter tasks ([`internal/templates`](../internal/templates/)).
+2. Write embedded `config.yml` and starter tasks ([`internal/templates`](../../internal/templates/)).
 3. Write `CLAUDE.md` in repo root if missing (from template).
-4. Collect schedules from `.wm/tasks` and generate `wm-agent.yml` via [`gen.WriteWMAgent`](../internal/gen/wmagent.go).
+4. Collect schedules from `.wm/tasks` and generate `wm-agent.yml` via [`gen.WriteWMAgent`](../../internal/gen/wmagent.go).
 
 **Environment:**
 
@@ -50,7 +50,7 @@ The extension is invoked as **`gh wm <subcommand>`** when installed via `gh exte
 |------|---------|-------------|
 | `--label` | `agent` | Label name to add |
 
-**Implementation:** [`ghclient.AddIssueLabel`](../internal/ghclient/ghclient.go) via `gh api`.
+**Implementation:** [`ghclient.AddIssueLabel`](../../internal/ghclient/ghclient.go) via `gh api`.
 
 ---
 
@@ -60,7 +60,7 @@ The extension is invoked as **`gh wm <subcommand>`** when installed via `gh exte
 
 **Usage:** `gh wm add <url-or-path>`
 
-Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run `gh wm upgrade`. See [`cmd/add.go`](../cmd/add.go).
+Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run `gh wm upgrade`. See [`cmd/add.go`](../../cmd/add.go).
 
 ---
 
@@ -98,9 +98,9 @@ Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run `gh wm upgra
 | `--event-name` | `$GITHUB_EVENT_NAME` | Event name |
 | `--payload` | `$GITHUB_EVENT_PATH` | Path to event JSON |
 
-**Timeout:** Uses `timeout-minutes` from task frontmatter (default **45**, max **480**). See [`cmd/run.go`](../cmd/run.go).
+**Timeout:** Uses `timeout-minutes` from task frontmatter (default **45**, max **480**). See [`cmd/run.go`](../../cmd/run.go).
 
-**Agent invocation ([`internal/engine/agent.go`](../internal/engine/agent.go)):**
+**Agent invocation ([`internal/engine/agent.go`](../../internal/engine/agent.go)):**
 
 | Variable | Meaning |
 |----------|---------|
@@ -111,7 +111,7 @@ Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run `gh wm upgra
 
 Subprocess env includes `GITHUB_REPOSITORY`, `WM_TASK`, and **`WM_TASK_TOOLS`** when `tools:` is set in the task frontmatter (JSON for structured values).
 
-**Post-agent:** `safe-outputs` keys drive [`internal/output`](../internal/output/) (PR / labels / comment). **`WM_CHECKPOINT=1`** enables loading/posting checkpoint comments ([`internal/engine/runner.go`](../internal/engine/runner.go)).
+**Post-agent:** `safe-outputs` keys drive [`internal/output`](../../internal/output/) (PR / labels / comment). **`WM_CHECKPOINT=1`** enables loading/posting checkpoint comments ([`internal/engine/runner.go`](../../internal/engine/runner.go)).
 
 **Secrets (CI):** `ANTHROPIC_API_KEY` is expected by reusable workflow for Claude Code; ensure the agent you invoke uses it as required.
 
@@ -129,7 +129,7 @@ Subprocess env includes `GITHUB_REPOSITORY`, `WM_TASK`, and **`WM_TASK_TOOLS`** 
 |------|---------|-------------|
 | `--all` | `false` | Use `gh search issues` across visible repositories instead of `gh issue list` for the current repo |
 
-See [`cmd/status.go`](../cmd/status.go).
+See [`cmd/status.go`](../../cmd/status.go).
 
 ---
 
@@ -139,7 +139,7 @@ See [`cmd/status.go`](../cmd/status.go).
 
 **Usage:** `gh wm logs <issue-number>`
 
-If none match, prints recent runs with a note. See [`cmd/logs.go`](../cmd/logs.go).
+If none match, prints recent runs with a note. See [`cmd/logs.go`](../../cmd/logs.go).
 
 ---
 
@@ -149,8 +149,8 @@ If none match, prints recent runs with a note. See [`cmd/logs.go`](../cmd/logs.g
 |----------|---------|
 | `GITHUB_EVENT_NAME`, `GITHUB_EVENT_PATH` | `resolve`, `run` when flags omitted |
 | `GITHUB_REPOSITORY` | Agent + `gh` outputs; required for labels/comments |
-| `WM_SCHEDULE_CRON` | `resolve` schedule narrowing ([`resolver.go`](../internal/engine/resolver.go)) |
-| `WM_AGENT_CMD` | Override agent command ([`agent.go`](../internal/engine/agent.go)) |
+| `WM_SCHEDULE_CRON` | `resolve` schedule narrowing ([`resolver.go`](../../internal/engine/resolver.go)) |
+| `WM_AGENT_CMD` | Override agent command ([`agent.go`](../../internal/engine/agent.go)) |
 | `WM_ENGINE_CODEX_CMD` | Codex CLI prefix when `engine: codex` |
 | `WM_TASK_TOOLS` | Set automatically from `tools:` (read by agent) |
 | `WM_CHECKPOINT` | Set to `1` to enable checkpoint load/post |

@@ -17,7 +17,7 @@ Tasks live under **`.wm/tasks/`** as `*.md` files. The **filename without `.md`*
 
 - **YAML frontmatter** is required: first line `---`, closing `---`, then the **markdown body**.
 - The **body** is the **agent prompt** (plus optional files appended per `.wm/config.yml`—see below).
-- Files named `*.md.disabled` are skipped ([`LoadTasksDir`](../internal/config/frontmatter.go)).
+- Files named `*.md.disabled` are skipped ([`LoadTasksDir`](../../internal/config/frontmatter.go)).
 
 ### Minimal example
 
@@ -39,22 +39,22 @@ Instructions for the agent…
 
 ## `.wm/config.yml` (global)
 
-Loaded by [`config.Load`](../internal/config/config.go). Struct: [`GlobalConfig`](../internal/config/types.go).
+Loaded by [`config.Load`](../../internal/config/config.go). Struct: [`GlobalConfig`](../../internal/config/types.go).
 
 | Field | Purpose |
 |-------|---------|
 | `version` | Schema version (conventionally `1`). |
 | `engine` | Default agent backend name (e.g. `claude`); task can override with `engine:`. |
 | `model` | Reserved for agent configuration (not consumed by `runAgent` today). |
-| `max_turns` | Reserved (defaulted in [`DefaultGlobal`](../internal/config/config.go)). |
-| `context.files` | Paths **relative to repo root** read and **appended** to the prompt ([`engine/agent.go`](../internal/engine/agent.go)). |
+| `max_turns` | Reserved (defaulted in [`DefaultGlobal`](../../internal/config/config.go)). |
+| `context.files` | Paths **relative to repo root** read and **appended** to the prompt ([`engine/agent.go`](../../internal/engine/agent.go)). |
 | `pr.draft`, `pr.reviewers` | Defaults merged with `safe-outputs.create-pull-request` for `gh pr create`. |
 
-Starter template: [`internal/templates/data/config.yml`](../internal/templates/data/config.yml).
+Starter template: [`internal/templates/data/config.yml`](../../internal/templates/data/config.yml).
 
 ## `on:` block — what gh-wm implements
 
-Matching is implemented in [`internal/trigger/match.go`](../internal/trigger/match.go) as **OR across keys**: if **any** supported block matches the incoming event, the task matches.
+Matching is implemented in [`internal/trigger/match.go`](../../internal/trigger/match.go) as **OR across keys**: if **any** supported block matches the incoming event, the task matches.
 
 GitHub’s `GITHUB_EVENT_NAME` must align with the keys below (e.g. `issues`, not `issue`).
 
@@ -69,7 +69,7 @@ GitHub’s `GITHUB_EVENT_NAME` must align with the keys below (e.g. `issues`, no
 
 ### Schedule strings
 
-In frontmatter, `on.schedule` is a **string** (see [`Task.ScheduleString`](../internal/config/types.go)). Recognized aliases when normalizing for `wm-agent.yml` and cron comparison:
+In frontmatter, `on.schedule` is a **string** (see [`Task.ScheduleString`](../../internal/config/types.go)). Recognized aliases when normalizing for `wm-agent.yml` and cron comparison:
 
 | Value | Normalized cron (typical) |
 |-------|---------------------------|
@@ -80,7 +80,7 @@ In frontmatter, `on.schedule` is a **string** (see [`Task.ScheduleString`](../in
 
 ## `safe-outputs:` — implemented vs hints
 
-Keys under `safe-outputs:` select **post-agent** behavior in [`internal/output`](../internal/output/). **Limits** (`max:`, etc.) are **not enforced**; they are gh-aw-compatible hints only.
+Keys under `safe-outputs:` select **post-agent** behavior in [`internal/output`](../../internal/output/). **Limits** (`max:`, etc.) are **not enforced**; they are gh-aw-compatible hints only.
 
 | Key | When present | Behavior |
 |-----|----------------|----------|
@@ -99,7 +99,7 @@ Other gh-aw keys (`create-issue`, `create-discussion`, …) are **not** implemen
 | `on:` | **Used** for matching (see table above). |
 | `description:` | Stored in frontmatter; useful for humans/tools. |
 | `engine:` | Selects backend when `WM_AGENT_CMD` is unset: `claude` (default), `codex` (`codex -p` or `WM_ENGINE_CODEX_CMD`), `copilot` requires `WM_AGENT_CMD`. |
-| `timeout-minutes:` | **Used** by [`cmd/run`](../cmd/run.go) for the context timeout (capped). |
+| `timeout-minutes:` | **Used** by [`cmd/run`](../../cmd/run.go) for the context timeout (capped). |
 | `tools:` | Serialized to env **`WM_TASK_TOOLS`** for the agent subprocess (JSON if structured). |
 | `permissions:`, `network:`, `imports:` | Not interpreted. |
 
@@ -113,13 +113,13 @@ wm:
     failed: "agent:failed"
 ```
 
-If set, [`engine/state.go`](../internal/engine/state.go) adds/removes these labels around the run (requires `GITHUB_REPOSITORY` and an issue/PR number in the event).
+If set, [`engine/state.go`](../../internal/engine/state.go) adds/removes these labels around the run (requires `GITHUB_REPOSITORY` and an issue/PR number in the event).
 
 ## Checkpoint comments (optional)
 
 Set **`WM_CHECKPOINT=1`** to:
 
-1. Load the latest `<!-- wm-checkpoint: … -->` from issue comments into the prompt ([`checkpoint.ParseLatest`](../internal/checkpoint/checkpoint.go)).
+1. Load the latest `<!-- wm-checkpoint: … -->` from issue comments into the prompt ([`checkpoint.ParseLatest`](../../internal/checkpoint/checkpoint.go)).
 2. After a successful run, post a new checkpoint comment with the latest agent summary.
 
-Format is defined in [`checkpoint.Encode`](../internal/checkpoint/checkpoint.go).
+Format is defined in [`checkpoint.Encode`](../../internal/checkpoint/checkpoint.go).

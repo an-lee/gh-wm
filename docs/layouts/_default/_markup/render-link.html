@@ -1,0 +1,18 @@
+{{- $href := .Destination -}}
+{{- if findRE `^(\.\./)+` $href -}}
+  {{- $repo := site.Params.github_repo | strings.TrimSuffix "/" -}}
+  {{- $branch := site.Params.github_branch -}}
+  {{- $rel := replaceRE `^(\.\./)+` "" $href -}}
+  {{- $rel = strings.TrimSuffix "/" $rel -}}
+  {{- $base := path.Base $rel -}}
+  {{- $isFile := findRE `\.[A-Za-z0-9]{1,24}$` $base -}}
+  {{- if $isFile -}}
+    {{- $href = printf "%s/blob/%s/%s" $repo $branch $rel -}}
+  {{- else -}}
+    {{- $href = printf "%s/tree/%s/%s" $repo $branch $rel -}}
+  {{- end -}}
+{{- else if and (strings.HasSuffix $href ".md") (not (strings.Contains $href "/")) (not (strings.HasPrefix $href "http")) (not (strings.HasPrefix $href "#")) (not (strings.HasPrefix $href "mailto:")) -}}
+  {{- $slug := strings.TrimSuffix ".md" $href -}}
+  {{- $href = printf "%s/%s/" (strings.TrimSuffix "/" site.BaseURL) $slug -}}
+{{- end -}}
+<a href="{{ $href | safeURL }}" {{- with .Title }} title="{{ . }}" {{- end -}}{{- if strings.HasPrefix .Destination "http" }} rel="noopener noreferrer" target="_blank"{{- else if findRE `^(\.\./)+` .Destination }} rel="noopener noreferrer" target="_blank"{{- end -}}>{{- .Text | safeHTML -}}</a>

@@ -47,10 +47,10 @@ The core pipeline is **event → resolve → run agent**:
 
 ## Before changing behavior
 
-1. Read **[`docs/README.md`](docs/README.md)** for the mental model.
-2. For code changes, read **[`docs/architecture.md`](docs/architecture.md)** and **[`docs/development.md`](docs/development.md)**.
-3. For task markdown / frontmatter, use **[`docs/task-format.md`](docs/task-format.md)**.
-4. For CLI flags and env vars, use **[`docs/cli-reference.md`](docs/cli-reference.md)**.
+1. Read **[`docs/content/_index.md`](docs/content/_index.md)** for the mental model (see also **[`docs/README.md`](docs/README.md)**).
+2. For code changes, read **[`docs/content/architecture.md`](docs/content/architecture.md)** and **[`docs/content/development.md`](docs/content/development.md)**.
+3. For task markdown / frontmatter, use **[`docs/content/task-format.md`](docs/content/task-format.md)**.
+4. For CLI flags and env vars, use **[`docs/content/cli-reference.md`](docs/content/cli-reference.md)**.
 
 ## Accuracy
 

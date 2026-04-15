@@ -1,0 +1,75 @@
+baseURL = 'https://gh-wm.github.io/gh-wm/'
+languageCode = 'en-us'
+title = 'gh-wm'
+theme = 'github.com/adityatelange/hugo-PaperMod'
+
+enableRobotsTXT = true
+enableEmoji = true
+
+disableKinds = ['taxonomy', 'term']
+
+[minify]
+  disableXML = true
+
+[params]
+  env = 'production'
+  defaultTheme = 'auto'
+  ShowReadingTime = false
+  ShowShareButtons = false
+  ShowPostNavLinks = true
+  ShowBreadCrumbs = true
+  ShowCodeCopyButtons = true
+  ShowWordCount = false
+  ShowRssButtonInSectionTermList = false
+  UseHugoToc = true
+  disableThemeToggle = false
+  DateFormat = '2006-01-02'
+  github_repo = 'https://github.com/gh-wm/gh-wm'
+  github_branch = 'main'
+
+  [params.homeInfoParams]
+    Title = 'gh-wm'
+    Content = 'Workflow manager for agentic development — documentation.'
+
+[menu]
+  [[menu.main]]
+    identifier = 'architecture'
+    name = 'Architecture'
+    url = '/architecture/'
+    weight = 10
+  [[menu.main]]
+    identifier = 'task-format'
+    name = 'Task format'
+    url = '/task-format/'
+    weight = 20
+  [[menu.main]]
+    identifier = 'cli-reference'
+    name = 'CLI reference'
+    url = '/cli-reference/'
+    weight = 30
+  [[menu.main]]
+    identifier = 'development'
+    name = 'Development'
+    url = '/development/'
+    weight = 40
+
+[module]
+  [[module.imports]]
+    path = 'github.com/adityatelange/hugo-PaperMod'
+    disable = false
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.extensions]
+      linkify = true
+    [markup.goldmark.parser]
+      attribute = true
+    [markup.goldmark.renderer]
+      unsafe = true
+
+  [markup.highlight]
+    noClasses = false
+    anchorLineNos = false
+    lineNos = false
+    lineNumbersInTable = false
+    style = 'monokai'

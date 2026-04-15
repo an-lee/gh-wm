@@ -4,15 +4,15 @@
 
 ## Documentation
 
-Full docs for humans and AI agents live in **[`docs/`](docs/README.md)**:
+Full docs for humans and AI agents live under **[`docs/`](docs/README.md)** (Markdown in [`docs/content/`](docs/content/), Hugo in the same folder). A browsable HTML version is published at **[https://gh-wm.github.io/gh-wm/](https://gh-wm.github.io/gh-wm/)**.
 
 | Doc | Contents |
 |-----|----------|
-| [docs/README.md](docs/README.md) | Index and mental model |
-| [docs/architecture.md](docs/architecture.md) | Pipelines, code map, GitHub Actions |
-| [docs/task-format.md](docs/task-format.md) | `.wm/config.yml`, `on:` semantics, gh-aw notes |
-| [docs/cli-reference.md](docs/cli-reference.md) | Commands, flags, environment variables |
-| [docs/development.md](docs/development.md) | Contributing and extending the Go codebase |
+| [docs/content/_index.md](docs/content/_index.md) | Index and mental model |
+| [docs/content/architecture.md](docs/content/architecture.md) | Pipelines, code map, GitHub Actions |
+| [docs/content/task-format.md](docs/content/task-format.md) | `.wm/config.yml`, `on:` semantics, gh-aw notes |
+| [docs/content/cli-reference.md](docs/content/cli-reference.md) | Commands, flags, environment variables |
+| [docs/content/development.md](docs/content/development.md) | Contributing and extending the Go codebase |
 
 ## Install
 
@@ -84,7 +84,7 @@ Optional **`wm:`** block (ignored by gh-aw) for gh-wm-only options, e.g. `state_
 
 After changing any task’s `on:` triggers, run **`gh wm upgrade`** to refresh `wm-agent.yml`.
 
-Details: [docs/architecture.md](docs/architecture.md).
+Details: [docs/content/architecture.md](docs/content/architecture.md).
 
 ## License
 
