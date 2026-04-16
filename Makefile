@@ -2,14 +2,20 @@
 
 BINARY ?= gh-wm
 
-.PHONY: build test vet fmt fmt-check ci clean install docs
+# Build flags: strip debug symbols and DWARF info to shrink binary (~40-50% smaller)
+BUILD_FLAGS ?= -trimpath -ldflags="-s -w"
 
-# Default: produce ./gh-wm at repo root
+.PHONY: build test bench vet fmt fmt-check ci clean install docs
+
+# Default: produce ./gh-wm at repo root with size-optimised flags
 build:
-	go build -o $(BINARY) .
+	go build $(BUILD_FLAGS) -o $(BINARY) .
 
 test:
 	go test ./...
+
+bench:
+	go test -bench=. -benchmem ./...
 
 vet:
 	go vet ./...
@@ -21,7 +27,7 @@ fmt-check:
 	test -z "$$(gofmt -l .)"
 
 ci: fmt-check vet test
-	go build -v ./...
+	go build -v $(BUILD_FLAGS) ./...
 
 clean:
 	rm -f $(BINARY)
