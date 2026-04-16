@@ -1,0 +1,80 @@
+name: Performance Monitoring
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write  # for commenting on PRs
+
+jobs:
+  performance:
+    runs-on: ["self-hosted", "linux"]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Run benchmarks
+        run: |
+          echo "## 📊 Performance Benchmarks" > benchmarks.md
+          echo "" >> benchmarks.md
+          echo "```" >> benchmarks.md
+          go test -bench=. -benchmem -count=3 ./... | tee -a benchmarks.md
+          echo "```" >> benchmarks.md
+
+      - name: Measure binary size
+        run: |
+          echo "" >> benchmarks.md
+          echo "## 📦 Binary Size" >> benchmarks.md
+          echo "" >> benchmarks.md
+
+          # Build optimized binary
+          go build -trimpath -ldflags="-s -w" -o gh-wm-optimized .
+
+          # Build debug binary for comparison
+          go build -o gh-wm-debug .
+
+          echo "| Build Type | Size | vs Debug |" >> benchmarks.md
+          echo "|------------|------|----------|" >> benchmarks.md
+
+          debug_size=$(wc -c < gh-wm-debug)
+          opt_size=$(wc -c < gh-wm-optimized)
+          reduction=$((100 - (opt_size * 100 / debug_size)))
+
+          echo "| Optimized | $(numfmt --to=iec $opt_size) | -${reduction}% |" >> benchmarks.md
+          echo "| Debug | $(numfmt --to=iec $debug_size) | baseline |" >> benchmarks.md
+
+      - name: Check for performance regressions
+        run: |
+          echo "" >> benchmarks.md
+          echo "## 🔍 Performance Notes" >> benchmarks.md
+          echo "" >> benchmarks.md
+          echo "- Binary size target: < 10MB optimized build" >> benchmarks.md
+          echo "- Critical path benchmarks should remain stable (±10%)" >> benchmarks.md
+          echo "- Config loading: target < 30μs" >> benchmarks.md
+          echo "- Task resolution: target < 30μs" >> benchmarks.md
+          echo "- Trigger matching: target < 100ns" >> benchmarks.md
+
+      - name: Comment on PR (if applicable)
+        if: github.event_name == 'pull_request'
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+        run: |
+          if [ -s benchmarks.md ]; then
+            gh pr comment "$PR_NUMBER" --body-file benchmarks.md
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results
+          path: benchmarks.md
+          retention-days: 30
