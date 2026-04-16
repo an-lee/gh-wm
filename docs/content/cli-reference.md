@@ -119,7 +119,7 @@ Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run **`gh wm upg
 
 ## `run`
 
-**Purpose:** Execute **one** task: load `.wm/tasks/<task>.md`, optional state labels, run agent, then **`safe-outputs:`** steps on success.
+**Purpose:** Execute **one** task: **activation** (validate event/engine, optional working label, branch prep for PR mode), **agent**, **validation** (exit + output size), **`safe-outputs:`** steps, then **conclusion** (done/failed labels, checkpoint, branch rollback on failure).
 
 **Usage:** `gh wm run --task <name>`
 
@@ -137,7 +137,7 @@ Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run **`gh wm upg
 
 **Timeout:** Uses `timeout-minutes` from task frontmatter (default **45**, max **480**). See [`cmd/run.go`](../../cmd/run.go).
 
-**Output:** Before the agent starts, stderr prints a short **banner** (task name, repo path, current git branch, engine). Agent subprocess **stdout and stderr are streamed to stderr** as they are produced (full transcript is still captured for `safe-outputs` and checkpoints). After the run, a short **summary line** is printed to stderr (task name, repo path, duration, exit code, success). If the run fails, stderr also indicates whether failure was in the **agent** phase or **`safe-outputs`** (post-agent) phase.
+**Output:** Before the agent starts, stderr prints a short **banner** (task name, repo path, current git branch, engine). Agent subprocess **stdout and stderr are streamed to stderr** as they are produced (full transcript is still captured for `safe-outputs` and checkpoints). After the run, a short **summary line** is printed to stderr (task name, repo path, duration, exit code, success, **`phase=`** — `activation`, `agent`, `validation`, `safe-outputs`, or last phase reached). If the run fails, stderr also prints **`failure phase:`** (for `safe-outputs`, the message still says **safe-outputs (post-agent)**; otherwise the failing **phase** name).
 
 **Branch + PR (`safe-outputs: create-pull-request`):** If the task lists **`create-pull-request`** under `safe-outputs` and the repo is on the **default branch** (or detached `HEAD`), [`internal/gitbranch`](../../internal/gitbranch/) creates and checks out **`wm/<task-slug>-<UTC-timestamp>`** before the agent runs so commits are not on `main`. If you are **already on a non-default branch**, no branch is created. On **agent failure** after a branch was created, the runner checks out the previous branch when possible (skipped when the previous state was detached `HEAD`). The post-agent step runs **`git push`** then **`gh pr create --base <default>`** when there are commits ahead of the remote default branch; it **skips** if the current branch is still the default, if **`gh pr list`** already shows a PR for the current head (idempotent if the agent opened a PR itself), or if there is nothing to push.
 

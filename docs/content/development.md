@@ -46,7 +46,7 @@ Deployment runs via [`.github/workflows/pages.yml`](../../.github/workflows/page
 | [`internal/engine/`](../../internal/engine/)                      | Resolve + run + agent + state labels + checkpoint wiring.                                                                              |
 | [`internal/output/`](../../internal/output/)                      | Post-agent steps from `safe-outputs:` keys.                                                                                            |
 | [`internal/trigger/`](../../internal/trigger/)                    | `on:` matching (`match.go`).                                                                                                           |
-| [`internal/types/`](../../internal/types/)                        | `GitHubEvent`, `TaskContext`, `AgentResult`.                                                                                           |
+| [`internal/types/`](../../internal/types/)                        | `GitHubEvent`, `TaskContext`, `AgentResult`, `RunResult`, `Phase`.                                                                                           |
 | [`internal/gen/`](../../internal/gen/)                            | `wm-agent.yml` and schedule collection.                                                                                                |
 | [`internal/templates/`](../../internal/templates/)                | Embedded files for `gh wm init`.                                                                                                       |
 | [`internal/ghclient/`](../../internal/ghclient/)                  | `gh api` helpers (labels, comments).                                                                                                   |

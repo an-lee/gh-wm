@@ -1,6 +1,10 @@
 package engine
 
 import (
+	"errors"
+	"fmt"
+	"log"
+
 	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/ghclient"
 	"github.com/an-lee/gh-wm/internal/types"
@@ -17,39 +21,51 @@ func issueOrPRNumber(tc *types.TaskContext) int {
 }
 
 // ApplyStateWorking adds the "working" label if wm.state_labels is configured.
-func ApplyStateWorking(tc *types.TaskContext, wm config.WMExtension) {
+func ApplyStateWorking(tc *types.TaskContext, wm config.WMExtension) error {
 	n := issueOrPRNumber(tc)
 	if n <= 0 || tc.Repo == "" {
-		return
+		return nil
 	}
 	l := wm.StateLabels["working"]
 	if l == "" {
-		return
+		return nil
 	}
-	_ = ghclient.AddIssueLabel(tc.Repo, n, l)
+	if err := ghclient.AddIssueLabel(tc.Repo, n, l); err != nil {
+		log.Printf("wm: ApplyStateWorking: %v", err)
+		return fmt.Errorf("add working label %q: %w", l, err)
+	}
+	return nil
 }
 
 // ApplyStateDone removes "working" and adds "done".
-func ApplyStateDone(tc *types.TaskContext, wm config.WMExtension) {
-	transition(tc, wm, "working", "done")
+func ApplyStateDone(tc *types.TaskContext, wm config.WMExtension) error {
+	return transition(tc, wm, "working", "done")
 }
 
 // ApplyStateFailed removes "working" and adds "failed".
-func ApplyStateFailed(tc *types.TaskContext, wm config.WMExtension) {
-	transition(tc, wm, "working", "failed")
+func ApplyStateFailed(tc *types.TaskContext, wm config.WMExtension) error {
+	return transition(tc, wm, "working", "failed")
 }
 
-func transition(tc *types.TaskContext, wm config.WMExtension, fromKey, toKey string) {
+func transition(tc *types.TaskContext, wm config.WMExtension, fromKey, toKey string) error {
 	n := issueOrPRNumber(tc)
 	if n <= 0 || tc.Repo == "" {
-		return
+		return nil
 	}
 	from := wm.StateLabels[fromKey]
 	to := wm.StateLabels[toKey]
+	var errs []error
 	if from != "" {
-		_ = ghclient.RemoveIssueLabel(tc.Repo, n, from)
+		if err := ghclient.RemoveIssueLabel(tc.Repo, n, from); err != nil {
+			log.Printf("wm: transition remove label %q: %v", from, err)
+			errs = append(errs, fmt.Errorf("remove label %q: %w", from, err))
+		}
 	}
 	if to != "" {
-		_ = ghclient.AddIssueLabel(tc.Repo, n, to)
+		if err := ghclient.AddIssueLabel(tc.Repo, n, to); err != nil {
+			log.Printf("wm: transition add label %q: %v", to, err)
+			errs = append(errs, fmt.Errorf("add label %q: %w", to, err))
+		}
 	}
+	return errors.Join(errs...)
 }

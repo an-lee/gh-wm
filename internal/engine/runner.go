@@ -23,14 +23,46 @@ type RunOptions struct {
 	LogWriter io.Writer
 }
 
-// RunTask executes one task by name: load task, build context, optional state labels, run agent, outputs.
-func RunTask(ctx context.Context, repoRoot string, taskName string, event *types.GitHubEvent, opts *RunOptions) (*types.AgentResult, error) {
+func addRunErr(r *types.RunResult, err error) {
+	if r == nil || err == nil {
+		return
+	}
+	r.Errors = append(r.Errors, err)
+}
+
+// RunTask executes one task: activation (validation, state, branch prep), agent, validation, safe-outputs, and deferred conclusion (labels, checkpoint, branch rollback).
+func RunTask(ctx context.Context, repoRoot string, taskName string, event *types.GitHubEvent, opts *RunOptions) (*types.RunResult, error) {
+	start := time.Now()
+	result := &types.RunResult{Phase: types.PhaseActivation}
+
+	var tc *types.TaskContext
+	var glob *config.GlobalConfig
+	var task *config.Task
+	var wm config.WMExtension
+	var branchCreated bool
+	var prevBranch string
+	runSucceeded := false
+
+	defer func() {
+		result.Duration = time.Since(start)
+		concludeRun(result, &concludeArgs{
+			runSucceeded:  runSucceeded,
+			tc:            tc,
+			task:          task,
+			wm:            wm,
+			repoRoot:      repoRoot,
+			branchCreated: branchCreated,
+			prevBranch:    prevBranch,
+		})
+	}()
+
 	glob, tasks, err := config.Load(repoRoot)
 	if err != nil {
-		return nil, err
+		addRunErr(result, err)
+		return result, err
 	}
 	glob = config.DefaultGlobal(glob)
-	var task *config.Task
+
 	for _, t := range tasks {
 		if t.Name == taskName {
 			task = t
@@ -38,49 +70,70 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 		}
 	}
 	if task == nil {
-		return nil, fmt.Errorf("task not found: %s", taskName)
+		err := fmt.Errorf("task not found: %s", taskName)
+		addRunErr(result, err)
+		return result, err
 	}
 
-	tc := &types.TaskContext{
+	if err := validateEventContext(event); err != nil {
+		addRunErr(result, err)
+		return result, err
+	}
+	if err := validateTaskConfig(task, glob); err != nil {
+		addRunErr(result, err)
+		return result, err
+	}
+
+	tc = &types.TaskContext{
 		TaskName: taskName,
 		Repo:     os.Getenv("GITHUB_REPOSITORY"),
 		RepoPath: repoRoot,
 		Event:    event,
 	}
-	extractNumbers(event.Payload, tc)
+	if event != nil {
+		extractNumbers(event.Payload, tc)
+	}
 
-	wm := task.WM()
+	wm = task.WM()
 	loadCheckpointHint(tc)
 
-	ApplyStateWorking(tc, wm)
+	if err := ApplyStateWorking(tc, wm); err != nil {
+		addRunErr(result, err)
+	}
 
-	var prevBranch string
-	var branchCreated bool
 	if task.HasSafeOutputKey("create-pull-request") {
 		prev, _, created, prepErr := gitbranch.PrepareFeatureForPR(repoRoot, taskName)
 		if prepErr != nil {
-			ApplyStateFailed(tc, wm)
-			return nil, prepErr
+			addRunErr(result, prepErr)
+			return result, prepErr
 		}
 		prevBranch = prev
 		branchCreated = created
 	}
 
-	res, err := runAgent(ctx, glob, task, tc, opts)
-	if err != nil {
-		if branchCreated && prevBranch != "HEAD" {
-			_ = gitbranch.Checkout(repoRoot, prevBranch)
-		}
-		ApplyStateFailed(tc, wm)
-		return res, err
+	result.Phase = types.PhaseAgent
+	res, agentErr := runAgent(ctx, glob, task, tc, opts)
+	result.AgentResult = res
+	if agentErr != nil {
+		addRunErr(result, agentErr)
+		return result, agentErr
 	}
+
+	result.Phase = types.PhaseValidation
+	if err := validateAgentOutputErr(res); err != nil {
+		addRunErr(result, err)
+		return result, err
+	}
+
+	result.Phase = types.PhaseOutputs
 	if outErr := output.RunSuccessOutputs(ctx, glob, task, tc, res); outErr != nil {
-		ApplyStateFailed(tc, wm)
-		return res, outErr
+		addRunErr(result, outErr)
+		return result, outErr
 	}
-	postCheckpoint(tc, res)
-	ApplyStateDone(tc, wm)
-	return res, nil
+
+	runSucceeded = true
+	result.Success = true
+	return result, nil
 }
 
 func loadCheckpointHint(tc *types.TaskContext) {
@@ -102,26 +155,9 @@ func loadCheckpointHint(tc *types.TaskContext) {
 	tc.CheckpointHint = strings.TrimSpace(c.Summary)
 }
 
+// postCheckpoint is kept for tests; errors are ignored (see postCheckpointWithErr for surfaced errors).
 func postCheckpoint(tc *types.TaskContext, res *types.AgentResult) {
-	if os.Getenv("WM_CHECKPOINT") != "1" {
-		return
-	}
-	n := issueOrPRNumber(tc)
-	if n <= 0 || tc.Repo == "" {
-		return
-	}
-	summary := strings.TrimSpace(res.Summary)
-	if summary == "" {
-		summary = strings.TrimSpace(res.Stdout)
-	}
-	if len(summary) > 2000 {
-		summary = summary[:2000] + "…"
-	}
-	cp := checkpoint.Checkpoint{
-		Summary:   summary,
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-	}
-	_ = ghclient.PostIssueComment(tc.Repo, n, checkpoint.Encode(cp))
+	_ = postCheckpointWithErr(tc, res)
 }
 
 func extractNumbers(payload map[string]any, tc *types.TaskContext) {

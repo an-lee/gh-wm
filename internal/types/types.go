@@ -1,6 +1,28 @@
 // Package types defines shared types for triggers, outputs, and engine.
 package types
 
+import "time"
+
+// Phase identifies which stage of RunTask produced the current outcome.
+type Phase string
+
+const (
+	PhaseActivation Phase = "activation"
+	PhaseAgent      Phase = "agent"
+	PhaseValidation Phase = "validation"
+	PhaseOutputs    Phase = "safe-outputs"
+	PhaseConclusion Phase = "conclusion"
+)
+
+// RunResult is the structured outcome of RunTask (phases, errors, timing).
+type RunResult struct {
+	AgentResult *AgentResult
+	Phase       Phase // phase where execution stopped or last completed phase on success
+	Success     bool
+	Errors      []error
+	Duration    time.Duration
+}
+
 // GitHubEvent wraps event name and parsed payload (github.event JSON).
 type GitHubEvent struct {
 	Name    string

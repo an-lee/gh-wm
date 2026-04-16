@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -9,17 +10,28 @@ import (
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
+func TestAddRunErr(t *testing.T) {
+	t.Parallel()
+	r := &types.RunResult{}
+	addRunErr(r, nil)
+	addRunErr(r, fmt.Errorf("e1"))
+	if len(r.Errors) != 1 {
+		t.Fatalf("got %d errors", len(r.Errors))
+	}
+	addRunErr(nil, fmt.Errorf("ignored"))
+}
+
 func TestRunTask_Minimal(t *testing.T) {
 	t.Setenv("WM_AGENT_CMD", "true")
 	t.Cleanup(func() { _ = os.Unsetenv("WM_AGENT_CMD") })
 	root := writeMinimalRepo(t)
 	ev := &types.GitHubEvent{Name: "issues", Payload: map[string]any{"action": "opened"}}
-	res, err := RunTask(context.Background(), root, "a", ev, nil)
+	out, err := RunTask(context.Background(), root, "a", ev, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res == nil || !res.Success {
-		t.Fatalf("%+v", res)
+	if out == nil || !out.Success || out.AgentResult == nil || !out.AgentResult.Success {
+		t.Fatalf("%+v", out)
 	}
 }
 

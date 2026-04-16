@@ -12,6 +12,7 @@ import (
 	"github.com/an-lee/gh-wm/internal/engine"
 	"github.com/an-lee/gh-wm/internal/gitbranch"
 	"github.com/an-lee/gh-wm/internal/gitstatus"
+	"github.com/an-lee/gh-wm/internal/types"
 	"github.com/spf13/cobra"
 )
 
@@ -91,22 +92,27 @@ func runRun(_ *cobra.Command, _ []string) error {
 	fmt.Fprintf(os.Stderr, "wm run: agent subprocess starting (streaming stderr)...\n\n")
 
 	start := time.Now()
-	res, err := engine.RunTask(ctx, runRepoRoot, runTask, ev, &engine.RunOptions{LogWriter: os.Stderr})
+	runResult, err := engine.RunTask(ctx, runRepoRoot, runTask, ev, &engine.RunOptions{LogWriter: os.Stderr})
 	dur := time.Since(start)
 
 	exitCode := -1
+	phase := types.PhaseActivation
 	success := false
-	if res != nil {
-		exitCode = res.ExitCode
-		success = res.Success
+	if runResult != nil {
+		phase = runResult.Phase
+		success = runResult.Success
+		if runResult.AgentResult != nil {
+			exitCode = runResult.AgentResult.ExitCode
+		}
 	}
-	fmt.Fprintf(os.Stderr, "\n---\nwm run: task=%q repo=%s duration=%s exit_code=%d success=%v\n",
-		runTask, repoDisplay, dur.Round(time.Millisecond), exitCode, success)
+
+	fmt.Fprintf(os.Stderr, "\n---\nwm run: task=%q repo=%s duration=%s exit_code=%d success=%v phase=%s\n",
+		runTask, repoDisplay, dur.Round(time.Millisecond), exitCode, success, phase)
 	if err != nil {
-		if res != nil && res.Success {
+		if runResult != nil && runResult.Phase == types.PhaseOutputs {
 			fmt.Fprintf(os.Stderr, "failure phase: safe-outputs (post-agent)\n")
 		} else {
-			fmt.Fprintf(os.Stderr, "failure phase: agent\n")
+			fmt.Fprintf(os.Stderr, "failure phase: %s\n", phase)
 		}
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 	}
