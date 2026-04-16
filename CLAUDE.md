@@ -12,6 +12,10 @@ You are working on the **gh-wm** CLI: a Go `gh` extension that resolves GitHub e
 # Build
 go build -o gh-wm .
 
+# Print version (default `dev`; override at build time with -ldflags)
+./gh-wm version
+# go build -o gh-wm -ldflags "-X github.com/an-lee/gh-wm/cmd.Version=1.0.0 -X github.com/an-lee/gh-wm/cmd.Commit=local" .
+
 # Test all packages
 go test ./...
 

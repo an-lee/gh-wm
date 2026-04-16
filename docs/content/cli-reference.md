@@ -9,6 +9,19 @@ The extension is invoked as **`gh wm <subcommand>`** when installed via `gh exte
 
 ---
 
+## `version`
+
+**Purpose:** Print the installed `gh-wm` version (and optional Git commit line for release builds).
+
+**Usage:**
+
+- `gh wm version` — prints `gh-wm <version>` on one line; if the binary was built with a commit SHA (release workflow), prints `commit: <short-sha>` on a second line.
+- `gh wm --version` / `gh wm -v` — same version string via the root Cobra flag.
+
+Local and CI builds without linker flags report **`dev`**. Release assets built from a git tag embed the tag (without the leading `v`) and a short commit hash. See [`cmd/version.go`](../../cmd/version.go) and [`.github/workflows/release.yml`](../../.github/workflows/release.yml).
+
+---
+
 ## `init`
 
 **Purpose:** Create `.wm/` layout, starter tasks, optional `CLAUDE.md`, and generate `.github/workflows/wm-agent.yml`.
