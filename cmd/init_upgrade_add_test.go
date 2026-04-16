@@ -134,6 +134,14 @@ x
 }
 
 func TestAddCommand_LocalFile(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		prependFakeGh(t, `
+if [ "$1" = "extension" ] && [ "$2" = "upgrade" ] && [ "$3" = "an-lee/gh-wm" ]; then
+  exit 0
+fi
+exit 1
+`)
+	}
 	srcDir := t.TempDir()
 	src := filepath.Join(srcDir, "task.md")
 	content := `---
@@ -151,6 +159,7 @@ body
 		t.Fatal(err)
 	}
 	chdirTemp(t, root)
+	t.Setenv("GH_WM_REPO", "test/hello")
 	buf := new(bytes.Buffer)
 	rootCmd.SetOut(buf)
 	rootCmd.SetErr(buf)
@@ -160,6 +169,9 @@ body
 	}
 	dst := filepath.Join(root, ".wm", "tasks", "task.md")
 	if _, err := os.Stat(dst); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".github", "workflows", "wm-agent.yml")); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -64,7 +64,7 @@ If `.wm/config.yml` is missing, runner labels default to **`ubuntu-latest`** whe
 - `gh wm update` — update every `.wm/tasks/*.md` that has a non-empty `source:` field.
 - `gh wm update <task-name> …` — update only the named tasks (filename without `.md`, or with `.md`).
 
-Tasks created with **`gh wm add`** (URL, **`owner/repo/task`** shorthand, or path) get a **`source:`** when appropriate so **`gh wm update`** can re-fetch. After updating tasks, run **`gh wm upgrade`** to refresh `wm-agent.yml` if schedules or other generator inputs changed.
+Tasks created with **`gh wm add`** (URL, **`owner/repo/task`** shorthand, or path) get a **`source:`** when appropriate so **`gh wm update`** can re-fetch. **`gh wm add`** runs **`gh wm upgrade`** automatically after a successful write. After **`gh wm update`**, run **`gh wm upgrade`** to refresh `wm-agent.yml` if schedules or other generator inputs changed.
 
 See [`cmd/update.go`](../../cmd/update.go).
 
@@ -96,7 +96,7 @@ See [`cmd/update.go`](../../cmd/update.go).
 - **`https://…` or `http://…`** — Downloads the file; **`source:`** is the same URL (unless already set in the file).
 - **Local path** — Copies the file; no **`source:`** is injected unless the file already has one.
 
-Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run **`gh wm upgrade`**. See [`cmd/add.go`](../../cmd/add.go) and [`cmd/github.go`](../../cmd/github.go).
+Writes `<cwd>/.wm/tasks/<basename>.md`, then runs **`gh wm upgrade`** (same as the **`upgrade`** command: best-effort extension self-upgrade and regenerate **`wm-agent.yml`**). See [`cmd/add.go`](../../cmd/add.go) and [`cmd/github.go`](../../cmd/github.go).
 
 ---
 

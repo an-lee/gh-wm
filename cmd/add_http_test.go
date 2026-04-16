@@ -6,11 +6,25 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
 
+func fakeGhForAdd(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "windows" {
+		prependFakeGh(t, `
+if [ "$1" = "extension" ] && [ "$2" = "upgrade" ] && [ "$3" = "an-lee/gh-wm" ]; then
+  exit 0
+fi
+exit 1
+`)
+	}
+}
+
 func TestAddCommand_HTTP(t *testing.T) {
+	fakeGhForAdd(t)
 	content := `---
 on:
   issues: {}
@@ -29,6 +43,7 @@ from url
 		t.Fatal(err)
 	}
 	chdirTemp(t, root)
+	t.Setenv("GH_WM_REPO", "test/hello")
 
 	buf := new(bytes.Buffer)
 	rootCmd.SetOut(buf)
@@ -41,6 +56,9 @@ from url
 	if _, err := os.Stat(dst); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := os.Stat(filepath.Join(root, ".github", "workflows", "wm-agent.yml")); err != nil {
+		t.Fatal(err)
+	}
 	b, err := os.ReadFile(dst)
 	if err != nil {
 		t.Fatal(err)
@@ -51,6 +69,7 @@ from url
 }
 
 func TestAddCommand_GitHubShorthand(t *testing.T) {
+	fakeGhForAdd(t)
 	content := `---
 on:
   issues: {}
@@ -79,12 +98,16 @@ from workflows
 		t.Fatal(err)
 	}
 	chdirTemp(t, root)
+	t.Setenv("GH_WM_REPO", "test/hello")
 
 	buf := new(bytes.Buffer)
 	rootCmd.SetOut(buf)
 	rootCmd.SetErr(buf)
 	rootCmd.SetArgs([]string{"add", "githubnext/agentics/daily-doc-updater"})
 	if err := rootCmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".github", "workflows", "wm-agent.yml")); err != nil {
 		t.Fatal(err)
 	}
 	if len(order) < 1 || !strings.HasSuffix(order[0], "/workflows/daily-doc-updater.md") {
@@ -105,6 +128,7 @@ from workflows
 }
 
 func TestAddCommand_GitHubShorthand_WmFallback(t *testing.T) {
+	fakeGhForAdd(t)
 	content := `---
 on:
   issues: {}
@@ -137,9 +161,13 @@ from wm tasks
 		t.Fatal(err)
 	}
 	chdirTemp(t, root)
+	t.Setenv("GH_WM_REPO", "test/hello")
 
 	rootCmd.SetArgs([]string{"add", "o/r/only-wm"})
 	if err := rootCmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".github", "workflows", "wm-agent.yml")); err != nil {
 		t.Fatal(err)
 	}
 	if len(order) < 2 {
