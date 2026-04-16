@@ -65,12 +65,11 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           PR_NUMBER: ${{ github.event.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -s benchmarks.md ]; then
             gh pr comment "$PR_NUMBER" --body-file benchmarks.md
           fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
