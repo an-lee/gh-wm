@@ -44,18 +44,20 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 		prompt += "\n\n---\n## Previous checkpoint\n\n" + strings.TrimSpace(tc.CheckpointHint)
 	}
 
-	if rd != nil {
-		if err := rd.WritePrompt(prompt); err != nil {
-			return &types.AgentResult{Success: false, ExitCode: -1, Stderr: err.Error()}, err
-		}
-	}
-
 	engineName := task.Engine()
 	if engineName == "" && glob != nil {
 		engineName = glob.Engine
 	}
 
 	cmdLine := os.Getenv("WM_AGENT_CMD")
+	artifactFormat := agentOutputFormatForRun(cmdLine, engineName, glob)
+
+	if rd != nil {
+		if err := rd.WritePrompt(prompt); err != nil {
+			return &types.AgentResult{Success: false, ExitCode: -1, Stderr: err.Error()}, err
+		}
+	}
+
 	var cmd *exec.Cmd
 	var stdin io.Reader
 	if cmdLine != "" {
@@ -76,14 +78,14 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 				cmd = exec.CommandContext(ctx, name, args...)
 				stdin = r
 			} else {
-				cmd = exec.CommandContext(ctx, "codex", agentCLIArgs(glob)...)
+				cmd = exec.CommandContext(ctx, "codex", agentCLIArgs(glob, config.ClaudeOutputFormatText)...)
 				stdin = strings.NewReader(prompt)
 			}
 		case "copilot":
 			err := fmt.Errorf("engine copilot: set WM_AGENT_CMD to invoke your Copilot-compatible CLI")
 			return &types.AgentResult{Success: false, ExitCode: -1, Stderr: err.Error()}, err
 		default:
-			cmd = exec.CommandContext(ctx, "claude", agentCLIArgs(glob)...)
+			cmd = exec.CommandContext(ctx, "claude", agentCLIArgs(glob, artifactFormat)...)
 			stdin = strings.NewReader(prompt)
 		}
 	}
@@ -109,7 +111,7 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 
 	var stdoutWriter io.Writer
 	if rd != nil {
-		agentLog, err = rd.OpenAgentLog()
+		agentLog, err = rd.OpenAgentOutput(artifactFormat)
 		if err != nil {
 			return &types.AgentResult{Success: false, ExitCode: -1, Stderr: err.Error()}, err
 		}
@@ -135,7 +137,7 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 	var agentPath string
 	if rd != nil {
 		combined = tail.String()
-		agentPath = rd.AgentLogPath()
+		agentPath = rd.AgentOutputPath(artifactFormat)
 	} else {
 		combined = buf.String()
 	}
@@ -201,10 +203,28 @@ func parseWM_AGENT_CMD(cmdLine, prompt string) (name string, args []string, stdi
 	return fields[0], append(fields[1:], prompt), nil, nil
 }
 
+// agentOutputFormatForRun selects the claude -p --output-format and run-dir filename base.
+// Custom agent commands (WM_AGENT_CMD), codex, and copilot always use plain text capture.
+func agentOutputFormatForRun(wmAgentCmd, engineName string, glob *config.GlobalConfig) string {
+	if strings.TrimSpace(wmAgentCmd) != "" {
+		return config.ClaudeOutputFormatText
+	}
+	switch strings.ToLower(strings.TrimSpace(engineName)) {
+	case "codex", "copilot":
+		return config.ClaudeOutputFormatText
+	default:
+		return config.EffectiveClaudeOutputFormat(glob)
+	}
+}
+
 // agentCLIArgs returns argv for claude/codex non-interactive runs (prompt via stdin).
-func agentCLIArgs(glob *config.GlobalConfig) []string {
+// claudeOutputFormat is only applied for the built-in claude binary; use ClaudeOutputFormatText for codex.
+func agentCLIArgs(glob *config.GlobalConfig, claudeOutputFormat string) []string {
 	args := []string{"-p", "--dangerously-skip-permissions"}
 	if glob == nil {
+		if claudeOutputFormat == config.ClaudeOutputFormatJSON || claudeOutputFormat == config.ClaudeOutputFormatStreamJSON {
+			args = append(args, "--output-format", claudeOutputFormat)
+		}
 		return args
 	}
 	if glob.Model != "" {
@@ -212,6 +232,9 @@ func agentCLIArgs(glob *config.GlobalConfig) []string {
 	}
 	if glob.MaxTurns > 0 {
 		args = append(args, "--max-turns", strconv.Itoa(glob.MaxTurns))
+	}
+	if claudeOutputFormat == config.ClaudeOutputFormatJSON || claudeOutputFormat == config.ClaudeOutputFormatStreamJSON {
+		args = append(args, "--output-format", claudeOutputFormat)
 	}
 	return args
 }

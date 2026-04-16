@@ -33,6 +33,27 @@ func TestNewRunDir_CreatesLayout(t *testing.T) {
 	}
 }
 
+func TestRunDir_AgentOutputPath_StructuredFormats(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	rd, err := NewRunDir(root, "t", "workflow_dispatch")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pJSONL := rd.AgentOutputPath("stream-json")
+	if !strings.HasSuffix(pJSONL, "conversation.jsonl") {
+		t.Fatalf("stream-json path: %s", pJSONL)
+	}
+	pJSON := rd.AgentOutputPath("json")
+	if !strings.HasSuffix(pJSON, "conversation.json") {
+		t.Fatalf("json path: %s", pJSON)
+	}
+	pText := rd.AgentOutputPath("text")
+	if !strings.HasSuffix(pText, "agent-stdout.log") {
+		t.Fatalf("text path: %s", pText)
+	}
+}
+
 func TestRunDir_WritePromptAndResult(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()

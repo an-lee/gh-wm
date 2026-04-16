@@ -14,7 +14,7 @@ import (
 
 func TestAgentCLIArgs(t *testing.T) {
 	t.Parallel()
-	args := agentCLIArgs(&config.GlobalConfig{Model: "m1", MaxTurns: 7})
+	args := agentCLIArgs(&config.GlobalConfig{Model: "m1", MaxTurns: 7}, config.ClaudeOutputFormatText)
 	want := []string{"-p", "--dangerously-skip-permissions", "--model", "m1", "--max-turns", "7"}
 	if len(args) != len(want) {
 		t.Fatalf("got %v", args)
@@ -24,8 +24,32 @@ func TestAgentCLIArgs(t *testing.T) {
 			t.Fatalf("i=%d got %v want %v", i, args, want)
 		}
 	}
-	if args2 := agentCLIArgs(nil); len(args2) != 2 || args2[0] != "-p" || args2[1] != "--dangerously-skip-permissions" {
+	if args2 := agentCLIArgs(nil, config.ClaudeOutputFormatText); len(args2) != 2 || args2[0] != "-p" || args2[1] != "--dangerously-skip-permissions" {
 		t.Fatalf("nil glob: %v", args2)
+	}
+}
+
+func TestAgentCLIArgs_OutputFormat(t *testing.T) {
+	t.Parallel()
+	args := agentCLIArgs(&config.GlobalConfig{Model: "m", MaxTurns: 7}, config.ClaudeOutputFormatStreamJSON)
+	want := []string{"-p", "--dangerously-skip-permissions", "--model", "m", "--max-turns", "7", "--output-format", "stream-json"}
+	if len(args) != len(want) {
+		t.Fatalf("got %v", args)
+	}
+	for i := range want {
+		if args[i] != want[i] {
+			t.Fatalf("i=%d got %v want %v", i, args, want)
+		}
+	}
+	argsJSON := agentCLIArgs(&config.GlobalConfig{}, config.ClaudeOutputFormatJSON)
+	wantJ := []string{"-p", "--dangerously-skip-permissions", "--output-format", "json"}
+	if len(argsJSON) != len(wantJ) {
+		t.Fatalf("json: got %v", argsJSON)
+	}
+	for i := range wantJ {
+		if argsJSON[i] != wantJ[i] {
+			t.Fatalf("i=%d got %v want %v", i, argsJSON, wantJ)
+		}
 	}
 }
 

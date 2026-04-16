@@ -99,8 +99,8 @@ flowchart LR
 
 ## Run behavior details
 
-- [`engine.RunTask`](../../internal/engine/runner.go) returns a [`RunResult`](../../internal/types/types.go) with phase, accumulated errors, timing, and **`RunDir`**. It validates the event and engine, builds [`TaskContext`](../../internal/types/types.go), creates a **per-run directory** ([`NewRunDir`](../../internal/engine/rundir.go): `.wm/runs/<id>/` or `WM_RUN_DIR/<id>/`), optionally loads checkpoint text, applies **working** label if `wm.state_labels` is set, optionally creates a **feature branch** via [`internal/gitbranch`](../../internal/gitbranch/) when `safe-outputs` includes `create-pull-request` (see CLI reference), runs `runAgent` (writes **`prompt.md`**, streams combined output to **`agent-stdout.log`**; **SIGTERM** then kill on Unix when the run context is canceled), validates agent output size (from log file stat when present) and success, then on success runs **`output.RunSuccessOutputs`** (PR / labels / comment). A **deferred conclusion** always runs: on success, checkpoint comment if `WM_CHECKPOINT=1` and **done** labels; on failure, **failed** labels and **checkout** of the previous branch if a feature branch was created; finally **`result.json`** and **`meta.json`** (phase **conclusion**).
-- [`runAgent`](../../internal/engine/agent.go) builds the prompt from the task body + `context.files` + optional checkpoint hint; sets `WM_TASK_TOOLS` when `tools:` is present; selects CLI via `WM_AGENT_CMD` or `engine:` (`claude`, `codex`, `copilot` requires `WM_AGENT_CMD`). Default **`claude`** uses **stdin** for the prompt, **`--dangerously-skip-permissions`**, and optional **`--model`** / **`--max-turns`** from global config so the agent can run tools (including **`gh`**) non-interactively. In-memory **`Stdout`/`Summary`** hold a **64 KiB tail** of the transcript when a run dir is used (full text is on disk).
+- [`engine.RunTask`](../../internal/engine/runner.go) returns a [`RunResult`](../../internal/types/types.go) with phase, accumulated errors, timing, and **`RunDir`**. It validates the event and engine, builds [`TaskContext`](../../internal/types/types.go), creates a **per-run directory** ([`NewRunDir`](../../internal/engine/rundir.go): `.wm/runs/<id>/` or `WM_RUN_DIR/<id>/`), optionally loads checkpoint text, applies **working** label if `wm.state_labels` is set, optionally creates a **feature branch** via [`internal/gitbranch`](../../internal/gitbranch/) when `safe-outputs` includes `create-pull-request` (see CLI reference), runs `runAgent` (writes **`prompt.md`**, streams combined stdout/stderr to a per-run **agent log file** — default **`agent-stdout.log`**, or structured **`conversation.json`** / **`conversation.jsonl`** when print-mode JSON is enabled for the built-in **`claude`** CLI; **SIGTERM** then kill on Unix when the run context is canceled), validates agent output size (from log file stat when present) and success, then on success runs **`output.RunSuccessOutputs`** (PR / labels / comment). A **deferred conclusion** always runs: on success, checkpoint comment if `WM_CHECKPOINT=1` and **done** labels; on failure, **failed** labels and **checkout** of the previous branch if a feature branch was created; finally **`result.json`** and **`meta.json`** (phase **conclusion**).
+- [`runAgent`](../../internal/engine/agent.go) builds the prompt from the task body + `context.files` + optional checkpoint hint; sets `WM_TASK_TOOLS` when `tools:` is present; selects CLI via `WM_AGENT_CMD` or `engine:` (`claude`, `codex`, `copilot` requires `WM_AGENT_CMD`). Default **`claude`** uses **stdin** for the prompt, **`--dangerously-skip-permissions`**, and optional **`--model`** / **`--max-turns`** from global config so the agent can run tools (including **`gh`**) non-interactively. When **`claude_output_format`** / **`WM_CLAUDE_OUTPUT_FORMAT`** request **`json`** or **`stream-json`**, the runner also passes **`--output-format`** (built-in **`claude`** only; **`WM_AGENT_CMD`**, **codex**, and **copilot** keep plain-text capture). In-memory **`Stdout`/`Summary`** hold a **64 KiB tail** of the transcript when a run dir is used (full text is on disk).
 - **Timeout**: [`cmd/run`](../../cmd/run.go) uses `timeout-minutes` from task frontmatter (default 45, max 480).
 
 ## RunTask pipeline (detailed reference)
@@ -118,6 +118,7 @@ Implementation: [`RunTask`](../../internal/engine/runner.go), [`rundir.go`](../.
 | Env: `GITHUB_REPOSITORY`, `WM_AGENT_CMD`, task `engine:` / global `engine` | Engine validation |
 | Env: `WM_CHECKPOINT=1` (optional) | Enables checkpoint **read** below |
 | Env: `WM_RUN_DIR` (optional) | Base path for per-run dirs instead of `<repo>/.wm/runs/` |
+| Disk: `claude_output_format` in `.wm/config.yml`; env: `WM_CLAUDE_OUTPUT_FORMAT` (optional) | Overrides config when set: **`text`** (default), **`json`**, or **`stream-json`** for built-in **`claude`** — chooses run-dir filename and **`--output-format`** |
 | GitHub API: `ghclient.ListIssueCommentBodies` (optional) | Only with checkpoint mode + `GITHUB_REPOSITORY` + issue/PR number: load comment bodies to find latest `<!-- wm-checkpoint: … -->` |
 
 | In-memory outputs | |
@@ -142,8 +143,8 @@ Implementation: [`RunTask`](../../internal/engine/runner.go), [`rundir.go`](../.
 
 | Outputs | |
 |---------|--|
-| `AgentResult` | Combined transcript: full **`agent-stdout.log`** on disk; **`Stdout`/`Summary`** hold a **64 KiB tail** when a run dir exists (for checkpoints/comments); `Success`, `ExitCode`, **`TimedOut`** if context deadline exceeded |
-| Optional stream | Tee to `RunOptions.LogWriter` (CLI uses stderr) and to **`agent-stdout.log`** |
+| `AgentResult` | Combined transcript: full agent log on disk (**`agent-stdout.log`**, or **`conversation.json`** / **`conversation.jsonl`** when structured print-mode output is enabled for built-in **`claude`**); **`Stdout`/`Summary`** hold a **64 KiB tail** when a run dir exists (for checkpoints/comments); `Success`, `ExitCode`, **`TimedOut`** if context deadline exceeded |
+| Optional stream | Tee to `RunOptions.LogWriter` (CLI uses stderr) and to the same per-run log file |
 
 ### Phase 3 — Validation (`PhaseValidation`)
 
@@ -153,7 +154,7 @@ Implementation: [`RunTask`](../../internal/engine/runner.go), [`rundir.go`](../.
 
 | Checks | |
 |--------|--|
-| [`validateAgentOutputErr`](../../internal/engine/validation.go) | Non-nil result, `Success`, not timed out; size from **`agent-stdout.log`** stat when set, else in-memory text length ≤ 12 MiB. **Empty** successful output is allowed. |
+| [`validateAgentOutputErr`](../../internal/engine/validation.go) | Non-nil result, `Success`, not timed out; size from the on-disk agent log path when set, else in-memory text length ≤ 12 MiB. **Empty** successful output is allowed. |
 
 ### Phase 4 — Safe outputs (`PhaseOutputs`)
 
@@ -193,8 +194,8 @@ Checkpoint or label failures are appended to `RunResult.Errors` and do not alway
 | Kind | Where |
 |------|--------|
 | `RunResult` / errors | In-memory for the process; CLI prints `phase=`, **`artifacts=`**, and `failure phase:` on **stderr** |
-| Per-run artifacts | **`.wm/runs/<id>/`** (or **`WM_RUN_DIR/<id>/`**): `prompt.md`, `agent-stdout.log` (full transcript), `meta.json` (phase updates), `result.json` (final snapshot). Ignore **`runs/`** under **`.wm/`** via **`.wm/.gitignore`** (`gh wm init` / `gh wm upgrade` ensure that file). |
-| Agent tail in memory | Last **64 KiB** of combined output in `AgentResult` when a run dir is used (full output remains in **`agent-stdout.log`**) |
+| Per-run artifacts | **`.wm/runs/<id>/`** (or **`WM_RUN_DIR/<id>/`**): `prompt.md`; combined agent stdout/stderr (**`agent-stdout.log`** by default, or **`conversation.json`** / **`conversation.jsonl`** when **`claude_output_format`** / **`WM_CLAUDE_OUTPUT_FORMAT`** is **`json`** / **`stream-json`** for built-in **`claude`**); `meta.json` (phase updates); `result.json` (final snapshot). Ignore **`runs/`** under **`.wm/`** via **`.wm/.gitignore`** (`gh wm init` / `gh wm upgrade` ensure that file). |
+| Agent tail in memory | Last **64 KiB** of combined output in `AgentResult` when a run dir is used (full output remains in the per-run agent log file above) |
 | Repo state | Whatever git / the agent wrote under `--repo-root` |
 | Coordination | GitHub: labels, issue/PR comments, PRs — the main external persistence |
 | Checkpoints | Issue comments when `WM_CHECKPOINT=1`, encoded in [`internal/checkpoint`](../../internal/checkpoint/checkpoint.go) |

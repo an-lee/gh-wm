@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
@@ -18,8 +19,12 @@ const (
 	runDirEnv        = "WM_RUN_DIR"
 	promptFileName   = "prompt.md"
 	agentLogFileName = "agent-stdout.log"
-	metaFileName     = "meta.json"
-	resultFileName   = "result.json"
+	// conversationJSONFileName holds claude -p --output-format json (built-in claude only).
+	conversationJSONFileName = "conversation.json"
+	// conversationJSONLFileName holds claude -p --output-format stream-json (built-in claude only).
+	conversationJSONLFileName = "conversation.jsonl"
+	metaFileName              = "meta.json"
+	resultFileName            = "result.json"
 
 	defaultPruneAge = 7 * 24 * time.Hour
 )
@@ -155,20 +160,31 @@ func (r *RunDir) WritePrompt(prompt string) error {
 	return os.WriteFile(path, []byte(prompt), 0o644)
 }
 
-// AgentLogPath returns the path to agent-stdout.log.
-func (r *RunDir) AgentLogPath() string {
+func agentArtifactFilename(format string) string {
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case config.ClaudeOutputFormatJSON:
+		return conversationJSONFileName
+	case config.ClaudeOutputFormatStreamJSON:
+		return conversationJSONLFileName
+	default:
+		return agentLogFileName
+	}
+}
+
+// AgentOutputPath returns the path to the combined agent stdout/stderr capture file for this run.
+func (r *RunDir) AgentOutputPath(format string) string {
 	if r == nil {
 		return ""
 	}
-	return filepath.Join(r.Path, agentLogFileName)
+	return filepath.Join(r.Path, agentArtifactFilename(format))
 }
 
-// OpenAgentLog creates or truncates agent-stdout.log for writing.
-func (r *RunDir) OpenAgentLog() (*os.File, error) {
+// OpenAgentOutput creates or truncates the agent output file for writing (see agentArtifactFilename).
+func (r *RunDir) OpenAgentOutput(format string) (*os.File, error) {
 	if r == nil {
 		return nil, fmt.Errorf("run dir is nil")
 	}
-	path := filepath.Join(r.Path, agentLogFileName)
+	path := filepath.Join(r.Path, agentArtifactFilename(format))
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		return nil, fmt.Errorf("open agent log: %w", err)

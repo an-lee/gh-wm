@@ -45,8 +45,9 @@ Loaded by [`config.Load`](../../internal/config/config.go). Struct: [`GlobalConf
 |-------|---------|
 | `version` | Schema version (conventionally `1`). |
 | `engine` | Default agent backend name (e.g. `claude`); task can override with `engine:`. |
-| `model` | Reserved for agent configuration (not consumed by `runAgent` today). |
-| `max_turns` | Reserved (defaulted in [`DefaultGlobal`](../../internal/config/config.go)). |
+| `model` | Passed to the default **`claude`** / **`codex`** CLI as **`--model`** when set ([`agentCLIArgs`](../../internal/engine/agent.go)). |
+| `max_turns` | Passed as **`--max-turns`** when non-zero (default **100** in [`DefaultGlobal`](../../internal/config/config.go)). |
+| `claude_output_format` | Optional: **`text`** (default), **`json`**, or **`stream-json`**. For the built-in **`claude`** invocation only (not **`WM_AGENT_CMD`** / **codex** / **copilot**), selects **`claude -p --output-format`** and the run-dir file (**`agent-stdout.log`** vs **`conversation.json`** / **`conversation.jsonl`**). Overridden by **`WM_CLAUDE_OUTPUT_FORMAT`**. |
 | `workflow.runs_on` | YAML list of GitHub Actions runner labels baked into generated `wm-agent.yml` as the reusable workflow `runs_on` input (JSON array). If omitted or empty, defaults to `ubuntu-latest`. Use e.g. `self-hosted` plus OS labels for self-hosted runners. |
 | `workflow.pre_steps` | Optional list of GitHub Actions job steps (`name`, `uses`, `run`, `with`, `env`, `if`) run before installing `gh-wm` and the task. When non-empty, `wm-agent.yml` embeds an **inline** `run` job instead of calling reusable [`agent-run.yml`](../../.github/workflows/agent-run.yml). See [`cli-reference.md`](cli-reference.md) **`init`**. |
 | `context.files` | Paths **relative to repo root** read and **appended** to the prompt ([`engine/agent.go`](../../internal/engine/agent.go)). Omit **`CLAUDE.md`** when using Claude Code: it loads that file from the repo on its own; listing it here duplicates it in the prompt. |

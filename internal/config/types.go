@@ -17,10 +17,11 @@ type StepDef struct {
 
 // GlobalConfig is .wm/config.yml
 type GlobalConfig struct {
-	Version  int    `yaml:"version"`
-	Engine   string `yaml:"engine"`
-	Model    string `yaml:"model"`
-	MaxTurns int    `yaml:"max_turns"`
+	Version            int    `yaml:"version"`
+	Engine             string `yaml:"engine"`
+	Model              string `yaml:"model"`
+	MaxTurns           int    `yaml:"max_turns"`
+	ClaudeOutputFormat string `yaml:"claude_output_format,omitempty"`
 	Workflow struct {
 		RunsOn   []string  `yaml:"runs_on"`
 		PreSteps []StepDef `yaml:"pre_steps"`
