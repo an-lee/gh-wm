@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'docs/**'
-      - '.github/workflows/pages.yml'
+      - "docs/**"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 concurrency:
@@ -21,16 +21,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3
         with:
-          hugo-version: '0.146.0'
+          hugo-version: "0.146.0"
           extended: true
 
       - name: Download Hugo modules
@@ -47,9 +47,9 @@ jobs:
           export HUGO_BASEURL="https://${REPO_OWNER}.github.io/${REPO_NAME}/"
           hugo --minify --gc -d public
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: docs/public
 
@@ -60,5 +60,5 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/deploy-pages@v4
+      - uses: actions/deploy-pages@v5
         id: deployment

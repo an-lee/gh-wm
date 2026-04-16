@@ -18,7 +18,7 @@ on:
         description: When non-empty, resolve only this task name (skip event matching)
         required: false
         type: string
-        default: ''
+        default: ""
     outputs:
       tasks:
         description: JSON array of matching task names
@@ -30,9 +30,9 @@ jobs:
     outputs:
       tasks: ${{ steps.match.outputs.tasks }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: stable
 
