@@ -1,15 +1,12 @@
 package output
 
 import (
-	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
 
-	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/gitbranch"
-	"github.com/an-lee/gh-wm/internal/types"
 )
 
 func TestDefaultBaseBranch(t *testing.T) {
@@ -75,15 +72,3 @@ func runGit(t *testing.T, dir string, args ...string) {
 	}
 }
 
-func TestRunPROutput_NoCommitsAhead(t *testing.T) {
-	t.Parallel()
-	dir := gitRepoWithOriginMain(t)
-	glob := &config.GlobalConfig{}
-	task := &config.Task{Frontmatter: map[string]any{"safe-outputs": map[string]any{
-		"create-pull-request": map[string]any{},
-	}}}
-	tc := &types.TaskContext{RepoPath: dir, Repo: "o/r"}
-	if err := runPROutputLegacy(context.Background(), glob, task, tc); err != nil {
-		t.Fatal(err)
-	}
-}

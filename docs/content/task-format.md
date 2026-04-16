@@ -81,13 +81,17 @@ In frontmatter, `on.schedule` is a **string** (see [`Task.ScheduleString`](../..
 | `hourly` | `M */1 * * *` with scattered minute `M` in 5–54 |
 | other | If it is already a **5-field** cron string, whitespace-normalized and used as-is; otherwise passed through unchanged (must be valid for GitHub Actions if used as cron) |
 
-## `safe-outputs:` — policy + agent-driven vs legacy
+## `safe-outputs:` — policy + structured `output.json`
 
-Keys under `safe-outputs:` declare what GitHub **follow-up actions** are allowed after a successful agent run. The agent subprocess receives **`WM_OUTPUT_FILE`**, pointing to **`output.json`** in the same [per-run directory](architecture.md#what-persists-where) as `prompt.md` and the agent log.
+If the task omits **`safe-outputs:`** or the block is **empty**, the post-agent safe-output phase does **nothing**.
 
-### Agent-driven mode (recommended)
+If **`safe-outputs:`** contains **at least one key**, the agent **must** write valid JSON to **`WM_OUTPUT_FILE`** (`output.json` in the [per-run directory](architecture.md#what-persists-where)) with a **non-empty** **`items`** array. Otherwise the run fails the safe-output phase with a clear error. Use **`noop`** when no GitHub follow-up is needed:
 
-If the agent writes **valid JSON** to **`WM_OUTPUT_FILE`** with a non-empty **`items`** array, [`internal/output`](../../internal/output/) runs **only** the operations listed there (subject to policy). Each item has a **`type`** field using **underscores** (gh-aw style): **`create_pull_request`**, **`add_comment`**, **`add_labels`**, **`remove_labels`**, **`create_issue`**, **`noop`**. Dash forms in **`type`** (e.g. `create-pull-request`) are accepted too.
+```json
+{ "items": [ { "type": "noop", "message": "No follow-up actions." } ] }
+```
+
+Keys under **`safe-outputs:`** declare what operations are **allowed**; each item has a **`type`** using **underscores** (gh-aw style): **`create_pull_request`**, **`add_comment`**, **`add_labels`**, **`remove_labels`**, **`create_issue`**, **`noop`**. Dash forms in **`type`** (e.g. `create-pull-request`) are accepted too.
 
 ```json
 {
@@ -102,19 +106,7 @@ If the agent writes **valid JSON** to **`WM_OUTPUT_FILE`** with a non-empty **`i
 - **`max:`** per handler is **enforced** (defaults apply when omitted: e.g. **1** for PR / comment / issue, **3** for label lists).
 - **`title-prefix`**: enforced for **`create_pull_request`** and **`create_issue`** titles (agent title is prefixed when missing).
 - **`labels`** under **`create-pull-request`** / **`create_issue`**: merged with agent-supplied labels (deduped).
-- **`add-labels`** / **`remove-labels`**: optional **`allowed:`** and **`blocked:`** (glob patterns, same idea as gh-aw); **`blocked`** is evaluated first.
-
-If **`output.json`** is **missing** or **`items`** is **empty**, gh-wm uses **legacy** behavior below so existing tasks keep working without changes.
-
-### Legacy mode (no structured `items`)
-
-| Key | When present | Behavior |
-|-----|----------------|----------|
-| `create-pull-request` | Yes | After success, if `git` has commits ahead of `origin/<default-branch>`, `git push` + `gh pr create` (draft/labels/title-prefix from block + global `pr.*`). |
-| `add-labels` | Yes | After success, adds each name in `add-labels.labels` via `gh api`. |
-| `add-comment` | Yes | After success, posts agent stdout/summary as `gh issue comment` or `gh pr comment`. |
-
-**Order of execution (legacy only):** create-pull-request → add-labels → add-comment.
+- **`add-labels`** / **`remove-labels`**: optional **`allowed:`** and **`blocked:`** (glob patterns); **`blocked`** is evaluated first.
 
 The agent prompt includes an **Available Outputs** section whenever `safe-outputs:` is non-empty ([`internal/output/prompt.go`](../../internal/output/prompt.go)).
 

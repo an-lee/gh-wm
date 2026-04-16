@@ -30,13 +30,15 @@ exit 1
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
-func TestRunLabelOutput_AddsLabels(t *testing.T) {
+func TestRunAddLabelsFromItem_AddsLabels(t *testing.T) {
 	fakeGhAPI(t)
 	task := &config.Task{Frontmatter: map[string]any{"safe-outputs": map[string]any{
-		"add-labels": map[string]any{"labels": []any{"bug", "triage"}},
+		"add-labels": map[string]any{},
 	}}}
+	p := newPolicy(task)
 	tc := &types.TaskContext{Repo: "o/r", IssueNumber: 9}
-	if err := runLabelOutputLegacy(context.Background(), task, tc); err != nil {
+	item := ItemLabels{Labels: []string{"bug", "triage"}}
+	if err := runAddLabelsFromItem(context.Background(), tc, p, item); err != nil {
 		t.Fatal(err)
 	}
 }

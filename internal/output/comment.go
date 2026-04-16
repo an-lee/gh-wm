@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
@@ -18,22 +17,6 @@ func resolveCommentTarget(tc *types.TaskContext, target int) int {
 		return target
 	}
 	return commentTargetNumber(tc)
-}
-
-// runCommentOutputLegacy posts agent stdout/summary when output.json is absent.
-func runCommentOutputLegacy(_ context.Context, _ *config.GlobalConfig, task *config.Task, tc *types.TaskContext, res *types.AgentResult) error {
-	n := commentTargetNumber(tc)
-	if n <= 0 {
-		return fmt.Errorf("no issue or PR number in event context for add-comment")
-	}
-	body := strings.TrimSpace(res.Summary)
-	if body == "" {
-		body = strings.TrimSpace(res.Stdout)
-	}
-	if body == "" {
-		body = fmt.Sprintf("Task %q completed (no agent output).", task.Name)
-	}
-	return postComment(tc, n, body)
 }
 
 // runCommentFromItem posts add_comment from structured output.

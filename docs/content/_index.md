@@ -1,6 +1,6 @@
 # gh-wm documentation
 
-**gh-wm** is a Go [`gh` CLI extension](https://docs.github.com/en/github-cli/github-cli/creating-github-cli-extensions) that runs **gh-aw–compatible** task files (Markdown + YAML frontmatter) from `.wm/tasks/` **without** compiling to lockfiles, without AWF, and without enforcing gh-aw **limits** in `safe-outputs` (those keys still **select** optional post-agent steps such as PR creation and comments).
+**gh-wm** is a Go [`gh` CLI extension](https://docs.github.com/en/github-cli/github-cli/creating-github-cli-extensions) that runs **gh-aw–compatible** task files (Markdown + YAML frontmatter) from `.wm/tasks/` **without** compiling to lockfiles or AWF. When `safe-outputs:` is set, the agent writes structured **`output.json`** requests; gh-wm validates and applies them (`max:`, allowlists, etc.).
 
 This documentation is the **canonical reference** for how the project works and how to extend it.
 
@@ -24,6 +24,6 @@ This documentation is the **canonical reference** for how the project works and 
 
 ## One-sentence mental model
 
-**GitHub delivers an event → `gh wm resolve` lists matching task names → Actions runs `gh wm run --task <name>` per match; each run runs the agent (default: `claude -p`), then optional `safe-outputs` steps (`gh pr create`, labels, issue/PR comment) and `wm.state_labels` updates.**
+**GitHub delivers an event → `gh wm resolve` lists matching task names → Actions runs `gh wm run --task <name>` per match; each run runs the agent (default: `claude -p`), then applies agent-written **`output.json`** safe outputs when `safe-outputs:` is configured, and `wm.state_labels` updates.**
 
 For install and a minimal user quick start, see the repository [README](../../README.md).

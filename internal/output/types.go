@@ -1,4 +1,4 @@
-// Package output runs post-agent safe-output steps (agent-driven or legacy).
+// Package output runs post-agent safe-output steps from agent-written output.json.
 package output
 
 // OutputKind is the JSON `type` field value (underscore form, gh-aw style).

@@ -10,38 +10,33 @@ import (
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
-// RunSuccessOutputs runs post-agent safe outputs: agent-driven output.json when present, else legacy behavior.
+// RunSuccessOutputs runs agent-driven safe outputs from WM_OUTPUT_FILE (output.json).
+// If the task declares safe-outputs: with at least one key, a non-empty {"items":[...]} is required
+// (use type noop when no GitHub follow-up is needed). If safe-outputs is absent or empty, this is a no-op.
 func RunSuccessOutputs(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext, res *types.AgentResult) error {
 	if glob == nil || task == nil || tc == nil || res == nil {
+		return nil
+	}
+	if !taskDeclaresSafeOutputs(task) {
 		return nil
 	}
 	ao, err := ParseAgentOutputFile(res.OutputFilePath)
 	if err != nil {
 		return err
 	}
-	if ao != nil && len(ao.Items) > 0 {
-		return runAgentDrivenOutputs(ctx, glob, task, tc, ao)
+	if ao == nil || len(ao.Items) == 0 {
+		path := strings.TrimSpace(res.OutputFilePath)
+		if path == "" {
+			path = "$WM_OUTPUT_FILE (per-run output.json path)"
+		}
+		return fmt.Errorf("safe-outputs: missing or empty structured output; write JSON to %s with {\"items\":[{\"type\":\"noop\",\"message\":\"…\"}]} or other allowed types", path)
 	}
-	return runLegacyOutputs(ctx, glob, task, tc, res)
+	return runAgentDrivenOutputs(ctx, glob, task, tc, ao)
 }
 
-func runLegacyOutputs(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext, res *types.AgentResult) error {
-	if task.HasSafeOutputKey(fmCreatePullRequest) {
-		if err := runPROutputLegacy(ctx, glob, task, tc); err != nil {
-			return fmt.Errorf("create-pull-request: %w", err)
-		}
-	}
-	if task.HasSafeOutputKey(fmAddLabels) {
-		if err := runLabelOutputLegacy(ctx, task, tc); err != nil {
-			return fmt.Errorf("add-labels: %w", err)
-		}
-	}
-	if task.HasSafeOutputKey(fmAddComment) {
-		if err := runCommentOutputLegacy(ctx, glob, task, tc, res); err != nil {
-			return fmt.Errorf("add-comment: %w", err)
-		}
-	}
-	return nil
+func taskDeclaresSafeOutputs(task *config.Task) bool {
+	m := task.SafeOutputsMap()
+	return m != nil && len(m) > 0
 }
 
 func runAgentDrivenOutputs(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext, ao *AgentOutputFile) error {

@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
@@ -33,32 +32,25 @@ exit 1
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
-func TestRunCommentOutput_Issue(t *testing.T) {
+func TestRunCommentFromItem_Issue(t *testing.T) {
 	fakeGhForComments(t)
-	task := &config.Task{Name: "t"}
 	tc := &types.TaskContext{RepoPath: t.TempDir(), Repo: "o/r", IssueNumber: 3}
-	res := &types.AgentResult{Summary: "done"}
-	if err := runCommentOutputLegacy(context.Background(), nil, task, tc, res); err != nil {
+	if err := runCommentFromItem(context.Background(), tc, ItemAddComment{Body: "done"}); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestRunCommentOutput_PR(t *testing.T) {
+func TestRunCommentFromItem_PR(t *testing.T) {
 	fakeGhForComments(t)
-	task := &config.Task{Name: "t"}
 	tc := &types.TaskContext{RepoPath: t.TempDir(), Repo: "o/r", PRNumber: 2, IssueNumber: 0}
-	res := &types.AgentResult{Stdout: "out only"}
-	if err := runCommentOutputLegacy(context.Background(), nil, task, tc, res); err != nil {
+	if err := runCommentFromItem(context.Background(), tc, ItemAddComment{Body: "out only"}); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestRunCommentOutput_EmptyOutputFallback(t *testing.T) {
-	fakeGhForComments(t)
-	task := &config.Task{Name: "named"}
+func TestRunCommentFromItem_EmptyBody(t *testing.T) {
 	tc := &types.TaskContext{RepoPath: t.TempDir(), Repo: "o/r", IssueNumber: 1}
-	res := &types.AgentResult{}
-	if err := runCommentOutputLegacy(context.Background(), nil, task, tc, res); err != nil {
-		t.Fatal(err)
+	if err := runCommentFromItem(context.Background(), tc, ItemAddComment{Body: ""}); err == nil {
+		t.Fatal("expected error")
 	}
 }

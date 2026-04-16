@@ -44,7 +44,7 @@ Deployment runs via [`.github/workflows/pages.yml`](../../.github/workflows/page
 | [`cmd/`](../../cmd/)                                              | Cobra commands; keep thin—delegate to `internal/`.                                                                                     |
 | [`internal/config/`](../../internal/config/)                      | YAML + markdown frontmatter loading.                                                                                                   |
 | [`internal/engine/`](../../internal/engine/)                      | Resolve + run + agent + per-run artifact dirs (`rundir.go`) + state labels + checkpoint wiring.                                         |
-| [`internal/output/`](../../internal/output/)                      | Post-agent steps from `safe-outputs:` keys.                                                                                            |
+| [`internal/output/`](../../internal/output/)                      | Parses `output.json` and runs validated safe-output `items` per `safe-outputs:` policy.                                                  |
 | [`internal/trigger/`](../../internal/trigger/)                    | `on:` matching (`match.go`).                                                                                                           |
 | [`internal/types/`](../../internal/types/)                        | `GitHubEvent`, `TaskContext`, `AgentResult`, `RunResult`, `Phase`.                                                                                           |
 | [`internal/gen/`](../../internal/gen/)                            | `wm-agent.yml` and schedule collection.                                                                                                |
@@ -66,9 +66,9 @@ Deployment runs via [`.github/workflows/pages.yml`](../../.github/workflows/page
 
 ## Extending outputs
 
-1. Add a function in [`internal/output/`](../../internal/output/) and call it from [`RunSuccessOutputs`](../../internal/output/output.go) when the right `safe-outputs` key is present.
+1. Add a `Kind…` constant, parsing in [`parse.go`](../../internal/output/parse.go), policy in [`policy.go`](../../internal/output/policy.go) if needed, a handler, and a `case` in [`runAgentDrivenOutputs`](../../internal/output/output.go); extend [`prompt.go`](../../internal/output/prompt.go) for the injected prompt section.
 2. Use [`ghclient`](../../internal/ghclient/) or `exec.Command("gh", …)` with `tc.RepoPath` / `GITHUB_REPOSITORY`.
-3. Document the key in [task-format.md](task-format.md).
+3. Document the key and JSON `type` in [task-format.md](task-format.md).
 
 ## Extending configuration
 

@@ -35,3 +35,7 @@ Implement the feature or fix described in the issue.
 Create tests if applicable. Commit with clear messages.
 
 Follow repository conventions and any project agent guide your team maintains.
+
+## Safe output (required)
+
+Before exiting, write JSON to **`WM_OUTPUT_FILE`**: `{"items":[...]}`. Use **`create_pull_request`** when you have commits to push as a PR, **`add_comment`** to summarize on the issue, and/or **`noop`** with a message if no GitHub follow-up is needed.

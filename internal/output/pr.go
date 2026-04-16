@@ -14,16 +14,6 @@ import (
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
-// runPROutputLegacy runs the pre-agent-driven behavior: push + PR with default title/body from task config.
-func runPROutputLegacy(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext) error {
-	p := newPolicy(task)
-	draft := p.DefaultDraft(glob, KindCreatePullRequest)
-	labels := p.MergeLabels(KindCreatePullRequest, nil)
-	title := p.ApplyTitlePrefix(KindCreatePullRequest, fmt.Sprintf("[%s] wm task", task.Name))
-	body := "Opened by **gh-wm** task `" + task.Name + "`."
-	return tryCreatePullRequest(ctx, task, tc, title, body, draft, labels)
-}
-
 // runCreatePullRequestItem runs create_pull_request from agent output.json.
 func runCreatePullRequestItem(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext, p *Policy, item ItemCreatePullRequest) error {
 	if p == nil {
