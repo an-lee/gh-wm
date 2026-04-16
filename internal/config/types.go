@@ -23,8 +23,9 @@ type GlobalConfig struct {
 	MaxTurns           int    `yaml:"max_turns"`
 	ClaudeOutputFormat string `yaml:"claude_output_format,omitempty"`
 	Workflow           struct {
-		RunsOn   []string  `yaml:"runs_on"`
-		PreSteps []StepDef `yaml:"pre_steps"`
+		RunsOn            []string  `yaml:"runs_on"`
+		PreSteps          []StepDef `yaml:"pre_steps"`
+		InstallClaudeCode *bool     `yaml:"install_claude_code,omitempty"`
 	} `yaml:"workflow"`
 	Context struct {
 		Files []string `yaml:"files"`

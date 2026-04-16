@@ -3,6 +3,8 @@ version: 1
 workflow:
   runs_on:
     - ubuntu-latest
+  # Optional: set false for codex-only or when claude is pre-installed on the runner (default true).
+  # install_claude_code: false
   # Optional: prerequisite steps before gh-wm runs (toolchains, deps, engine CLI).
   # When set, `gh wm upgrade` generates an inline run job (not reusable agent-run.yml).
   # pre_steps:

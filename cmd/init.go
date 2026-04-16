@@ -51,7 +51,7 @@ func runInit(_ *cobra.Command, _ []string) error {
 	}
 	runsOn := config.WorkflowRunsOnLabels(glob)
 	preSteps := glob.Workflow.PreSteps
-	if err := gen.WriteWMAgent(ghDir, repo, schedules, runsOn, preSteps); err != nil {
+	if err := gen.WriteWMAgent(ghDir, repo, schedules, runsOn, preSteps, config.WorkflowInstallClaudeCode(glob)); err != nil {
 		return err
 	}
 	if err := ensureWmGitignoreRuns(wm); err != nil {

@@ -82,6 +82,27 @@ func TestWorkflowRunsOnLabels_Default(t *testing.T) {
 	}
 }
 
+func TestWorkflowInstallClaudeCode(t *testing.T) {
+	t.Parallel()
+	if !WorkflowInstallClaudeCode(nil) {
+		t.Fatal("nil config should default to true")
+	}
+	g := &GlobalConfig{Version: 1}
+	if !WorkflowInstallClaudeCode(g) {
+		t.Fatal("unset should default to true")
+	}
+	f := false
+	g.Workflow.InstallClaudeCode = &f
+	if WorkflowInstallClaudeCode(g) {
+		t.Fatal("explicit false")
+	}
+	tr := true
+	g.Workflow.InstallClaudeCode = &tr
+	if !WorkflowInstallClaudeCode(g) {
+		t.Fatal("explicit true")
+	}
+}
+
 func TestLoadGlobalOnly(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()

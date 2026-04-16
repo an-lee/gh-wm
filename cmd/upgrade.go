@@ -57,7 +57,7 @@ func runUpgrade(_ *cobra.Command, _ []string) error {
 	if glob != nil {
 		preSteps = glob.Workflow.PreSteps
 	}
-	if err := gen.WriteWMAgent(ghDir, repo, schedules, runsOn, preSteps); err != nil {
+	if err := gen.WriteWMAgent(ghDir, repo, schedules, runsOn, preSteps, config.WorkflowInstallClaudeCode(glob)); err != nil {
 		return err
 	}
 	if err := ensureWmGitignoreRuns(filepath.Join(cwd, ".wm")); err != nil {

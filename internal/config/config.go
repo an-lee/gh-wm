@@ -54,6 +54,15 @@ func WorkflowRunsOnLabels(g *GlobalConfig) []string {
 	return g.Workflow.RunsOn
 }
 
+// WorkflowInstallClaudeCode reports whether generated wm-agent.yml should pass install_claude_code: true
+// to the agent-run reusable workflow. When unset in config, defaults to true.
+func WorkflowInstallClaudeCode(g *GlobalConfig) bool {
+	if g == nil || g.Workflow.InstallClaudeCode == nil {
+		return true
+	}
+	return *g.Workflow.InstallClaudeCode
+}
+
 // DefaultGlobal returns minimal defaults when config.yml missing pieces
 // ParseGlobal unmarshals config.yml bytes
 func ParseGlobal(data []byte) (*GlobalConfig, error) {

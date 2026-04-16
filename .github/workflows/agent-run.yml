@@ -17,6 +17,11 @@ on:
         required: false
         type: string
         default: '["ubuntu-latest"]'
+      install_claude_code:
+        description: Install Claude Code CLI via the official installer before gh-wm run (set false for codex-only tasks or when claude is pre-installed on the runner)
+        required: false
+        type: boolean
+        default: true
     secrets:
       ANTHROPIC_API_KEY:
         required: true
@@ -38,6 +43,16 @@ jobs:
 
       - name: Add gh-wm to PATH
         run: echo "${{ runner.temp }}/bin" >> "$GITHUB_PATH"
+
+      - name: Install Claude Code
+        if: ${{ inputs.install_claude_code }}
+        run: curl -fsSL https://claude.ai/install.sh | bash
+        env:
+          CI: true
+
+      - name: Add Claude Code to PATH
+        if: ${{ inputs.install_claude_code }}
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Run task
         env:

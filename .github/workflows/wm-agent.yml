@@ -50,5 +50,6 @@ jobs:
       event_name: ${{ github.event_name }}
       event_json: ${{ toJSON(github.event) }}
       runs_on: '["self-hosted","linux"]'
+      install_claude_code: true
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

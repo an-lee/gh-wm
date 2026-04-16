@@ -63,6 +63,7 @@ jobs:
       event_name: {{ "${{" }} github.event_name {{ "}}" }}
       event_json: {{ "${{" }} toJSON(github.event) {{ "}}" }}
       runs_on: '{{ .RunsOnJSON }}'
+      install_claude_code: {{ if .InstallClaudeCode }}true{{ else }}false{{ end }}
     secrets:
       ANTHROPIC_API_KEY: {{ "${{" }} secrets.ANTHROPIC_API_KEY {{ "}}" }}
 `
@@ -129,7 +130,15 @@ jobs:
 
       - name: Add gh-wm to PATH
         run: echo "{{ "${{" }} runner.temp {{ "}}" }}/bin" >> "$GITHUB_PATH"
+{{ if .InstallClaudeCode }}
+      - name: Install Claude Code
+        run: curl -fsSL https://claude.ai/install.sh | bash
+        env:
+          CI: true
 
+      - name: Add Claude Code to PATH
+        run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+{{ end }}
       - name: Run task
         env:
           ANTHROPIC_API_KEY: {{ "${{" }} secrets.ANTHROPIC_API_KEY {{ "}}" }}
@@ -143,16 +152,18 @@ jobs:
 `
 
 type wmAgentData struct {
-	OwnerRepo    string
-	Ref          string
-	Schedules    []string
-	RunsOnJSON   string
-	PreStepsYAML string
+	OwnerRepo         string
+	Ref               string
+	Schedules         []string
+	RunsOnJSON        string
+	PreStepsYAML      string
+	InstallClaudeCode bool
 }
 
 // WriteWMAgent writes .github/workflows/wm-agent.yml. runsOn is passed to reusable workflows as JSON (see workflow.runs_on in .wm/config.yml); if empty, ["ubuntu-latest"] is used.
 // When preSteps is non-empty, the run job is generated inline so prerequisite steps (e.g. mise, bundle install) run before gh-wm.
-func WriteWMAgent(ghWorkflowsDir string, ownerRepo string, schedules []string, runsOn []string, preSteps []config.StepDef) error {
+// installClaudeCode controls the agent-run input and inline install steps (see workflow.install_claude_code in .wm/config.yml; default true).
+func WriteWMAgent(ghWorkflowsDir string, ownerRepo string, schedules []string, runsOn []string, preSteps []config.StepDef, installClaudeCode bool) error {
 	labels := runsOn
 	if len(labels) == 0 {
 		labels = []string{"ubuntu-latest"}
@@ -162,10 +173,11 @@ func WriteWMAgent(ghWorkflowsDir string, ownerRepo string, schedules []string, r
 		return err
 	}
 	data := wmAgentData{
-		OwnerRepo:  ownerRepo,
-		Ref:        "main",
-		Schedules:  dedupe(schedules),
-		RunsOnJSON: string(runsOnJSON),
+		OwnerRepo:         ownerRepo,
+		Ref:               "main",
+		Schedules:         dedupe(schedules),
+		RunsOnJSON:        string(runsOnJSON),
+		InstallClaudeCode: installClaudeCode,
 	}
 	if len(data.Schedules) == 0 {
 		data.Schedules = []string{"0 22 * * 1-5"}
