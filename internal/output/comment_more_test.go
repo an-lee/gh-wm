@@ -38,7 +38,7 @@ func TestRunCommentOutput_Issue(t *testing.T) {
 	task := &config.Task{Name: "t"}
 	tc := &types.TaskContext{RepoPath: t.TempDir(), Repo: "o/r", IssueNumber: 3}
 	res := &types.AgentResult{Summary: "done"}
-	if err := runCommentOutput(context.Background(), nil, task, tc, res); err != nil {
+	if err := runCommentOutputLegacy(context.Background(), nil, task, tc, res); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -48,7 +48,7 @@ func TestRunCommentOutput_PR(t *testing.T) {
 	task := &config.Task{Name: "t"}
 	tc := &types.TaskContext{RepoPath: t.TempDir(), Repo: "o/r", PRNumber: 2, IssueNumber: 0}
 	res := &types.AgentResult{Stdout: "out only"}
-	if err := runCommentOutput(context.Background(), nil, task, tc, res); err != nil {
+	if err := runCommentOutputLegacy(context.Background(), nil, task, tc, res); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -58,7 +58,7 @@ func TestRunCommentOutput_EmptyOutputFallback(t *testing.T) {
 	task := &config.Task{Name: "named"}
 	tc := &types.TaskContext{RepoPath: t.TempDir(), Repo: "o/r", IssueNumber: 1}
 	res := &types.AgentResult{}
-	if err := runCommentOutput(context.Background(), nil, task, tc, res); err != nil {
+	if err := runCommentOutputLegacy(context.Background(), nil, task, tc, res); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -58,4 +58,6 @@ type AgentResult struct {
 	TimedOut bool
 	// AgentStdoutPath is the on-disk combined agent log when RunDir is used (full transcript).
 	AgentStdoutPath string
+	// OutputFilePath is the path where the agent may write structured safe-output JSON (output.json).
+	OutputFilePath string
 }

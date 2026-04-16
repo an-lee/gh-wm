@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/an-lee/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/output"
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
@@ -43,6 +44,7 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 	if strings.TrimSpace(tc.CheckpointHint) != "" {
 		prompt += "\n\n---\n## Previous checkpoint\n\n" + strings.TrimSpace(tc.CheckpointHint)
 	}
+	prompt += output.AvailableOutputsSection(glob, task)
 
 	engineName := task.Engine()
 	if engineName == "" && glob != nil {
@@ -90,10 +92,17 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 		}
 	}
 	cmd.Dir = tc.RepoPath
+	outputPath := ""
+	if rd != nil {
+		outputPath = rd.OutputJSONPath()
+	}
 	env := append(os.Environ(),
 		"GITHUB_REPOSITORY="+tc.Repo,
 		fmt.Sprintf("WM_TASK=%s", tc.TaskName),
 	)
+	if outputPath != "" {
+		env = append(env, "WM_OUTPUT_FILE="+outputPath)
+	}
 	if tools := task.ToolsYAML(); tools != "" {
 		env = append(env, "WM_TASK_TOOLS="+tools)
 	}
@@ -148,6 +157,7 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 		Success:         err == nil,
 		ExitCode:        0,
 		AgentStdoutPath: agentPath,
+		OutputFilePath:  outputPath,
 	}
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {

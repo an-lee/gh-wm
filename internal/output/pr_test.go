@@ -83,7 +83,7 @@ func TestRunPROutput_NoCommitsAhead(t *testing.T) {
 		"create-pull-request": map[string]any{},
 	}}}
 	tc := &types.TaskContext{RepoPath: dir, Repo: "o/r"}
-	if err := runPROutput(context.Background(), glob, task, tc, nil); err != nil {
+	if err := runPROutputLegacy(context.Background(), glob, task, tc); err != nil {
 		t.Fatal(err)
 	}
 }

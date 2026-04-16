@@ -36,7 +36,7 @@ func TestRunLabelOutput_AddsLabels(t *testing.T) {
 		"add-labels": map[string]any{"labels": []any{"bug", "triage"}},
 	}}}
 	tc := &types.TaskContext{Repo: "o/r", IssueNumber: 9}
-	if err := runLabelOutput(context.Background(), nil, task, tc, nil); err != nil {
+	if err := runLabelOutputLegacy(context.Background(), task, tc); err != nil {
 		t.Fatal(err)
 	}
 }

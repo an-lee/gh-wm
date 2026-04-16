@@ -9,7 +9,7 @@
 
 ## High-level pipeline
 
-Each task follows **trigger → resolve → run** (`RunTask`). The run is a **five-phase pipeline** in-process (no gh-aw-style compile): **activation** (event/task validation, optional `wm.state_labels` working label, feature branch for PR mode, **per-run artifact dir** under `.wm/runs/` or `WM_RUN_DIR`), **agent** (`runAgent` subprocess), **validation** (successful exit and output size bound; context deadline surfaced as timeout), **safe-outputs** ([`internal/output`](../../internal/output/) when keys exist under `safe-outputs:` — hints only; not enforced like gh-aw), and **conclusion** (`defer`: done/failed labels, checkpoint comment, branch rollback on failure, **`result.json`**). [`RunTask`](../../internal/engine/runner.go) returns a [`types.RunResult`](../../internal/types/types.go) with `Phase`, `Success`, `Errors`, `RunDir`, and `AgentResult`; `wm run` logs `phase=` and `artifacts=` on stderr when a run directory is created.
+Each task follows **trigger → resolve → run** (`RunTask`). The run is a **five-phase pipeline** in-process (no gh-aw-style compile): **activation** (event/task validation, optional `wm.state_labels` working label, feature branch for PR mode, **per-run artifact dir** under `.wm/runs/` or `WM_RUN_DIR`), **agent** (`runAgent` subprocess — **`WM_OUTPUT_FILE`** set to per-run **`output.json`** when a run dir exists), **validation** (successful exit and output size bound; context deadline surfaced as timeout), **safe-outputs** ([`internal/output`](../../internal/output/) — **agent-driven** `output.json` **`items`** when present, else **legacy** fixed order for declared keys; `max:` / label allowlists enforced in agent-driven mode), and **conclusion** (`defer`: done/failed labels, checkpoint comment, branch rollback on failure, **`result.json`**). [`RunTask`](../../internal/engine/runner.go) returns a [`types.RunResult`](../../internal/types/types.go) with `Phase`, `Success`, `Errors`, `RunDir`, and `AgentResult`; `wm run` logs `phase=` and `artifacts=` on stderr when a run directory is created.
 
 ```mermaid
 flowchart LR
@@ -53,7 +53,7 @@ Optional **checkpoints** ([`internal/checkpoint`](../../internal/checkpoint/chec
 | Config + tasks | [`internal/config/`](../../internal/config/) | Load `.wm/config.yml`, parse `.wm/tasks/*.md` frontmatter ([`frontmatter.go`](../../internal/config/frontmatter.go)). |
 | Event → task names | [`internal/trigger/match.go`](../../internal/trigger/match.go) | `MatchOnOR`: implements `on:` OR-semantics against [`types.GitHubEvent`](../../internal/types/types.go). |
 | Orchestration | [`internal/engine/`](../../internal/engine/) | `ResolveMatchingTasks` and `ResolveForcedTask` ([`resolver.go`](../../internal/engine/resolver.go)) — forced resolve pins one task by filename without evaluating `on:` (matches local `gh wm run`); `RunTask` ([`runner.go`](../../internal/engine/runner.go)), per-run dirs ([`rundir.go`](../../internal/engine/rundir.go)), activation checks ([`activation.go`](../../internal/engine/activation.go)), output validation ([`validation.go`](../../internal/engine/validation.go)), conclusion/defer ([`conclusion.go`](../../internal/engine/conclusion.go)), `runAgent` ([`agent.go`](../../internal/engine/agent.go)), state labels ([`state.go`](../../internal/engine/state.go)). |
-| Post-agent steps | [`internal/output/`](../../internal/output/) | `RunSuccessOutputs`: `create-pull-request`, `add-labels`, `add-comment` when keys exist under `safe-outputs:`. |
+| Post-agent steps | [`internal/output/`](../../internal/output/) | `RunSuccessOutputs`: agent-driven **`output.json`** or legacy **`create-pull-request`** / **`add-labels`** / **`add-comment`** (see [task-format](task-format.md#safe-outputs-policy-agent-driven-vs-legacy)). |
 | `wm-agent.yml` generation | [`internal/gen/wmagent.go`](../../internal/gen/wmagent.go), [`schedules.go`](../../internal/gen/schedules.go) | Union of `on.schedule` strings; writes caller workflow. |
 | Embedded templates | [`internal/templates/`](../../internal/templates/) | Starters for `gh wm init` (`config.yml`, tasks). |
 | GitHub API helpers | [`internal/ghclient/`](../../internal/ghclient/) | Labels, issue comments (`gh api`). |
@@ -99,8 +99,8 @@ flowchart LR
 
 ## Run behavior details
 
-- [`engine.RunTask`](../../internal/engine/runner.go) returns a [`RunResult`](../../internal/types/types.go) with phase, accumulated errors, timing, and **`RunDir`**. It validates the event and engine, builds [`TaskContext`](../../internal/types/types.go), creates a **per-run directory** ([`NewRunDir`](../../internal/engine/rundir.go): `.wm/runs/<id>/` or `WM_RUN_DIR/<id>/`), optionally loads checkpoint text, applies **working** label if `wm.state_labels` is set, optionally creates a **feature branch** via [`internal/gitbranch`](../../internal/gitbranch/) when `safe-outputs` includes `create-pull-request` (see CLI reference), runs `runAgent` (writes **`prompt.md`**, streams combined stdout/stderr to a per-run **agent log file** — default **`agent-stdout.log`**, or structured **`conversation.json`** / **`conversation.jsonl`** when print-mode JSON is enabled for the built-in **`claude`** CLI; **SIGTERM** then kill on Unix when the run context is canceled), validates agent output size (from log file stat when present) and success, then on success runs **`output.RunSuccessOutputs`** (PR / labels / comment). A **deferred conclusion** always runs: on success, checkpoint comment if `WM_CHECKPOINT=1` and **done** labels; on failure, **failed** labels and **checkout** of the previous branch if a feature branch was created; finally **`result.json`** and **`meta.json`** (phase **conclusion**).
-- [`runAgent`](../../internal/engine/agent.go) builds the prompt from the task body + `context.files` + optional checkpoint hint; sets `WM_TASK_TOOLS` when `tools:` is present; selects CLI via `WM_AGENT_CMD` or `engine:` (`claude`, `codex`, `copilot` requires `WM_AGENT_CMD`). Default **`claude`** uses **stdin** for the prompt, **`--dangerously-skip-permissions`**, and optional **`--model`** / **`--max-turns`** from global config so the agent can run tools (including **`gh`**) non-interactively. When **`claude_output_format`** / **`WM_CLAUDE_OUTPUT_FORMAT`** request **`json`** or **`stream-json`**, the runner also passes **`--output-format`** (built-in **`claude`** only; **`WM_AGENT_CMD`**, **codex**, and **copilot** keep plain-text capture). In-memory **`Stdout`/`Summary`** hold a **64 KiB tail** of the transcript when a run dir is used (full text is on disk).
+- [`engine.RunTask`](../../internal/engine/runner.go) returns a [`RunResult`](../../internal/types/types.go) with phase, accumulated errors, timing, and **`RunDir`**. It validates the event and engine, builds [`TaskContext`](../../internal/types/types.go), creates a **per-run directory** ([`NewRunDir`](../../internal/engine/rundir.go): `.wm/runs/<id>/` or `WM_RUN_DIR/<id>/`), optionally loads checkpoint text, applies **working** label if `wm.state_labels` is set, optionally creates a **feature branch** via [`internal/gitbranch`](../../internal/gitbranch/) when `safe-outputs` includes `create-pull-request` (see CLI reference), runs `runAgent` (writes **`prompt.md`**, appends **safe outputs** instructions when `safe-outputs:` is set, sets **`WM_OUTPUT_FILE`**, streams combined stdout/stderr to a per-run **agent log file** — default **`agent-stdout.log`**, or structured **`conversation.json`** / **`conversation.jsonl`** when print-mode JSON is enabled for the built-in **`claude`** CLI; **SIGTERM** then kill on Unix when the run context is canceled), validates agent output size (from log file stat when present) and success, then on success runs **`output.RunSuccessOutputs`** (structured **`output.json`** or legacy PR / labels / comment). A **deferred conclusion** always runs: on success, checkpoint comment if `WM_CHECKPOINT=1` and **done** labels; on failure, **failed** labels and **checkout** of the previous branch if a feature branch was created; finally **`result.json`** and **`meta.json`** (phase **conclusion**).
+- [`runAgent`](../../internal/engine/agent.go) builds the prompt from the task body + `context.files` + optional checkpoint hint + **Available Outputs** (when `safe-outputs:` is non-empty); sets `WM_TASK_TOOLS` when `tools:` is present; selects CLI via `WM_AGENT_CMD` or `engine:` (`claude`, `codex`, `copilot` requires `WM_AGENT_CMD`). Default **`claude`** uses **stdin** for the prompt, **`--dangerously-skip-permissions`**, and optional **`--model`** / **`--max-turns`** from global config so the agent can run tools (including **`gh`**) non-interactively. When **`claude_output_format`** / **`WM_CLAUDE_OUTPUT_FORMAT`** request **`json`** or **`stream-json`**, the runner also passes **`--output-format`** (built-in **`claude`** only; **`WM_AGENT_CMD`**, **codex**, and **copilot** keep plain-text capture). In-memory **`Stdout`/`Summary`** hold a **64 KiB tail** of the transcript when a run dir is used (full text is on disk).
 - **Timeout**: [`cmd/run`](../../cmd/run.go) uses `timeout-minutes` from task frontmatter (default 45, max 480).
 
 ## RunTask pipeline (detailed reference)
@@ -160,13 +160,16 @@ Implementation: [`RunTask`](../../internal/engine/runner.go), [`rundir.go`](../.
 
 | Reads | Purpose |
 |-------|---------|
-| `AgentResult`, `TaskContext`, `safe-outputs:` keys | [`RunSuccessOutputs`](../../internal/output/output.go) |
+| `AgentResult.OutputFilePath`, `output.json`, `TaskContext`, `safe-outputs:` | [`RunSuccessOutputs`](../../internal/output/output.go): **`items`** in order when structured file present; else legacy order |
 
-| Writes (if configured) | Persistence |
+| Writes (if configured / requested) | Persistence |
 |---------------------------|-------------|
-| `create-pull-request` | `git push`, `gh pr create` → GitHub |
-| `add-labels` | GitHub API → labels |
-| `add-comment` | `gh issue comment` / `gh pr comment` → GitHub |
+| `create-pull-request` / `create_pull_request` | `git push`, `gh pr create` → GitHub |
+| `create-issue` / `create_issue` | `gh issue create` → GitHub |
+| `add-labels` / `add_labels` | GitHub API → labels |
+| `remove-labels` / `remove_labels` | GitHub API → remove labels |
+| `add-comment` / `add_comment` | `gh issue comment` / `gh pr comment` → GitHub |
+| `noop` | Log only |
 
 ### Phase 5 — Conclusion (deferred)
 
@@ -194,7 +197,7 @@ Checkpoint or label failures are appended to `RunResult.Errors` and do not alway
 | Kind | Where |
 |------|--------|
 | `RunResult` / errors | In-memory for the process; CLI prints `phase=`, **`artifacts=`**, and `failure phase:` on **stderr** |
-| Per-run artifacts | **`.wm/runs/<id>/`** (or **`WM_RUN_DIR/<id>/`**): `prompt.md`; combined agent stdout/stderr (**`agent-stdout.log`** by default, or **`conversation.json`** / **`conversation.jsonl`** when **`claude_output_format`** / **`WM_CLAUDE_OUTPUT_FORMAT`** is **`json`** / **`stream-json`** for built-in **`claude`**); `meta.json` (phase updates); `result.json` (final snapshot). Ignore **`runs/`** under **`.wm/`** via **`.wm/.gitignore`** (`gh wm init` / `gh wm upgrade` ensure that file). |
+| Per-run artifacts | **`.wm/runs/<id>/`** (or **`WM_RUN_DIR/<id>/`**): `prompt.md`; optional agent-written **`output.json`** (safe-output **requests**); combined agent stdout/stderr (**`agent-stdout.log`** by default, or **`conversation.json`** / **`conversation.jsonl`** when **`claude_output_format`** / **`WM_CLAUDE_OUTPUT_FORMAT`** is **`json`** / **`stream-json`** for built-in **`claude`**); `meta.json` (phase updates); `result.json` (final snapshot). Ignore **`runs/`** under **`.wm/`** via **`.wm/.gitignore`** (`gh wm init` / `gh wm upgrade` ensure that file). |
 | Agent tail in memory | Last **64 KiB** of combined output in `AgentResult` when a run dir is used (full output remains in the per-run agent log file above) |
 | Repo state | Whatever git / the agent wrote under `--repo-root` |
 | Coordination | GitHub: labels, issue/PR comments, PRs — the main external persistence |
@@ -204,5 +207,5 @@ Checkpoint or label failures are appended to `RunResult.Errors` and do not alway
 
 ## Security posture (minimal)
 
-- No sandbox or `safe-outputs` enforcement in-process; workflow permissions and branch protection apply.
-- Draft PR defaults in `safe-outputs` / `.wm/config.yml` feed `gh pr create` when `create-pull-request` is listed.
+- Agent-driven **`output.json`** is filtered by declared **`safe-outputs:`** keys, **`max:`**, and label allowlists; the agent still runs with repository write access in typical setups — workflow permissions and branch protection apply.
+- Draft PR defaults in `safe-outputs` / `.wm/config.yml` feed `gh pr create` when `create-pull-request` is listed (agent can override **`draft`** per item when requesting **`create_pull_request`**).

@@ -43,10 +43,10 @@ The core pipeline is **event → resolve → run agent**:
 1. **`cmd/`** — Cobra CLI; thin wrappers that delegate to `internal/`.
 2. **`internal/engine/resolver.go`** — `ResolveMatchingTasks`: loads all `.wm/tasks/*.md`, calls `trigger.MatchOnOR`, returns matching task names as JSON.
 3. **`internal/trigger/match.go`** — `MatchOnOR`: OR-semantics over `on:` frontmatter keys (`issues`, `issue_comment`, `pull_request`, `slash_command`, `schedule`, `workflow_dispatch`).
-4. **`internal/engine/runner.go` + `agent.go` + `rundir.go`** — `RunTask` → `runAgent`: builds a text prompt from the task body + `context.files`, writes **`prompt.md`** under **`.wm/runs/<id>/`** (or **`WM_RUN_DIR`**), streams output to **`agent-stdout.log`**, then execs `WM_AGENT_CMD` or `claude -p <prompt>`. The `run` command uses **`timeout-minutes`** from the task (default **45**). Post-agent **`internal/output/`** runs optional `safe-outputs` steps (PR, labels, comment).
+4. **`internal/engine/runner.go` + `agent.go` + `rundir.go`** — `RunTask` → `runAgent`: builds a text prompt from the task body + `context.files` + optional safe-output instructions, writes **`prompt.md`** under **`.wm/runs/<id>/`** (or **`WM_RUN_DIR`**), sets **`WM_OUTPUT_FILE`** to **`output.json`** in that dir, streams output to **`agent-stdout.log`**, then execs `WM_AGENT_CMD` or `claude -p <prompt>`. The `run` command uses **`timeout-minutes`** from the task (default **45**). Post-agent **`internal/output/`** applies agent-written **`output.json`** **`items`** when present, else legacy `safe-outputs:` (PR, labels, comment).
 5. **`internal/config/`** — loads `.wm/config.yml` (GlobalConfig) and parses frontmatter from `.wm/tasks/*.md` (Task). Frontmatter is `map[string]any`; add typed accessors on `Task` when a field becomes first-class.
 
-**Agents receive the task body as a plain-text prompt** via `exec.Cmd`. There is no structured output contract — the agent is expected to use Git/`gh` directly. Optional **`internal/output/`** implements `safe-outputs:` keys (hints, not gh-aw enforcement).
+**Agents receive the task body as a plain-text prompt** via `exec.Cmd` and may also write structured **`items`** to **`WM_OUTPUT_FILE`** (`output.json`) for validated post-run GitHub actions. Optional **`internal/output/`** implements `safe-outputs:` as **policy** for those items (or legacy fixed outputs when `output.json` is absent).
 
 ## Non-obvious design constraints
 

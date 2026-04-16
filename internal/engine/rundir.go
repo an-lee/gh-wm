@@ -25,6 +25,8 @@ const (
 	conversationJSONLFileName = "conversation.jsonl"
 	metaFileName              = "meta.json"
 	resultFileName            = "result.json"
+	// outputJSONFileName is the agent-written structured safe-outputs request (WM_OUTPUT_FILE).
+	outputJSONFileName = "output.json"
 
 	defaultPruneAge = 7 * 24 * time.Hour
 )
@@ -179,6 +181,14 @@ func (r *RunDir) AgentOutputPath(format string) string {
 	return filepath.Join(r.Path, agentArtifactFilename(format))
 }
 
+// OutputJSONPath returns the path for structured safe-output JSON (see WM_OUTPUT_FILE).
+func (r *RunDir) OutputJSONPath() string {
+	if r == nil {
+		return ""
+	}
+	return filepath.Join(r.Path, outputJSONFileName)
+}
+
 // OpenAgentOutput creates or truncates the agent output file for writing (see agentArtifactFilename).
 func (r *RunDir) OpenAgentOutput(format string) (*os.File, error) {
 	if r == nil {
@@ -218,6 +228,7 @@ func (r *RunDir) WriteResult(res *types.RunResult) error {
 			Summary         string `json:"summary,omitempty"`
 			TimedOut        bool   `json:"timed_out,omitempty"`
 			AgentStdoutPath string `json:"agent_stdout_path,omitempty"`
+			OutputFilePath  string `json:"output_file_path,omitempty"`
 		} `json:"agent_result,omitempty"`
 	}{
 		Phase:      string(res.Phase),
@@ -237,6 +248,7 @@ func (r *RunDir) WriteResult(res *types.RunResult) error {
 			Summary         string `json:"summary,omitempty"`
 			TimedOut        bool   `json:"timed_out,omitempty"`
 			AgentStdoutPath string `json:"agent_stdout_path,omitempty"`
+			OutputFilePath  string `json:"output_file_path,omitempty"`
 		}{
 			Success:         ar.Success,
 			ExitCode:        ar.ExitCode,
@@ -245,6 +257,7 @@ func (r *RunDir) WriteResult(res *types.RunResult) error {
 			Summary:         ar.Summary,
 			TimedOut:        ar.TimedOut,
 			AgentStdoutPath: ar.AgentStdoutPath,
+			OutputFilePath:  ar.OutputFilePath,
 		}
 	}
 	b, err := json.MarshalIndent(out, "", "  ")

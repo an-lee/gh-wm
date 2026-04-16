@@ -9,15 +9,27 @@ import (
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
-func runLabelOutput(_ context.Context, _ *config.GlobalConfig, task *config.Task, tc *types.TaskContext, _ *types.AgentResult) error {
+func resolveLabelTarget(tc *types.TaskContext, target int) int {
+	if target > 0 {
+		return target
+	}
 	n := tc.IssueNumber
 	if n == 0 {
 		n = tc.PRNumber
 	}
+	return n
+}
+
+// runLabelOutputLegacy adds labels from safe-outputs.add-labels.labels (config-only).
+func runLabelOutputLegacy(_ context.Context, task *config.Task, tc *types.TaskContext) error {
+	n := resolveLabelTarget(tc, 0)
 	if n <= 0 || tc.Repo == "" {
 		return fmt.Errorf("add-labels: no issue/PR number or repository")
 	}
 	so := task.SafeOutputsMap()
+	if so == nil {
+		return nil
+	}
 	raw, ok := so["add-labels"]
 	if !ok {
 		return nil
@@ -36,6 +48,49 @@ func runLabelOutput(_ context.Context, _ *config.GlobalConfig, task *config.Task
 			continue
 		}
 		if err := ghclient.AddIssueLabel(tc.Repo, n, s); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// runAddLabelsFromItem applies labels from structured output with policy checks.
+func runAddLabelsFromItem(_ context.Context, tc *types.TaskContext, p *Policy, item ItemLabels) error {
+	if len(item.Labels) == 0 {
+		return fmt.Errorf("add_labels: empty labels")
+	}
+	n := resolveLabelTarget(tc, item.Target)
+	if n <= 0 || tc.Repo == "" {
+		return fmt.Errorf("add_labels: no issue/PR number or repository")
+	}
+	for _, label := range item.Labels {
+		if label == "" {
+			continue
+		}
+		if !p.LabelAllowed(KindAddLabels, label) {
+			return fmt.Errorf("add_labels: label %q not allowed by policy", label)
+		}
+		if err := ghclient.AddIssueLabel(tc.Repo, n, label); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// runRemoveLabelsFromItemWithPolicy validates allowed/blocked before removal.
+func runRemoveLabelsFromItemWithPolicy(_ context.Context, tc *types.TaskContext, p *Policy, item ItemLabels) error {
+	n := resolveLabelTarget(tc, item.Target)
+	if n <= 0 || tc.Repo == "" {
+		return fmt.Errorf("remove_labels: no issue/PR number or repository")
+	}
+	for _, label := range item.Labels {
+		if label == "" {
+			continue
+		}
+		if !p.RemoveLabelAllowed(label) {
+			return fmt.Errorf("remove_labels: label %q not allowed by policy", label)
+		}
+		if err := ghclient.RemoveIssueLabel(tc.Repo, n, label); err != nil {
 			return err
 		}
 	}

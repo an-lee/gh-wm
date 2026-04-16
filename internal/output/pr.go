@@ -14,7 +14,36 @@ import (
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
-func runPROutput(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext, _ *types.AgentResult) error {
+// runPROutputLegacy runs the pre-agent-driven behavior: push + PR with default title/body from task config.
+func runPROutputLegacy(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext) error {
+	p := newPolicy(task)
+	draft := p.DefaultDraft(glob, KindCreatePullRequest)
+	labels := p.MergeLabels(KindCreatePullRequest, nil)
+	title := p.ApplyTitlePrefix(KindCreatePullRequest, fmt.Sprintf("[%s] wm task", task.Name))
+	body := "Opened by **gh-wm** task `" + task.Name + "`."
+	return tryCreatePullRequest(ctx, task, tc, title, body, draft, labels)
+}
+
+// runCreatePullRequestItem runs create_pull_request from agent output.json.
+func runCreatePullRequestItem(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext, p *Policy, item ItemCreatePullRequest) error {
+	if p == nil {
+		p = newPolicy(task)
+	}
+	title := strings.TrimSpace(item.Title)
+	if title == "" {
+		title = fmt.Sprintf("[%s] wm task", task.Name)
+	}
+	title = p.ApplyTitlePrefix(KindCreatePullRequest, title)
+	body := strings.TrimSpace(item.Body)
+	if body == "" {
+		body = "Opened by **gh-wm** task `" + task.Name + "`."
+	}
+	draft := p.ResolveDraft(glob, KindCreatePullRequest, item.Draft)
+	labels := p.MergeLabels(KindCreatePullRequest, item.Labels)
+	return tryCreatePullRequest(ctx, task, tc, title, body, draft, labels)
+}
+
+func tryCreatePullRequest(ctx context.Context, task *config.Task, tc *types.TaskContext, title, body string, draft bool, labels []string) error {
 	dir := tc.RepoPath
 	base := gitbranch.DefaultBaseBranch(dir)
 	cur, err := gitbranch.CurrentBranch(dir)
@@ -42,39 +71,14 @@ func runPROutput(ctx context.Context, glob *config.GlobalConfig, task *config.Ta
 		return fmt.Errorf("git push: %w: %s", err, string(out))
 	}
 
-	draft := glob.PR.Draft
-	var labels []string
-	var titlePrefix string
-	if so := task.SafeOutputsMap(); so != nil {
-		if m, ok := so["create-pull-request"].(map[string]any); ok {
-			if d, ok := m["draft"].(bool); ok {
-				draft = d
-			}
-			if raw, ok := m["labels"].([]any); ok {
-				for _, x := range raw {
-					if s, ok := x.(string); ok && s != "" {
-						labels = append(labels, s)
-					}
-				}
-			}
-			if p, ok := m["title-prefix"].(string); ok && strings.TrimSpace(p) != "" {
-				titlePrefix = strings.TrimSpace(p)
-			}
-		}
-	}
-
-	title := fmt.Sprintf("[%s] wm task", task.Name)
-	if titlePrefix != "" {
-		title = titlePrefix + title
-	}
-	body := "Opened by **gh-wm** task `" + task.Name + "`."
-
 	args := []string{"pr", "create", "--base", base, "--title", title, "--body", body}
 	if draft {
 		args = append(args, "--draft")
 	}
 	for _, l := range labels {
-		args = append(args, "--label", l)
+		if l != "" {
+			args = append(args, "--label", l)
+		}
 	}
 	if tc.Repo != "" {
 		args = append(args, "--repo", tc.Repo)

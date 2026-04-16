@@ -152,9 +152,9 @@ Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run **`gh wm upg
 | _(default)_           | **`claude -p --dangerously-skip-permissions`** with the prompt on **stdin**; **`--model`** and **`--max-turns`** come from [`.wm/config.yml`](task-format.md) when set. Optional **`--output-format json`** or **`stream-json`** when **`claude_output_format`** / **`WM_CLAUDE_OUTPUT_FORMAT`** is set (built-in **`claude`** only). |
 | `copilot`             | **`engine: copilot`** requires `WM_AGENT_CMD` (no default CLI).                                               |
 
-The default **`claude`** invocation uses **`--dangerously-skip-permissions`** so non-interactive runs can use tools (file edits, **`gh`**, git). Subprocess **env** is the parent environment (`GITHUB_TOKEN` in Actions, `gh auth` locally) plus `GITHUB_REPOSITORY`, `WM_TASK`, and **`WM_TASK_TOOLS`** when `tools:` is set in the task frontmatter (JSON for structured values).
+The default **`claude`** invocation uses **`--dangerously-skip-permissions`** so non-interactive runs can use tools (file edits, **`gh`**, git). Subprocess **env** is the parent environment (`GITHUB_TOKEN` in Actions, `gh auth` locally) plus `GITHUB_REPOSITORY`, `WM_TASK`, **`WM_OUTPUT_FILE`** (path to per-run **`output.json`** when a run directory exists), and **`WM_TASK_TOOLS`** when `tools:` is set in the task frontmatter (JSON for structured values).
 
-**Post-agent:** `safe-outputs` keys drive [`internal/output`](../../internal/output/) (PR / labels / comment). PR titles use **`title-prefix`** from `safe-outputs.create-pull-request` when present. **`WM_CHECKPOINT=1`** enables loading/posting checkpoint comments ([`internal/engine/runner.go`](../../internal/engine/runner.go)).
+**Post-agent:** `safe-outputs:` declares **policy**; the agent may write structured **`items`** to **`WM_OUTPUT_FILE`** ([`internal/output`](../../internal/output/)). If that file is missing or **`items`** is empty, legacy behavior runs: **`create-pull-request`**, **`add-labels`**, **`add-comment`** in fixed order. PR titles use **`title-prefix`** when present. **`WM_CHECKPOINT=1`** enables loading/posting checkpoint comments ([`internal/engine/runner.go`](../../internal/engine/runner.go)).
 
 **Secrets (CI):** `ANTHROPIC_API_KEY` is expected by reusable workflow for Claude Code; ensure the agent you invoke uses it as required.
 
@@ -196,6 +196,7 @@ If none match, prints recent runs with a note. See [`cmd/logs.go`](../../cmd/log
 | `WM_AGENT_CMD`                           | Override agent command ([`agent.go`](../../internal/engine/agent.go))             |
 | `WM_ENGINE_CODEX_CMD`                    | Codex CLI prefix when `engine: codex`                                             |
 | `WM_TASK_TOOLS`                          | Set automatically from `tools:` (read by agent)                                   |
+| `WM_OUTPUT_FILE`                         | Set by `run` when a per-run dir exists: path where the agent may write **`output.json`** (`items` → safe outputs). |
 | `WM_CHECKPOINT`                          | Set to `1` to enable checkpoint load/post                                         |
 | `WM_RUN_DIR`                             | If set, per-run artifacts are written under **`<WM_RUN_DIR>/<run-id>/`** instead of **`<repo>/.wm/runs/<run-id>/`** (useful for CI artifact upload paths). |
 | `WM_CLAUDE_OUTPUT_FORMAT`                | Overrides **`claude_output_format`** in [`.wm/config.yml`](task-format.md): **`text`** (default), **`json`**, or **`stream-json`** for built-in **`claude`** (run-dir filename and **`--output-format`**). |
