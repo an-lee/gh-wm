@@ -12,13 +12,18 @@ on:
       event_json:
         required: true
         type: string
+      runs_on:
+        description: JSON array of runner labels for runs-on
+        required: false
+        type: string
+        default: '["ubuntu-latest"]'
     secrets:
       ANTHROPIC_API_KEY:
         required: true
 
 jobs:
   run:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJson(inputs.runs_on) }}
     steps:
       - uses: actions/checkout@v4
 

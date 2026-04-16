@@ -9,6 +9,11 @@ on:
       event_json:
         required: true
         type: string
+      runs_on:
+        description: JSON array of runner labels for runs-on
+        required: false
+        type: string
+        default: '["ubuntu-latest"]'
     outputs:
       tasks:
         description: JSON array of matching task names
@@ -16,7 +21,7 @@ on:
 
 jobs:
   resolve:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJson(inputs.runs_on) }}
     outputs:
       tasks: ${{ steps.match.outputs.tasks }}
     steps:

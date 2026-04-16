@@ -20,7 +20,7 @@ The extension is invoked as **`gh wm <subcommand>`** when installed via `gh exte
 1. Create `.wm/tasks/`.
 2. Write embedded `config.yml` and starter tasks ([`internal/templates`](../../internal/templates/)).
 3. Write `CLAUDE.md` in repo root if missing (from template).
-4. Collect schedules from `.wm/tasks` and generate `wm-agent.yml` via [`gen.WriteWMAgent`](../../internal/gen/wmagent.go).
+4. Collect schedules from `.wm/tasks` and generate `wm-agent.yml` via [`gen.WriteWMAgent`](../../internal/gen/wmagent.go), including **`workflow.runs_on`** from `.wm/config.yml` (default `ubuntu-latest` if unset).
 
 **Environment:**
 
@@ -32,9 +32,11 @@ The extension is invoked as **`gh wm <subcommand>`** when installed via `gh exte
 
 ## `upgrade`
 
-**Purpose:** Regenerate **only** `.github/workflows/wm-agent.yml` from current tasks (schedule union) and `GH_WM_REPO`.
+**Purpose:** Regenerate **only** `.github/workflows/wm-agent.yml` from current tasks (schedule union), **`workflow.runs_on`** in `.wm/config.yml` (when present), and `GH_WM_REPO`.
 
 **Usage:** `gh wm upgrade`
+
+If `.wm/config.yml` is missing, runner labels default to **`ubuntu-latest`** when generating `wm-agent.yml`.
 
 ---
 

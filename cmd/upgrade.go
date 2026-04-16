@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/gen"
 	"github.com/spf13/cobra"
 )
@@ -33,7 +34,12 @@ func runUpgrade(_ *cobra.Command, _ []string) error {
 	if err := os.MkdirAll(ghDir, 0o755); err != nil {
 		return err
 	}
-	if err := gen.WriteWMAgent(ghDir, repo, schedules); err != nil {
+	glob, err := config.LoadGlobalOnly(cwd)
+	if err != nil {
+		return err
+	}
+	runsOn := config.WorkflowRunsOnLabels(glob)
+	if err := gen.WriteWMAgent(ghDir, repo, schedules, runsOn); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "Updated .github/workflows/wm-agent.yml")

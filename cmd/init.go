@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/gen"
 	"github.com/an-lee/gh-wm/internal/templates"
 	"github.com/spf13/cobra"
@@ -46,7 +47,12 @@ func runInit(_ *cobra.Command, _ []string) error {
 	if repo == "" {
 		repo = "an-lee/gh-wm"
 	}
-	if err := gen.WriteWMAgent(ghDir, repo, schedules); err != nil {
+	glob, _, err := config.Load(cwd)
+	if err != nil {
+		return err
+	}
+	runsOn := config.WorkflowRunsOnLabels(glob)
+	if err := gen.WriteWMAgent(ghDir, repo, schedules, runsOn); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "Initialized .wm/ and .github/workflows/wm-agent.yml")

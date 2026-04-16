@@ -23,6 +23,63 @@ max_turns: 50
 	}
 }
 
+func TestParseGlobal_WorkflowRunsOn(t *testing.T) {
+	t.Parallel()
+	g, err := ParseGlobal([]byte(`version: 1
+workflow:
+  runs_on:
+    - self-hosted
+    - linux
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(g.Workflow.RunsOn) != 2 || g.Workflow.RunsOn[0] != "self-hosted" {
+		t.Fatalf("got %+v", g.Workflow.RunsOn)
+	}
+	if got := WorkflowRunsOnLabels(g); len(got) != 2 {
+		t.Fatalf("WorkflowRunsOnLabels: %v", got)
+	}
+}
+
+func TestWorkflowRunsOnLabels_Default(t *testing.T) {
+	t.Parallel()
+	if got := WorkflowRunsOnLabels(nil); len(got) != 1 || got[0] != "ubuntu-latest" {
+		t.Fatalf("got %v", got)
+	}
+	g := &GlobalConfig{Version: 1}
+	if got := WorkflowRunsOnLabels(g); len(got) != 1 || got[0] != "ubuntu-latest" {
+		t.Fatalf("got %v", got)
+	}
+}
+
+func TestLoadGlobalOnly(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	if g, err := LoadGlobalOnly(root); err != nil || g != nil {
+		t.Fatalf("missing config: g=%v err=%v", g, err)
+	}
+	wm := filepath.Join(root, DirName)
+	if err := os.MkdirAll(wm, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg := filepath.Join(wm, "config.yml")
+	if err := os.WriteFile(cfg, []byte(`version: 1
+workflow:
+  runs_on:
+    - custom
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	g, err := LoadGlobalOnly(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(g.Workflow.RunsOn) != 1 || g.Workflow.RunsOn[0] != "custom" {
+		t.Fatalf("got %+v", g.Workflow.RunsOn)
+	}
+}
+
 func TestDefaultGlobal(t *testing.T) {
 	t.Parallel()
 	g := DefaultGlobal(nil)

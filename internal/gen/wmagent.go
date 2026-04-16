@@ -2,6 +2,7 @@ package gen
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,6 +41,7 @@ jobs:
     with:
       event_name: {{ "${{" }} github.event_name {{ "}}" }}
       event_json: {{ "${{" }} toJSON(github.event) {{ "}}" }}
+      runs_on: '{{ .RunsOnJSON }}'
 
   run:
     needs: resolve
@@ -53,26 +55,37 @@ jobs:
       task_name: {{ "${{" }} matrix.task {{ "}}" }}
       event_name: {{ "${{" }} github.event_name {{ "}}" }}
       event_json: {{ "${{" }} toJSON(github.event) {{ "}}" }}
+      runs_on: '{{ .RunsOnJSON }}'
     secrets:
       ANTHROPIC_API_KEY: {{ "${{" }} secrets.ANTHROPIC_API_KEY {{ "}}" }}
 `
 
 type wmAgentData struct {
-	OwnerRepo string
-	Ref       string
-	Schedules []string
+	OwnerRepo  string
+	Ref        string
+	Schedules  []string
+	RunsOnJSON string
 }
 
-// WriteWMAgent writes .github/workflows/wm-agent.yml
-func WriteWMAgent(ghWorkflowsDir string, ownerRepo string, schedules []string) error {
+// WriteWMAgent writes .github/workflows/wm-agent.yml. runsOn is passed to reusable workflows as JSON (see workflow.runs_on in .wm/config.yml); if empty, ["ubuntu-latest"] is used.
+func WriteWMAgent(ghWorkflowsDir string, ownerRepo string, schedules []string, runsOn []string) error {
 	tpl, err := template.New("wm").Parse(wmAgentTpl)
 	if err != nil {
 		return err
 	}
+	labels := runsOn
+	if len(labels) == 0 {
+		labels = []string{"ubuntu-latest"}
+	}
+	runsOnJSON, err := json.Marshal(labels)
+	if err != nil {
+		return err
+	}
 	data := wmAgentData{
-		OwnerRepo: ownerRepo,
-		Ref:       "main",
-		Schedules: dedupe(schedules),
+		OwnerRepo:  ownerRepo,
+		Ref:        "main",
+		Schedules:  dedupe(schedules),
+		RunsOnJSON: string(runsOnJSON),
 	}
 	if len(data.Schedules) == 0 {
 		data.Schedules = []string{"0 22 * * 1-5"}

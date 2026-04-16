@@ -60,7 +60,7 @@ Optional **checkpoints** ([`internal/checkpoint`](../../internal/checkpoint/chec
 
 ## GitHub Actions: two reusable workflows
 
-Business repos use an **auto-generated** `wm-agent.yml` (from `gh wm init` / `gh wm upgrade`) that calls into **this** repository’s reusable workflows.
+Business repos use an **auto-generated** `wm-agent.yml` (from `gh wm init` / `gh wm upgrade`) that calls into **this** repository’s reusable workflows. Runner labels come from **`workflow.runs_on`** in [`.wm/config.yml`](task-format.md); `upgrade` rewrites `wm-agent.yml` when you change them.
 
 ```mermaid
 flowchart LR
@@ -73,6 +73,7 @@ flowchart LR
 ```
 
 1. **`agent-resolve.yml`** ([`.github/workflows/agent-resolve.yml`](../../.github/workflows/agent-resolve.yml))  
+   - `runs-on` is driven by the **`runs_on` workflow input** (JSON array of labels), with default `["ubuntu-latest"]`; generated `wm-agent.yml` passes labels from `.wm/config.yml`.
    - Checks out the repo, installs `gh-wm` (`go install`), writes `event.json`, runs:
    - `gh-wm resolve --repo-root . --event-name "$EVENT_NAME" --payload event.json --json`  
    - Exposes the printed JSON array as job output `tasks`.

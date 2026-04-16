@@ -11,7 +11,10 @@ type GlobalConfig struct {
 	Engine   string `yaml:"engine"`
 	Model    string `yaml:"model"`
 	MaxTurns int    `yaml:"max_turns"`
-	Context  struct {
+	Workflow struct {
+		RunsOn []string `yaml:"runs_on"`
+	} `yaml:"workflow"`
+	Context struct {
 		Files []string `yaml:"files"`
 	} `yaml:"context"`
 	PR struct {
