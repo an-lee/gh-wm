@@ -106,11 +106,14 @@ func runRun(_ *cobra.Command, _ []string) error {
 	if b, err := gitbranch.CurrentBranch(repoDisplay); err == nil {
 		branch = b
 	}
-	fmt.Fprintf(os.Stderr, "wm run: task=%q repo=%s branch=%s engine=%s\n", runTask, repoDisplay, branch, engineName)
-	fmt.Fprintf(os.Stderr, "wm run: agent subprocess starting (streaming stderr)...\n\n")
+	fmt.Fprintf(os.Stderr, "wm run: task=%q repo=%s branch=%s engine=%s timeout=%dm\n\n",
+		runTask, repoDisplay, branch, engineName, min)
 
 	start := time.Now()
-	runResult, err := engine.RunTask(ctx, runRepoRoot, runTask, ev, &engine.RunOptions{LogWriter: os.Stderr})
+	runResult, err := engine.RunTask(ctx, runRepoRoot, runTask, ev, &engine.RunOptions{
+		LogWriter:      os.Stderr,
+		ProgressWriter: os.Stderr,
+	})
 	dur := time.Since(start)
 
 	exitCode := -1

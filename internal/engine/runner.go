@@ -21,6 +21,28 @@ type RunOptions struct {
 	// LogWriter receives a live copy of the agent subprocess combined stdout+stderr.
 	// When nil, output is buffered until the process exits.
 	LogWriter io.Writer
+	// ProgressWriter receives human-readable phase lines (e.g. from gh wm run); not mixed with LogWriter.
+	ProgressWriter io.Writer
+}
+
+func progressf(opts *RunOptions, format string, args ...any) {
+	if opts == nil || opts.ProgressWriter == nil {
+		return
+	}
+	fmt.Fprintf(opts.ProgressWriter, "wm run: "+format+"\n", args...)
+}
+
+func workingLabelWouldApply(tc *types.TaskContext, wm config.WMExtension) bool {
+	if tc == nil {
+		return false
+	}
+	if strings.TrimSpace(wm.StateLabels["working"]) == "" {
+		return false
+	}
+	if issueOrPRNumber(tc) <= 0 || strings.TrimSpace(tc.Repo) == "" {
+		return false
+	}
+	return true
 }
 
 func addRunErr(r *types.RunResult, err error) {
@@ -107,28 +129,45 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 		return result, errRunDir
 	}
 	result.RunDir = rd.Path
+	progressf(opts, "activation: run directory %s", rd.Path)
 
 	wm = task.WM()
 	loadCheckpointHint(tc)
+	if strings.TrimSpace(tc.CheckpointHint) != "" {
+		progressf(opts, "activation: checkpoint hint loaded (injected into prompt)")
+	}
 
+	if workingLabelWouldApply(tc, wm) {
+		n := issueOrPRNumber(tc)
+		lbl := strings.TrimSpace(wm.StateLabels["working"])
+		progressf(opts, "activation: applying working label %q to #%d", lbl, n)
+	}
 	if err := ApplyStateWorking(tc, wm); err != nil {
 		addRunErr(result, err)
+	} else if workingLabelWouldApply(tc, wm) {
+		progressf(opts, "activation: working label step finished")
 	}
 
 	if task.HasSafeOutputKey("create-pull-request") {
-		prev, _, created, prepErr := gitbranch.PrepareFeatureForPR(repoRoot, taskName)
+		prev, newBranch, created, prepErr := gitbranch.PrepareFeatureForPR(repoRoot, taskName)
 		if prepErr != nil {
 			addRunErr(result, prepErr)
 			return result, prepErr
 		}
 		prevBranch = prev
 		branchCreated = created
+		if created {
+			progressf(opts, "activation: created feature branch %s (previous: %s)", newBranch, prev)
+		} else {
+			progressf(opts, "activation: using branch %s (already off default; no new feature branch)", newBranch)
+		}
 	}
 
 	result.Phase = types.PhaseAgent
 	if rd != nil {
 		_ = rd.UpdateMeta(types.PhaseAgent, false)
 	}
+	progressf(opts, "agent: starting subprocess (live stream on stderr below)")
 	res, agentErr := runAgent(ctx, glob, task, tc, opts, rd)
 	result.AgentResult = res
 	if agentErr != nil {
@@ -140,6 +179,7 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 	if rd != nil {
 		_ = rd.UpdateMeta(types.PhaseValidation, false)
 	}
+	progressf(opts, "validation: checking agent output size and exit status")
 	if err := validateAgentOutputErr(ctx, res); err != nil {
 		addRunErr(result, err)
 		return result, err
@@ -148,6 +188,10 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 	result.Phase = types.PhaseOutputs
 	if rd != nil {
 		_ = rd.UpdateMeta(types.PhaseOutputs, false)
+	}
+	m := task.SafeOutputsMap()
+	if m != nil && len(m) > 0 {
+		progressf(opts, "safe-outputs: applying allowed GitHub actions from output.json")
 	}
 	if outErr := output.RunSuccessOutputs(ctx, glob, task, tc, res); outErr != nil {
 		addRunErr(result, outErr)

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -78,6 +79,32 @@ func TestRunTask_Minimal(t *testing.T) {
 	}
 	if out == nil || !out.Success || out.AgentResult == nil || !out.AgentResult.Success {
 		t.Fatalf("%+v", out)
+	}
+}
+
+func TestRunTask_ProgressWriter(t *testing.T) {
+	t.Setenv("WM_AGENT_CMD", "true")
+	t.Cleanup(func() { _ = os.Unsetenv("WM_AGENT_CMD") })
+	root := writeMinimalRepo(t)
+	ev := &types.GitHubEvent{Name: "issues", Payload: map[string]any{"action": "opened"}}
+	var buf bytes.Buffer
+	out, err := RunTask(context.Background(), root, "a", ev, &RunOptions{ProgressWriter: &buf})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out == nil || !out.Success {
+		t.Fatalf("%+v", out)
+	}
+	s := buf.String()
+	for _, sub := range []string{
+		"wm run:",
+		"activation: run directory",
+		"agent: starting subprocess",
+		"validation: checking agent output",
+	} {
+		if !strings.Contains(s, sub) {
+			t.Fatalf("progress log missing %q:\n%s", sub, s)
+		}
 	}
 }
 
