@@ -53,7 +53,7 @@ func TestRunAgent_WM_AGENT_CMD(t *testing.T) {
 	}{Files: []string{"note.txt"}}}
 	task := &config.Task{Name: "t", Body: "  ", Frontmatter: map[string]any{}}
 	tc := &types.TaskContext{RepoPath: dir, Repo: "o/r", TaskName: "t"}
-	res, err := runAgent(ctx, glob, task, tc, nil)
+	res, err := runAgent(ctx, glob, task, tc, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestRunAgent_LogWriter(t *testing.T) {
 	task := &config.Task{Name: "t", Body: "hello", Frontmatter: map[string]any{}}
 	tc := &types.TaskContext{RepoPath: dir, Repo: "o/r", TaskName: "t"}
 	var logBuf bytes.Buffer
-	res, err := runAgent(ctx, &config.GlobalConfig{Engine: "claude"}, task, tc, &RunOptions{LogWriter: &logBuf})
+	res, err := runAgent(ctx, &config.GlobalConfig{Engine: "claude"}, task, tc, &RunOptions{LogWriter: &logBuf}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestRunAgent_LogWriter(t *testing.T) {
 func TestRunAgent_CopilotError(t *testing.T) {
 	task := &config.Task{Name: "t", Body: "hi", Frontmatter: map[string]any{"engine": "copilot"}}
 	tc := &types.TaskContext{RepoPath: t.TempDir(), TaskName: "t"}
-	res, err := runAgent(context.Background(), &config.GlobalConfig{Engine: "claude"}, task, tc, nil)
+	res, err := runAgent(context.Background(), &config.GlobalConfig{Engine: "claude"}, task, tc, nil, nil)
 	if err == nil || res == nil || res.ExitCode != -1 {
 		t.Fatalf("res=%+v err=%v", res, err)
 	}
@@ -96,7 +96,7 @@ func TestRunAgent_CodexWithEnvAlt(t *testing.T) {
 	t.Cleanup(func() { _ = os.Unsetenv("WM_ENGINE_CODEX_CMD") })
 	task := &config.Task{Name: "t", Body: "x", Frontmatter: map[string]any{"engine": "codex"}}
 	tc := &types.TaskContext{RepoPath: t.TempDir(), TaskName: "t"}
-	res, err := runAgent(context.Background(), &config.GlobalConfig{Engine: "claude"}, task, tc, nil)
+	res, err := runAgent(context.Background(), &config.GlobalConfig{Engine: "claude"}, task, tc, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func TestRunAgent_NonZeroExit(t *testing.T) {
 	t.Cleanup(func() { _ = os.Unsetenv("WM_AGENT_CMD") })
 	task := &config.Task{Name: "t", Body: "x", Frontmatter: map[string]any{}}
 	tc := &types.TaskContext{RepoPath: t.TempDir(), TaskName: "t"}
-	res, err := runAgent(context.Background(), &config.GlobalConfig{Engine: "claude"}, task, tc, nil)
+	res, err := runAgent(context.Background(), &config.GlobalConfig{Engine: "claude"}, task, tc, nil, nil)
 	if err == nil || res == nil || res.Success {
 		t.Fatalf("res=%+v err=%v", res, err)
 	}
@@ -121,7 +121,7 @@ func TestRunAgent_CheckpointHintAppended(t *testing.T) {
 	t.Cleanup(func() { _ = os.Unsetenv("WM_AGENT_CMD") })
 	task := &config.Task{Name: "t", Body: "base", Frontmatter: map[string]any{}}
 	tc := &types.TaskContext{RepoPath: t.TempDir(), TaskName: "t", CheckpointHint: "prev"}
-	res, err := runAgent(context.Background(), &config.GlobalConfig{Engine: "claude"}, task, tc, nil)
+	res, err := runAgent(context.Background(), &config.GlobalConfig{Engine: "claude"}, task, tc, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

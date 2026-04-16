@@ -22,6 +22,7 @@ type concludeArgs struct {
 	repoRoot      string
 	branchCreated bool
 	prevBranch    string
+	rd            *RunDir
 }
 
 // concludeRun runs phase-5 cleanup: state labels, optional branch rollback, checkpoint on success.
@@ -41,16 +42,22 @@ func concludeRun(result *types.RunResult, a *concludeArgs) {
 		if err := ApplyStateDone(a.tc, a.wm); err != nil {
 			addRunErr(result, fmt.Errorf("state done: %w", err))
 		}
-		return
-	}
-
-	if a.branchCreated && a.prevBranch != "" && a.prevBranch != "HEAD" {
-		if err := gitbranch.Checkout(a.repoRoot, a.prevBranch); err != nil {
-			addRunErr(result, fmt.Errorf("git checkout previous branch: %w", err))
+	} else {
+		if a.branchCreated && a.prevBranch != "" && a.prevBranch != "HEAD" {
+			if err := gitbranch.Checkout(a.repoRoot, a.prevBranch); err != nil {
+				addRunErr(result, fmt.Errorf("git checkout previous branch: %w", err))
+			}
+		}
+		if err := ApplyStateFailed(a.tc, a.wm); err != nil {
+			addRunErr(result, fmt.Errorf("state failed: %w", err))
 		}
 	}
-	if err := ApplyStateFailed(a.tc, a.wm); err != nil {
-		addRunErr(result, fmt.Errorf("state failed: %w", err))
+
+	if a.rd != nil {
+		_ = a.rd.UpdateMeta(types.PhaseConclusion, a.runSucceeded)
+		if err := a.rd.WriteResult(result); err != nil {
+			addRunErr(result, fmt.Errorf("write run result: %w", err))
+		}
 	}
 }
 

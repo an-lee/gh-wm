@@ -41,6 +41,7 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 	var wm config.WMExtension
 	var branchCreated bool
 	var prevBranch string
+	var rd *RunDir
 	runSucceeded := false
 
 	defer func() {
@@ -53,6 +54,7 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 			repoRoot:      repoRoot,
 			branchCreated: branchCreated,
 			prevBranch:    prevBranch,
+			rd:            rd,
 		})
 	}()
 
@@ -94,6 +96,18 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 		extractNumbers(event.Payload, tc)
 	}
 
+	evName := ""
+	if event != nil {
+		evName = strings.TrimSpace(event.Name)
+	}
+	var errRunDir error
+	rd, errRunDir = NewRunDir(repoRoot, taskName, evName)
+	if errRunDir != nil {
+		addRunErr(result, errRunDir)
+		return result, errRunDir
+	}
+	result.RunDir = rd.Path
+
 	wm = task.WM()
 	loadCheckpointHint(tc)
 
@@ -112,7 +126,10 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 	}
 
 	result.Phase = types.PhaseAgent
-	res, agentErr := runAgent(ctx, glob, task, tc, opts)
+	if rd != nil {
+		_ = rd.UpdateMeta(types.PhaseAgent, false)
+	}
+	res, agentErr := runAgent(ctx, glob, task, tc, opts, rd)
 	result.AgentResult = res
 	if agentErr != nil {
 		addRunErr(result, agentErr)
@@ -120,12 +137,18 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 	}
 
 	result.Phase = types.PhaseValidation
-	if err := validateAgentOutputErr(res); err != nil {
+	if rd != nil {
+		_ = rd.UpdateMeta(types.PhaseValidation, false)
+	}
+	if err := validateAgentOutputErr(ctx, res); err != nil {
 		addRunErr(result, err)
 		return result, err
 	}
 
 	result.Phase = types.PhaseOutputs
+	if rd != nil {
+		_ = rd.UpdateMeta(types.PhaseOutputs, false)
+	}
 	if outErr := output.RunSuccessOutputs(ctx, glob, task, tc, res); outErr != nil {
 		addRunErr(result, outErr)
 		return result, outErr

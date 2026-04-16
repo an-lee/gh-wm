@@ -8,8 +8,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/types"
@@ -17,13 +20,19 @@ import (
 
 const wmAgentPromptPlaceholder = "{prompt}"
 
+const agentGracefulShutdownWait = 30 * time.Second
+
 // runAgent invokes the configured AI CLI with task body + optional context files.
-func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext, opts *RunOptions) (*types.AgentResult, error) {
+func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext, opts *RunOptions, rd *RunDir) (*types.AgentResult, error) {
 	prompt := strings.TrimSpace(task.Body)
 	if prompt == "" {
 		prompt = task.Name + ": process repository event."
 	}
-	for _, f := range glob.Context.Files {
+	var contextFiles []string
+	if glob != nil {
+		contextFiles = glob.Context.Files
+	}
+	for _, f := range contextFiles {
 		p := filepath.Join(tc.RepoPath, f)
 		b, err := os.ReadFile(p)
 		if err != nil {
@@ -35,8 +44,14 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 		prompt += "\n\n---\n## Previous checkpoint\n\n" + strings.TrimSpace(tc.CheckpointHint)
 	}
 
+	if rd != nil {
+		if err := rd.WritePrompt(prompt); err != nil {
+			return &types.AgentResult{Success: false, ExitCode: -1, Stderr: err.Error()}, err
+		}
+	}
+
 	engineName := task.Engine()
-	if engineName == "" {
+	if engineName == "" && glob != nil {
 		engineName = glob.Engine
 	}
 
@@ -85,25 +100,52 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 		cmd.Stdin = stdin
 	}
 
+	setGracefulAgentCancel(cmd)
+
+	var tail tailBuffer
 	var buf bytes.Buffer
+	var agentLog *os.File
 	var err error
-	if opts != nil && opts.LogWriter != nil {
-		w := io.MultiWriter(opts.LogWriter, &buf)
-		cmd.Stdout = w
-		cmd.Stderr = w
-		err = cmd.Run()
+
+	var stdoutWriter io.Writer
+	if rd != nil {
+		agentLog, err = rd.OpenAgentLog()
+		if err != nil {
+			return &types.AgentResult{Success: false, ExitCode: -1, Stderr: err.Error()}, err
+		}
+		defer func() { _ = agentLog.Close() }()
+		stdoutWriter = io.MultiWriter(agentLog, &tail)
+		if opts != nil && opts.LogWriter != nil {
+			stdoutWriter = io.MultiWriter(agentLog, &tail, opts.LogWriter)
+		}
 	} else {
-		var out []byte
-		out, err = cmd.CombinedOutput()
-		buf.Write(out)
+		if opts != nil && opts.LogWriter != nil {
+			stdoutWriter = io.MultiWriter(&buf, opts.LogWriter)
+		} else {
+			stdoutWriter = &buf
+		}
 	}
-	combined := buf.String()
+
+	cmd.Stdout = stdoutWriter
+	cmd.Stderr = stdoutWriter
+
+	err = cmd.Run()
+
+	var combined string
+	var agentPath string
+	if rd != nil {
+		combined = tail.String()
+		agentPath = rd.AgentLogPath()
+	} else {
+		combined = buf.String()
+	}
 
 	res := &types.AgentResult{
-		Stdout:   combined,
-		Summary:  combined,
-		Success:  err == nil,
-		ExitCode: 0,
+		Stdout:          combined,
+		Summary:         combined,
+		Success:         err == nil,
+		ExitCode:        0,
+		AgentStdoutPath: agentPath,
 	}
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -112,9 +154,28 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 			res.ExitCode = -1
 		}
 		res.Stderr = err.Error()
+		if ctx.Err() == context.DeadlineExceeded {
+			res.TimedOut = true
+		}
 		return res, fmt.Errorf("agent: %w", err)
 	}
 	return res, nil
+}
+
+func setGracefulAgentCancel(cmd *exec.Cmd) {
+	if cmd == nil {
+		return
+	}
+	cmd.WaitDelay = agentGracefulShutdownWait
+	if runtime.GOOS == "windows" {
+		return
+	}
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return nil
+		}
+		return cmd.Process.Signal(syscall.SIGTERM)
+	}
 }
 
 // parseWM_AGENT_CMD builds exec name and args from WM_AGENT_CMD / WM_ENGINE_CODEX_CMD.

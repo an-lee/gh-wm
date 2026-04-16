@@ -21,6 +21,8 @@ type RunResult struct {
 	Success     bool
 	Errors      []error
 	Duration    time.Duration
+	// RunDir is the per-run artifact directory (.wm/runs/... or WM_RUN_DIR/...), if created.
+	RunDir string
 }
 
 // GitHubEvent wraps event name and parsed payload (github.event JSON).
@@ -52,4 +54,8 @@ type AgentResult struct {
 	Stderr   string
 	Summary  string
 	ExitCode int
+	// TimedOut is true when the run ended because the context deadline was exceeded.
+	TimedOut bool
+	// AgentStdoutPath is the on-disk combined agent log when RunDir is used (full transcript).
+	AgentStdoutPath string
 }

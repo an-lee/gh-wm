@@ -40,18 +40,18 @@ The core pipeline is **event → resolve → run agent**:
 1. **`cmd/`** — Cobra CLI; thin wrappers that delegate to `internal/`.
 2. **`internal/engine/resolver.go`** — `ResolveMatchingTasks`: loads all `.wm/tasks/*.md`, calls `trigger.MatchOnOR`, returns matching task names as JSON.
 3. **`internal/trigger/match.go`** — `MatchOnOR`: OR-semantics over `on:` frontmatter keys (`issues`, `issue_comment`, `pull_request`, `slash_command`, `schedule`, `workflow_dispatch`).
-4. **`internal/engine/runner.go` + `agent.go`** — `RunTask` → `runAgent`: builds a text prompt from the task body + `context.files`, then execs `WM_AGENT_CMD` or `claude -p <prompt>`. The `run` command has a **45-minute** hard timeout.
+4. **`internal/engine/runner.go` + `agent.go` + `rundir.go`** — `RunTask` → `runAgent`: builds a text prompt from the task body + `context.files`, writes **`prompt.md`** under **`.wm/runs/<id>/`** (or **`WM_RUN_DIR`**), streams output to **`agent-stdout.log`**, then execs `WM_AGENT_CMD` or `claude -p <prompt>`. The `run` command uses **`timeout-minutes`** from the task (default **45**). Post-agent **`internal/output/`** runs optional `safe-outputs` steps (PR, labels, comment).
 5. **`internal/config/`** — loads `.wm/config.yml` (GlobalConfig) and parses frontmatter from `.wm/tasks/*.md` (Task). Frontmatter is `map[string]any`; add typed accessors on `Task` when a field becomes first-class.
 
-**Agents receive the task body as a plain-text prompt** via `exec.Cmd`. There is no structured output contract — the agent is expected to use Git/`gh` directly. There is no `internal/output` package yet; it is planned but not wired.
+**Agents receive the task body as a plain-text prompt** via `exec.Cmd`. There is no structured output contract — the agent is expected to use Git/`gh` directly. Optional **`internal/output/`** implements `safe-outputs:` keys (hints, not gh-aw enforcement).
 
 ## Non-obvious design constraints
 
 - **Binary name duality**: In CI, `go install` produces `gh-wm` (used directly). When installed as a `gh` extension, commands are `gh wm …`. Both call the same binary.
 - **`wm-agent.yml` is generated**: Consumer repos get this file from `gh wm init` / `gh wm upgrade` (via `internal/gen/wmagent.go`). `gh wm upgrade` also runs **best-effort** `gh extension upgrade an-lee/gh-wm` before regenerating the workflow. **`gh wm update`** re-fetches `.wm/tasks/*.md` files that have a `source:` (https URL or `owner/repo/path` shorthand, set by `gh wm add <url | owner/repo/task | path>`). It calls into **this** repo's reusable workflows (`agent-resolve.yml`, `agent-run.yml`). Do not hand-edit generated caller files; change the template in `internal/gen/wmagent.go`.
 - **Schedule cron filtering**: At resolve time, all tasks with `on.schedule` match. The `WM_SCHEDULE_CRON` env var (set to the workflow's cron string) further filters so only the right task fires.
-- **`engine:` frontmatter field** is parsed but not acted on yet — `WM_AGENT_CMD` is the only override mechanism today.
-- **`internal/checkpoint/`** exists (encode/decode `<!-- wm-checkpoint: … -->` comments) but is not yet called from `RunTask`.
+- **`engine:` frontmatter field** selects the default agent CLI when `WM_AGENT_CMD` is unset (`claude`, `codex`; `copilot` requires `WM_AGENT_CMD`).
+- **`internal/checkpoint/`** — when `WM_CHECKPOINT=1`, the runner loads the latest checkpoint from issue comments into the prompt and posts a new checkpoint comment after success.
 
 ## Before changing behavior
 

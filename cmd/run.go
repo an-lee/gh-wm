@@ -106,6 +106,9 @@ func runRun(_ *cobra.Command, _ []string) error {
 		}
 	}
 
+	if runResult != nil && runResult.RunDir != "" {
+		fmt.Fprintf(os.Stderr, "wm run: artifacts=%s\n", runResult.RunDir)
+	}
 	fmt.Fprintf(os.Stderr, "\n---\nwm run: task=%q repo=%s duration=%s exit_code=%d success=%v phase=%s\n",
 		runTask, repoDisplay, dur.Round(time.Millisecond), exitCode, success, phase)
 	if err != nil {

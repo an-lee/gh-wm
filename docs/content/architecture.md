@@ -9,7 +9,7 @@
 
 ## High-level pipeline
 
-Each task follows **trigger → resolve → run** (`RunTask`). The run is a **five-phase pipeline** in-process (no gh-aw-style compile): **activation** (event/task validation, optional `wm.state_labels` working label, feature branch for PR mode), **agent** (`runAgent` subprocess), **validation** (successful exit and output size bound), **safe-outputs** ([`internal/output`](../../internal/output/) when keys exist under `safe-outputs:` — hints only; not enforced like gh-aw), and **conclusion** (`defer`: done/failed labels, checkpoint comment, branch rollback on failure). [`RunTask`](../../internal/engine/runner.go) returns a [`types.RunResult`](../../internal/types/types.go) with `Phase`, `Success`, `Errors`, and `AgentResult`; `wm run` logs `phase=` on stderr for the last completed or failing phase.
+Each task follows **trigger → resolve → run** (`RunTask`). The run is a **five-phase pipeline** in-process (no gh-aw-style compile): **activation** (event/task validation, optional `wm.state_labels` working label, feature branch for PR mode, **per-run artifact dir** under `.wm/runs/` or `WM_RUN_DIR`), **agent** (`runAgent` subprocess), **validation** (successful exit and output size bound; context deadline surfaced as timeout), **safe-outputs** ([`internal/output`](../../internal/output/) when keys exist under `safe-outputs:` — hints only; not enforced like gh-aw), and **conclusion** (`defer`: done/failed labels, checkpoint comment, branch rollback on failure, **`result.json`**). [`RunTask`](../../internal/engine/runner.go) returns a [`types.RunResult`](../../internal/types/types.go) with `Phase`, `Success`, `Errors`, `RunDir`, and `AgentResult`; `wm run` logs `phase=` and `artifacts=` on stderr when a run directory is created.
 
 ```mermaid
 flowchart LR
@@ -52,7 +52,7 @@ Optional **checkpoints** ([`internal/checkpoint`](../../internal/checkpoint/chec
 | CLI entry | [`cmd/`](../../cmd/) | Cobra commands: `init`, `upgrade`, `update`, `assign`, `resolve`, `run`, `status`, `logs`, `add`. |
 | Config + tasks | [`internal/config/`](../../internal/config/) | Load `.wm/config.yml`, parse `.wm/tasks/*.md` frontmatter ([`frontmatter.go`](../../internal/config/frontmatter.go)). |
 | Event → task names | [`internal/trigger/match.go`](../../internal/trigger/match.go) | `MatchOnOR`: implements `on:` OR-semantics against [`types.GitHubEvent`](../../internal/types/types.go). |
-| Orchestration | [`internal/engine/`](../../internal/engine/) | `ResolveMatchingTasks` ([`resolver.go`](../../internal/engine/resolver.go)), `RunTask` ([`runner.go`](../../internal/engine/runner.go)), activation checks ([`activation.go`](../../internal/engine/activation.go)), output validation ([`validation.go`](../../internal/engine/validation.go)), conclusion/defer ([`conclusion.go`](../../internal/engine/conclusion.go)), `runAgent` ([`agent.go`](../../internal/engine/agent.go)), state labels ([`state.go`](../../internal/engine/state.go)). |
+| Orchestration | [`internal/engine/`](../../internal/engine/) | `ResolveMatchingTasks` ([`resolver.go`](../../internal/engine/resolver.go)), `RunTask` ([`runner.go`](../../internal/engine/runner.go)), per-run dirs ([`rundir.go`](../../internal/engine/rundir.go)), activation checks ([`activation.go`](../../internal/engine/activation.go)), output validation ([`validation.go`](../../internal/engine/validation.go)), conclusion/defer ([`conclusion.go`](../../internal/engine/conclusion.go)), `runAgent` ([`agent.go`](../../internal/engine/agent.go)), state labels ([`state.go`](../../internal/engine/state.go)). |
 | Post-agent steps | [`internal/output/`](../../internal/output/) | `RunSuccessOutputs`: `create-pull-request`, `add-labels`, `add-comment` when keys exist under `safe-outputs:`. |
 | `wm-agent.yml` generation | [`internal/gen/wmagent.go`](../../internal/gen/wmagent.go), [`schedules.go`](../../internal/gen/schedules.go) | Union of `on.schedule` strings; writes caller workflow. |
 | Embedded templates | [`internal/templates/`](../../internal/templates/) | Starters for `gh wm init` (`config.yml`, tasks, `CLAUDE.md`). |
@@ -99,15 +99,15 @@ flowchart LR
 
 ## Run behavior details
 
-- [`engine.RunTask`](../../internal/engine/runner.go) returns a [`RunResult`](../../internal/types/types.go) with phase, accumulated errors, and timing. It validates the event and engine, builds [`TaskContext`](../../internal/types/types.go), optionally loads checkpoint text, applies **working** label if `wm.state_labels` is set, optionally creates a **feature branch** via [`internal/gitbranch`](../../internal/gitbranch/) when `safe-outputs` includes `create-pull-request` (see CLI reference), runs `runAgent`, validates agent output size and success, then on success runs **`output.RunSuccessOutputs`** (PR / labels / comment). A **deferred conclusion** always runs: on success, checkpoint comment if `WM_CHECKPOINT=1` and **done** labels; on failure, **failed** labels and **checkout** of the previous branch if a feature branch was created.
-- [`runAgent`](../../internal/engine/agent.go) builds the prompt from the task body + `context.files` + optional checkpoint hint; sets `WM_TASK_TOOLS` when `tools:` is present; selects CLI via `WM_AGENT_CMD` or `engine:` (`claude`, `codex`, `copilot` requires `WM_AGENT_CMD`). Default **`claude`** uses **stdin** for the prompt, **`--dangerously-skip-permissions`**, and optional **`--model`** / **`--max-turns`** from global config so the agent can run tools (including **`gh`**) non-interactively.
+- [`engine.RunTask`](../../internal/engine/runner.go) returns a [`RunResult`](../../internal/types/types.go) with phase, accumulated errors, timing, and **`RunDir`**. It validates the event and engine, builds [`TaskContext`](../../internal/types/types.go), creates a **per-run directory** ([`NewRunDir`](../../internal/engine/rundir.go): `.wm/runs/<id>/` or `WM_RUN_DIR/<id>/`), optionally loads checkpoint text, applies **working** label if `wm.state_labels` is set, optionally creates a **feature branch** via [`internal/gitbranch`](../../internal/gitbranch/) when `safe-outputs` includes `create-pull-request` (see CLI reference), runs `runAgent` (writes **`prompt.md`**, streams combined output to **`agent-stdout.log`**; **SIGTERM** then kill on Unix when the run context is canceled), validates agent output size (from log file stat when present) and success, then on success runs **`output.RunSuccessOutputs`** (PR / labels / comment). A **deferred conclusion** always runs: on success, checkpoint comment if `WM_CHECKPOINT=1` and **done** labels; on failure, **failed** labels and **checkout** of the previous branch if a feature branch was created; finally **`result.json`** and **`meta.json`** (phase **conclusion**).
+- [`runAgent`](../../internal/engine/agent.go) builds the prompt from the task body + `context.files` + optional checkpoint hint; sets `WM_TASK_TOOLS` when `tools:` is present; selects CLI via `WM_AGENT_CMD` or `engine:` (`claude`, `codex`, `copilot` requires `WM_AGENT_CMD`). Default **`claude`** uses **stdin** for the prompt, **`--dangerously-skip-permissions`**, and optional **`--model`** / **`--max-turns`** from global config so the agent can run tools (including **`gh`**) non-interactively. In-memory **`Stdout`/`Summary`** hold a **64 KiB tail** of the transcript when a run dir is used (full text is on disk).
 - **Timeout**: [`cmd/run`](../../cmd/run.go) uses `timeout-minutes` from task frontmatter (default 45, max 480).
 
 ## RunTask pipeline (detailed reference)
 
-Implementation: [`RunTask`](../../internal/engine/runner.go), [`activation.go`](../../internal/engine/activation.go), [`validation.go`](../../internal/engine/validation.go), [`conclusion.go`](../../internal/engine/conclusion.go), [`state.go`](../../internal/engine/state.go).
+Implementation: [`RunTask`](../../internal/engine/runner.go), [`rundir.go`](../../internal/engine/rundir.go), [`activation.go`](../../internal/engine/activation.go), [`validation.go`](../../internal/engine/validation.go), [`conclusion.go`](../../internal/engine/conclusion.go), [`state.go`](../../internal/engine/state.go).
 
-**Contract:** One `gh-wm run` / `gh wm run` process executes the pipeline below. The primary API result is [`types.RunResult`](../../internal/types/types.go) (`Phase`, `Success`, `AgentResult`, `Errors`, `Duration`) plus a Go `error`. **Conclusion** (labels, checkpoint, branch rollback) runs in a **`defer`** after `task` and `tc` are set; if the run fails earlier (e.g. config load, missing task, invalid event), `tc` may be nil and **conclusion does nothing**.
+**Contract:** One `gh-wm run` / `gh wm run` process executes the pipeline below. The primary API result is [`types.RunResult`](../../internal/types/types.go) (`Phase`, `Success`, `AgentResult`, `Errors`, `Duration`, `RunDir`) plus a Go `error`. **Conclusion** (labels, checkpoint, branch rollback, **`result.json`**) runs in a **`defer`** after `task` and `tc` are set; if the run fails earlier (e.g. config load, missing task, invalid event), `tc` may be nil and **conclusion does nothing** (and no run dir is created if failure is before `NewRunDir`).
 
 ### Phase 1 — Activation (`PhaseActivation`)
 
@@ -117,6 +117,7 @@ Implementation: [`RunTask`](../../internal/engine/runner.go), [`activation.go`](
 | In-memory: `*GitHubEvent` | Must be non-nil; `Payload` non-nil; `Name` non-empty (except `unknown` for local empty-event runs) |
 | Env: `GITHUB_REPOSITORY`, `WM_AGENT_CMD`, task `engine:` / global `engine` | Engine validation |
 | Env: `WM_CHECKPOINT=1` (optional) | Enables checkpoint **read** below |
+| Env: `WM_RUN_DIR` (optional) | Base path for per-run dirs instead of `<repo>/.wm/runs/` |
 | GitHub API: `ghclient.ListIssueCommentBodies` (optional) | Only with checkpoint mode + `GITHUB_REPOSITORY` + issue/PR number: load comment bodies to find latest `<!-- wm-checkpoint: … -->` |
 
 | In-memory outputs | |
@@ -129,6 +130,7 @@ Implementation: [`RunTask`](../../internal/engine/runner.go), [`activation.go`](
 |----------------------|--------|
 | Optional: **working** label | GitHub (if `wm.state_labels.working` and repo + issue/PR number). Errors are logged and appended to `RunResult.Errors`; run **continues**. |
 | Optional: feature branch | Local git repo (`gitbranch.PrepareFeatureForPR`) when `safe-outputs` includes `create-pull-request` |
+| **Per-run directory** | **`<repo>/.wm/runs/<id>/`** or **`WM_RUN_DIR/<id>/`**: `meta.json` (phase **activation**); **`PruneRunDirs`** drops dirs older than 7 days under `.wm/runs` (and under `WM_RUN_DIR` when set) |
 
 ### Phase 2 — Agent (`PhaseAgent`)
 
@@ -140,18 +142,18 @@ Implementation: [`RunTask`](../../internal/engine/runner.go), [`activation.go`](
 
 | Outputs | |
 |---------|--|
-| `AgentResult` | Combined stdout+stderr in `Stdout` / `Summary`, `Success`, `ExitCode` (memory only) |
-| Optional stream | Copy to `RunOptions.LogWriter` (CLI uses stderr) |
+| `AgentResult` | Combined transcript: full **`agent-stdout.log`** on disk; **`Stdout`/`Summary`** hold a **64 KiB tail** when a run dir exists (for checkpoints/comments); `Success`, `ExitCode`, **`TimedOut`** if context deadline exceeded |
+| Optional stream | Tee to `RunOptions.LogWriter` (CLI uses stderr) and to **`agent-stdout.log`** |
 
 ### Phase 3 — Validation (`PhaseValidation`)
 
 | Reads | Purpose |
 |-------|---------|
-| `AgentResult` only | In-process checks |
+| `AgentResult`, run `context` | In-process checks; deadline → **timeout** error |
 
 | Checks | |
 |--------|--|
-| [`validateAgentOutputErr`](../../internal/engine/validation.go) | Non-nil result, `Success`, combined text length ≤ 12 MiB. **Empty** successful output is allowed. |
+| [`validateAgentOutputErr`](../../internal/engine/validation.go) | Non-nil result, `Success`, not timed out; size from **`agent-stdout.log`** stat when set, else in-memory text length ≤ 12 MiB. **Empty** successful output is allowed. |
 
 ### Phase 4 — Safe outputs (`PhaseOutputs`)
 
@@ -181,7 +183,8 @@ Runs in `defer` via [`concludeRun`](../../internal/engine/conclusion.go) only wh
 | Action | Reads | Writes |
 |--------|-------|--------|
 | Branch rollback | `branchCreated`, `prevBranch` | `git checkout` previous branch on disk (if applicable) |
-| State **failed** | `wm.state_labels` | Remove working / add failed label on GitHub |
+| State **failed** | `wm.state_labels` | Remove working / add failed label on GitHub (removing **working** treats **404** / missing label as non-fatal) |
+| **Artifacts** | `RunResult` | **`meta.json`** (phase **conclusion**), **`result.json`** (serialized outcome) |
 
 Checkpoint or label failures are appended to `RunResult.Errors` and do not always change the primary returned `error` from an earlier phase.
 
@@ -189,8 +192,9 @@ Checkpoint or label failures are appended to `RunResult.Errors` and do not alway
 
 | Kind | Where |
 |------|--------|
-| `RunResult` / errors | In-memory for the process; CLI prints `phase=` and `failure phase:` on **stderr** |
-| Agent transcript | `AgentResult` in memory; optional live stream to stderr. gh-wm does **not** write a log file by default |
+| `RunResult` / errors | In-memory for the process; CLI prints `phase=`, **`artifacts=`**, and `failure phase:` on **stderr** |
+| Per-run artifacts | **`.wm/runs/<id>/`** (or **`WM_RUN_DIR/<id>/`**): `prompt.md`, `agent-stdout.log` (full transcript), `meta.json` (phase updates), `result.json` (final snapshot). Ignore **`.wm/runs/`** in git (`gh wm init` appends to `.gitignore`). |
+| Agent tail in memory | Last **64 KiB** of combined output in `AgentResult` when a run dir is used (full output remains in **`agent-stdout.log`**) |
 | Repo state | Whatever git / the agent wrote under `--repo-root` |
 | Coordination | GitHub: labels, issue/PR comments, PRs — the main external persistence |
 | Checkpoints | Issue comments when `WM_CHECKPOINT=1`, encoded in [`internal/checkpoint`](../../internal/checkpoint/checkpoint.go) |

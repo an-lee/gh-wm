@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/ghclient"
@@ -57,8 +58,12 @@ func transition(tc *types.TaskContext, wm config.WMExtension, fromKey, toKey str
 	var errs []error
 	if from != "" {
 		if err := ghclient.RemoveIssueLabel(tc.Repo, n, from); err != nil {
-			log.Printf("wm: transition remove label %q: %v", from, err)
-			errs = append(errs, fmt.Errorf("remove label %q: %w", from, err))
+			if isLabelRemoveNotFound(err) {
+				log.Printf("wm: transition remove label %q: label not present (ignored)", from)
+			} else {
+				log.Printf("wm: transition remove label %q: %v", from, err)
+				errs = append(errs, fmt.Errorf("remove label %q: %w", from, err))
+			}
 		}
 	}
 	if to != "" {
@@ -68,4 +73,13 @@ func transition(tc *types.TaskContext, wm config.WMExtension, fromKey, toKey str
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// isLabelRemoveNotFound treats missing labels (404 / Not Found) as non-errors for races and manual edits.
+func isLabelRemoveNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := strings.ToLower(err.Error())
+	return strings.Contains(s, "404") || strings.Contains(s, "not found")
 }

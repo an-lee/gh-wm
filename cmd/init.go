@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/gen"
@@ -56,6 +57,40 @@ func runInit(_ *cobra.Command, _ []string) error {
 	if err := gen.WriteWMAgent(ghDir, repo, schedules, runsOn, preSteps); err != nil {
 		return err
 	}
+	if err := ensureGitignoreWmRuns(cwd); err != nil {
+		return err
+	}
 	fmt.Fprintln(os.Stderr, "Initialized .wm/ and .github/workflows/wm-agent.yml")
 	return nil
+}
+
+const gitignoreWmRunsLine = ".wm/runs/"
+
+// ensureGitignoreWmRuns appends a line ignoring per-run artifact dirs from gh-wm run.
+func ensureGitignoreWmRuns(cwd string) error {
+	path := filepath.Join(cwd, ".gitignore")
+	line := gitignoreWmRunsLine + "\n"
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return os.WriteFile(path, []byte(line), 0o644)
+		}
+		return err
+	}
+	s := string(b)
+	if strings.Contains(s, ".wm/runs") {
+		return nil
+	}
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = f.Close() }()
+	if len(s) > 0 && !strings.HasSuffix(s, "\n") {
+		if _, err := f.WriteString("\n"); err != nil {
+			return err
+		}
+	}
+	_, err = f.WriteString(line)
+	return err
 }

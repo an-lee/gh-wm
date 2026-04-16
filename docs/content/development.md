@@ -43,7 +43,7 @@ Deployment runs via [`.github/workflows/pages.yml`](../../.github/workflows/page
 | [`main.go`](../../main.go)                                        | Calls `cmd.Execute()`.                                                                                                                 |
 | [`cmd/`](../../cmd/)                                              | Cobra commands; keep thin—delegate to `internal/`.                                                                                     |
 | [`internal/config/`](../../internal/config/)                      | YAML + markdown frontmatter loading.                                                                                                   |
-| [`internal/engine/`](../../internal/engine/)                      | Resolve + run + agent + state labels + checkpoint wiring.                                                                              |
+| [`internal/engine/`](../../internal/engine/)                      | Resolve + run + agent + per-run artifact dirs (`rundir.go`) + state labels + checkpoint wiring.                                         |
 | [`internal/output/`](../../internal/output/)                      | Post-agent steps from `safe-outputs:` keys.                                                                                            |
 | [`internal/trigger/`](../../internal/trigger/)                    | `on:` matching (`match.go`).                                                                                                           |
 | [`internal/types/`](../../internal/types/)                        | `GitHubEvent`, `TaskContext`, `AgentResult`, `RunResult`, `Phase`.                                                                                           |

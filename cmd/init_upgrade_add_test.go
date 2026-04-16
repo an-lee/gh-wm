@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -32,6 +33,13 @@ func TestInitCommand(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, ".wm", "config.yml")); err != nil {
 		t.Fatal(err)
+	}
+	gi, err := os.ReadFile(filepath.Join(root, ".gitignore"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(gi), ".wm/runs") {
+		t.Fatalf(".gitignore should ignore .wm/runs, got:\n%s", gi)
 	}
 }
 
