@@ -33,7 +33,7 @@ jobs:
     with:
       event_name: ${{ github.event_name }}
       event_json: ${{ toJSON(github.event) }}
-      runs_on: '["ubuntu-latest"]'
+      runs_on: '["self-hosted","linux"]'
       force_task: ${{ github.event.inputs.task_name || '' }}
 
   run:
@@ -48,6 +48,6 @@ jobs:
       task_name: ${{ matrix.task }}
       event_name: ${{ github.event_name }}
       event_json: ${{ toJSON(github.event) }}
-      runs_on: '["ubuntu-latest"]'
+      runs_on: '["self-hosted","linux"]'
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

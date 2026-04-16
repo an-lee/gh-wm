@@ -2,7 +2,8 @@ version: 1
 
 workflow:
   runs_on:
-    - ubuntu-latest
+    - self-hosted
+    - linux
   # Optional: prerequisite steps before gh-wm runs (toolchains, deps, engine CLI).
   # When set, `gh wm upgrade` generates an inline run job (not reusable agent-run.yml).
   # pre_steps:
