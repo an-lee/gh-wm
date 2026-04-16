@@ -137,8 +137,9 @@ jobs:
           EVENT_JSON: {{ "${{" }} toJSON(github.event) {{ "}}" }}
           TASK_NAME: {{ "${{" }} matrix.task {{ "}}" }}
         run: |
-          printf '%s' "$EVENT_JSON" > event.json
-          gh-wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload event.json
+          mkdir -p .wm/runs
+          printf '%s' "$EVENT_JSON" > .wm/runs/github-event.json
+          gh-wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json
 `
 
 type wmAgentData struct {

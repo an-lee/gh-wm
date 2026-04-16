@@ -46,5 +46,6 @@ jobs:
           EVENT_JSON: ${{ inputs.event_json }}
           TASK_NAME: ${{ inputs.task_name }}
         run: |
-          printf '%s' "$EVENT_JSON" > event.json
-          gh-wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload event.json
+          mkdir -p .wm/runs
+          printf '%s' "$EVENT_JSON" > .wm/runs/github-event.json
+          gh-wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json

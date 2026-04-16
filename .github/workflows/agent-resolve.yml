@@ -54,8 +54,9 @@ jobs:
           if [ -n "${FORCE_TASK:-}" ]; then
             TASKS=$(gh-wm resolve --repo-root . --force-task "$FORCE_TASK" --json)
           else
-            printf '%s' "$EVENT_JSON" > event.json
-            TASKS=$(gh-wm resolve --repo-root . --event-name "$EVENT_NAME" --payload event.json --json)
+            mkdir -p .wm/runs
+            printf '%s' "$EVENT_JSON" > .wm/runs/github-event.json
+            TASKS=$(gh-wm resolve --repo-root . --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json --json)
           fi
           {
             echo "tasks<<WM_DELIM"
