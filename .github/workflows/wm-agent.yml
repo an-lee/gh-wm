@@ -10,12 +10,16 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, review_requested]
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "36 10 * * *"
+    - cron: "6 10 * * *"
     - cron: "0 22 * * 1-5"
   workflow_dispatch:
     inputs:
       issue_number:
         description: Issue or PR number (optional)
+        required: false
+      task_name:
+        description: Run only this task (optional; skips event matching when set)
         required: false
 
 permissions:
@@ -30,6 +34,7 @@ jobs:
       event_name: ${{ github.event_name }}
       event_json: ${{ toJSON(github.event) }}
       runs_on: '["ubuntu-latest"]'
+      force_task: ${{ github.event.inputs.task_name || '' }}
 
   run:
     needs: resolve
