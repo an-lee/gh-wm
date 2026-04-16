@@ -1,72 +1,67 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-# gh-wm (this repository)
-
-You are working on the **gh-wm** CLI: a Go `gh` extension that resolves GitHub events to `.wm/tasks/*.md` tasks and runs an agent subprocess (default: **`claude -p`** with **`--dangerously-skip-permissions`**, prompt on stdin, optional `--model` / `--max-turns` from `.wm/config.yml`, or **`WM_AGENT_CMD`**).
+**gh-wm** is a Go `gh` CLI extension: resolves GitHub events → `.wm/tasks/*.md` → runs an agent subprocess (default `claude -p`; override with `WM_AGENT_CMD`).
 
 ## Commands
 
 ```bash
-# Build
-go build -o gh-wm .
+go build -o gh-wm .                  # build
+go test ./...                        # test all
+go test ./internal/config/... -run TestSplitFrontmatter  # single test
 
-# Print version (default `dev`; override at build time with -ldflags)
-./gh-wm version
-# go build -o gh-wm -ldflags "-X github.com/an-lee/gh-wm/cmd.Version=1.0.0 -X github.com/an-lee/gh-wm/cmd.Commit=local" .
-
-# Test all packages
-go test ./...
-
-# Run a single test
-go test ./internal/config/... -run TestSplitFrontmatter
-
-# Run resolve manually
-./gh-wm resolve --repo-root . --event-name issues --payload /path/to/event.json --json
-
-# Omit --payload (and GITHUB_EVENT_PATH) to use an empty event `{}` for quick local runs
-./gh-wm run --repo-root . --task <task-name> --event-name workflow_dispatch
-
-# Run a task manually (requires ANTHROPIC_API_KEY or WM_AGENT_CMD)
-# `run` requires a clean git working tree unless you pass --allow-dirty
-./gh-wm run --repo-root . --task <task-name> --event-name issues --payload /path/to/event.json
-
-# Dispatch wm-agent.yml on GitHub (gh CLI; regenerate wm-agent.yml with gh wm upgrade after upgrading gh-wm)
-./gh-wm run --repo-root . --task <task-name> --remote
+./gh-wm resolve --repo-root . --event-name issues --payload event.json --json
+./gh-wm run --repo-root . --task <name> --event-name workflow_dispatch
+./gh-wm run --repo-root . --task <name> --remote   # dispatch on GitHub
 ```
+
+## After editing Go code
+
+Run `make ci` — it mirrors `.github/workflows/ci.yml` (fmt-check → vet → test → build):
+
+```bash
+make ci
+```
+
+Or individually: `gofmt -l .` (must be empty), `go vet ./...`, `go test ./...`, `go build -v ./...`.
 
 ## Architecture
 
-The core pipeline is **event → resolve → run agent**:
+Core pipeline: **event → resolve → run agent**.
 
-1. **`cmd/`** — Cobra CLI; thin wrappers that delegate to `internal/`.
-2. **`internal/engine/resolver.go`** — `ResolveMatchingTasks`: loads all `.wm/tasks/*.md`, calls `trigger.MatchOnOR`, returns matching task names as JSON.
-3. **`internal/trigger/match.go`** — `MatchOnOR`: OR-semantics over `on:` frontmatter keys (`issues`, `issue_comment`, `pull_request`, `slash_command`, `schedule`, `workflow_dispatch`).
-4. **`internal/engine/runner.go` + `agent.go` + `rundir.go`** — `RunTask` → `runAgent`: builds a text prompt from the task body + `context.files` + optional safe-output instructions, writes **`prompt.md`** under **`.wm/runs/<id>/`** (or **`WM_RUN_DIR`**), sets **`WM_OUTPUT_FILE`** to **`output.json`** in that dir, streams output to **`agent-stdout.log`**, then execs `WM_AGENT_CMD` or `claude -p <prompt>`. The `run` command uses **`timeout-minutes`** from the task (default **45**). Post-agent **`internal/output/`** applies agent-written **`output.json`** **`items`** when `safe-outputs:` is non-empty (use **`noop`** if no GitHub actions).
-5. **`internal/config/`** — loads `.wm/config.yml` (GlobalConfig) and parses frontmatter from `.wm/tasks/*.md` (Task). Frontmatter is `map[string]any`; add typed accessors on `Task` when a field becomes first-class.
+| Layer | Key files | Purpose |
+|-------|-----------|---------|
+| CLI | `cmd/*.go` | Cobra commands: `init`, `upgrade`, `update`, `add`, `assign`, `resolve`, `run`, `status`, `logs`, `version` |
+| Resolver | `internal/engine/resolver.go` | `ResolveMatchingTasks` — loads `.wm/tasks/*.md`, calls `trigger.MatchOnOR`, returns matches |
+| Trigger | `internal/trigger/match.go` | `MatchOnOR` — OR-semantics over `on:` frontmatter (`issues`, `issue_comment`, `pull_request`, `slash_command`, `schedule`, `workflow_dispatch`) |
+| Runner | `internal/engine/runner.go`, `agent.go`, `rundir.go` | `RunTask` → `runAgent`: builds prompt, writes `.wm/runs/<id>/prompt.md`, execs agent, applies `timeout-minutes` (default 45) |
+| Config | `internal/config/` | `.wm/config.yml` (GlobalConfig), task frontmatter parsing (`map[string]any`; add typed accessors when fields become first-class) |
+| Output | `internal/output/` | Parses agent `output.json`, validates against `safe-outputs:` policy, executes items (noop, comment, label, issue, PR) |
+| Checkpoint | `internal/checkpoint/` | When `WM_CHECKPOINT=1`: loads/posts checkpoint state via issue comments |
+| Git helpers | `internal/gitstatus/`, `internal/gitbranch/` | Clean-tree check (`run` requires clean unless `--allow-dirty`); feature-branch prep for PR outputs |
+| GitHub | `internal/ghclient/` | Thin `gh` CLI wrappers for labels, repos, issues, auth |
+| Generator | `internal/gen/wmagent.go` | Generates `wm-agent.yml` workflow; also cron scheduling helpers |
+| Templates | `internal/templates/data/` | Embedded defaults written by `gh wm init` into user repos |
 
-**Agents receive the task body as a plain-text prompt** via `exec.Cmd` and must write structured **`items`** to **`WM_OUTPUT_FILE`** (`output.json`) when `safe-outputs:` is set. **`internal/output/`** validates and executes those items against `safe-outputs:` policy.
+Agent prompt flow: task body + `context.files` + safe-output instructions → `prompt.md` → stdin to agent. Agent writes structured `items` to `WM_OUTPUT_FILE` (`output.json`) when `safe-outputs:` is set (use `noop` if no GitHub actions needed).
 
-## Non-obvious design constraints
+## Non-obvious constraints
 
-- **Binary name duality**: In CI, `go install` produces `gh-wm` (used directly). When installed as a `gh` extension, commands are `gh wm …`. Both call the same binary.
-- **`wm-agent.yml` is generated**: Consumer repos get this file from `gh wm init` / `gh wm upgrade` (via `internal/gen/wmagent.go`). `gh wm upgrade` also runs **best-effort** `gh extension upgrade an-lee/gh-wm` before regenerating the workflow. **`gh wm update`** re-fetches `.wm/tasks/*.md` files that have a `source:` (https URL or `owner/repo/path` shorthand, set by `gh wm add <url | owner/repo/task | path>`). It calls into **this** repo's reusable workflows (`agent-resolve.yml`, `agent-run.yml`). **`agent-run.yml`** can install **Claude Code** before `gh-wm run` (input **`install_claude_code`**, default **true** from **`workflow.install_claude_code`** in `.wm/config.yml`). Do not hand-edit generated caller files; change the template in `internal/gen/wmagent.go`.
-- **Schedule cron filtering**: At resolve time, all tasks with `on.schedule` match. The `WM_SCHEDULE_CRON` env var (set to the workflow's cron string) further filters so only the right task fires.
-- **`engine:` frontmatter field** selects the default agent CLI when `WM_AGENT_CMD` is unset (`claude`, `codex`; `copilot` requires `WM_AGENT_CMD`).
-- **`internal/checkpoint/`** — when `WM_CHECKPOINT=1`, the runner loads the latest checkpoint from issue comments into the prompt and posts a new checkpoint comment after success.
+- **Binary name duality**: `go install` produces `gh-wm`; as a `gh` extension it's `gh wm …`. Same binary.
+- **`wm-agent.yml` is generated**: Written by `gh wm init` / `gh wm upgrade` (template in `internal/gen/wmagent.go`). Never hand-edit in consumer repos. `upgrade` also best-effort runs `gh extension upgrade an-lee/gh-wm`.
+- **`gh wm update`**: Re-fetches tasks with a `source:` field (URL or `owner/repo/path` shorthand, set by `gh wm add`).
+- **Schedule cron filtering**: All `on.schedule` tasks match at resolve time; `WM_SCHEDULE_CRON` env var further filters to the correct task.
+- **`engine:` frontmatter**: Selects default agent CLI (`claude`, `codex`; `copilot` requires `WM_AGENT_CMD`).
+- **`install_claude_code`**: `agent-run.yml` input, default `true` from `workflow.install_claude_code` in `.wm/config.yml`.
 
 ## Before changing behavior
 
-1. Read **[`docs/content/_index.md`](docs/content/_index.md)** for the mental model (see also **[`docs/README.md`](docs/README.md)**).
-2. For code changes, read **[`docs/content/architecture.md`](docs/content/architecture.md)** and **[`docs/content/development.md`](docs/content/development.md)**.
-3. For task markdown / frontmatter, use **[`docs/content/task-format.md`](docs/content/task-format.md)**.
-4. For CLI flags and env vars, use **[`docs/content/cli-reference.md`](docs/content/cli-reference.md)**.
+1. **Mental model**: [`docs/content/_index.md`](docs/content/_index.md)
+2. **Code changes**: [`docs/content/architecture.md`](docs/content/architecture.md), [`docs/content/development.md`](docs/content/development.md)
+3. **Task format**: [`docs/content/task-format.md`](docs/content/task-format.md)
+4. **CLI flags / env vars**: [`docs/content/cli-reference.md`](docs/content/cli-reference.md)
 
-## Accuracy
+Keep `docs/` aligned with code. If you add flags, matchers, or workflow changes, update the relevant doc in the same change.
 
-Keep docs in **`docs/`** aligned with code (`internal/engine`, `internal/trigger`, `cmd/`). If you add flags, matchers, or workflow contract changes, update the relevant doc in the same change.
+## Templates vs docs
 
-## Templates vs this repo
-
-`gh wm init` writes embedded templates from [`internal/templates/data/`](internal/templates/data/) into **user repos**. That is separate from the documentation in **`docs/`**, which describes **this** project.
+`gh wm init` writes embedded templates from `internal/templates/data/` into **user repos**. The `docs/` directory documents **this project** itself — they are separate.
