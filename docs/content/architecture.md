@@ -193,7 +193,7 @@ Checkpoint or label failures are appended to `RunResult.Errors` and do not alway
 | Kind | Where |
 |------|--------|
 | `RunResult` / errors | In-memory for the process; CLI prints `phase=`, **`artifacts=`**, and `failure phase:` on **stderr** |
-| Per-run artifacts | **`.wm/runs/<id>/`** (or **`WM_RUN_DIR/<id>/`**): `prompt.md`, `agent-stdout.log` (full transcript), `meta.json` (phase updates), `result.json` (final snapshot). Ignore **`.wm/runs/`** in git (`gh wm init` appends to `.gitignore`). |
+| Per-run artifacts | **`.wm/runs/<id>/`** (or **`WM_RUN_DIR/<id>/`**): `prompt.md`, `agent-stdout.log` (full transcript), `meta.json` (phase updates), `result.json` (final snapshot). Ignore **`runs/`** under **`.wm/`** via **`.wm/.gitignore`** (`gh wm init` / `gh wm upgrade` ensure that file). |
 | Agent tail in memory | Last **64 KiB** of combined output in `AgentResult` when a run dir is used (full output remains in **`agent-stdout.log`**) |
 | Repo state | Whatever git / the agent wrote under `--repo-root` |
 | Coordination | GitHub: labels, issue/PR comments, PRs — the main external persistence |

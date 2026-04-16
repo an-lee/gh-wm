@@ -60,6 +60,9 @@ func runUpgrade(_ *cobra.Command, _ []string) error {
 	if err := gen.WriteWMAgent(ghDir, repo, schedules, runsOn, preSteps); err != nil {
 		return err
 	}
+	if err := ensureWmGitignoreRuns(filepath.Join(cwd, ".wm")); err != nil {
+		return err
+	}
 	fmt.Fprintln(os.Stderr, "Updated .github/workflows/wm-agent.yml")
 	return nil
 }

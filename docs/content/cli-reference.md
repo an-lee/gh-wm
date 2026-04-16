@@ -34,7 +34,7 @@ Local and CI builds without linker flags report **`dev`**. Release assets built 
 2. Write embedded `config.yml` and starter tasks ([`internal/templates`](../../internal/templates/)).
 3. Write `CLAUDE.md` in repo root if missing (from template).
 4. Collect schedules from `.wm/tasks` and generate `wm-agent.yml` via [`gen.WriteWMAgent`](../../internal/gen/wmagent.go), including **`workflow.runs_on`** from `.wm/config.yml` (default `ubuntu-latest` if unset).
-5. Ensure **`.gitignore`** contains **`.wm/runs/`** (per-run artifact dirs from `gh wm run`) — creates or appends the repo’s `.gitignore` when needed.
+5. Ensure **`.wm/.gitignore`** contains **`runs/`** (per-run artifact dirs from `gh wm run`) — creates or appends that file when needed.
 
 **`workflow.pre_steps` (optional):** A list of GitHub Actions job steps (`name`, `uses`, `run`, `with`, `env`, `if`) run **after** checkout and **before** installing `gh-wm` and running the task. Use this for toolchains (e.g. [`jdx/mise-action`](https://github.com/jdx/mise-action)), dependency installs, or installing the agent CLI. When **`pre_steps` is non-empty**, the generated `wm-agent.yml` uses an **inline** `run` job (steps embedded in the file) instead of calling the reusable [`agent-run.yml`](../../.github/workflows/agent-run.yml) workflow, because reusable workflows cannot accept arbitrary step YAML as inputs.
 
@@ -52,7 +52,7 @@ Local and CI builds without linker flags report **`dev`**. Release assets built 
 
 **Usage:** `gh wm upgrade`
 
-If `.wm/config.yml` is missing, runner labels default to **`ubuntu-latest`** when generating `wm-agent.yml`. **`workflow.pre_steps`** follows the same rules as under **`init`** above.
+If `.wm/config.yml` is missing, runner labels default to **`ubuntu-latest`** when generating `wm-agent.yml`. **`workflow.pre_steps`** follows the same rules as under **`init`** above. **`upgrade`** also ensures **`.wm/.gitignore`** lists **`runs/`** (same as step 5 under **`init`**), so older repos pick up the ignore rule without re-running **`init`**.
 
 ---
 

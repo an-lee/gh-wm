@@ -57,19 +57,22 @@ func runInit(_ *cobra.Command, _ []string) error {
 	if err := gen.WriteWMAgent(ghDir, repo, schedules, runsOn, preSteps); err != nil {
 		return err
 	}
-	if err := ensureGitignoreWmRuns(cwd); err != nil {
+	if err := ensureWmGitignoreRuns(wm); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "Initialized .wm/ and .github/workflows/wm-agent.yml")
 	return nil
 }
 
-const gitignoreWmRunsLine = ".wm/runs/"
+const wmGitignoreRunsLine = "runs/"
 
-// ensureGitignoreWmRuns appends a line ignoring per-run artifact dirs from gh-wm run.
-func ensureGitignoreWmRuns(cwd string) error {
-	path := filepath.Join(cwd, ".gitignore")
-	line := gitignoreWmRunsLine + "\n"
+// ensureWmGitignoreRuns writes .wm/.gitignore so per-run artifact dirs under .wm/runs/ are not tracked.
+func ensureWmGitignoreRuns(wmDir string) error {
+	if err := os.MkdirAll(wmDir, 0o755); err != nil {
+		return err
+	}
+	path := filepath.Join(wmDir, ".gitignore")
+	line := wmGitignoreRunsLine + "\n"
 	b, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -78,7 +81,7 @@ func ensureGitignoreWmRuns(cwd string) error {
 		return err
 	}
 	s := string(b)
-	if strings.Contains(s, ".wm/runs") {
+	if strings.Contains(s, "runs/") {
 		return nil
 	}
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644)

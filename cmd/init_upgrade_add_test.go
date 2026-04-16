@@ -34,12 +34,12 @@ func TestInitCommand(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, ".wm", "config.yml")); err != nil {
 		t.Fatal(err)
 	}
-	gi, err := os.ReadFile(filepath.Join(root, ".gitignore"))
+	wmGi, err := os.ReadFile(filepath.Join(root, ".wm", ".gitignore"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(gi), ".wm/runs") {
-		t.Fatalf(".gitignore should ignore .wm/runs, got:\n%s", gi)
+	if !strings.Contains(string(wmGi), "runs/") {
+		t.Fatalf(".wm/.gitignore should contain runs/, got:\n%s", wmGi)
 	}
 }
 
@@ -77,6 +77,13 @@ x
 	}
 	if _, err := os.Stat(filepath.Join(root, ".github", "workflows", "wm-agent.yml")); err != nil {
 		t.Fatal(err)
+	}
+	wmGi, err := os.ReadFile(filepath.Join(root, ".wm", ".gitignore"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(wmGi), "runs/") {
+		t.Fatalf(".wm/.gitignore should contain runs/, got:\n%s", wmGi)
 	}
 }
 
@@ -116,6 +123,13 @@ x
 	}
 	if _, err := os.Stat(filepath.Join(root, ".github", "workflows", "wm-agent.yml")); err != nil {
 		t.Fatal(err)
+	}
+	wmGi, err := os.ReadFile(filepath.Join(root, ".wm", ".gitignore"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(wmGi), "runs/") {
+		t.Fatalf(".wm/.gitignore should contain runs/, got:\n%s", wmGi)
 	}
 }
 
