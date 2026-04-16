@@ -14,6 +14,11 @@ on:
         required: false
         type: string
         default: '["ubuntu-latest"]'
+      force_task:
+        description: When non-empty, resolve only this task name (skip event matching)
+        required: false
+        type: string
+        default: ''
     outputs:
       tasks:
         description: JSON array of matching task names
@@ -44,9 +49,14 @@ jobs:
         env:
           EVENT_NAME: ${{ inputs.event_name }}
           EVENT_JSON: ${{ inputs.event_json }}
+          FORCE_TASK: ${{ inputs.force_task }}
         run: |
-          printf '%s' "$EVENT_JSON" > event.json
-          TASKS=$(gh-wm resolve --repo-root . --event-name "$EVENT_NAME" --payload event.json --json)
+          if [ -n "${FORCE_TASK:-}" ]; then
+            TASKS=$(gh-wm resolve --repo-root . --force-task "$FORCE_TASK" --json)
+          else
+            printf '%s' "$EVENT_JSON" > event.json
+            TASKS=$(gh-wm resolve --repo-root . --event-name "$EVENT_NAME" --payload event.json --json)
+          fi
           {
             echo "tasks<<WM_DELIM"
             echo "$TASKS"

@@ -20,7 +20,7 @@ func TestWriteWMAgent(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(b)
-	for _, p := range []string{"owner/name", "0 1 * * *", "agent-resolve.yml", "cron:", `runs_on: '["ubuntu-latest"]'`} {
+	for _, p := range []string{"owner/name", "0 1 * * *", "agent-resolve.yml", "cron:", `runs_on: '["ubuntu-latest"]'`, "task_name:", "force_task:"} {
 		if !strings.Contains(s, p) {
 			t.Fatalf("missing %q in %s", p, s)
 		}

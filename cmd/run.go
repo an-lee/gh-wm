@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/engine"
+	"github.com/an-lee/gh-wm/internal/ghclient"
 	"github.com/an-lee/gh-wm/internal/gitbranch"
 	"github.com/an-lee/gh-wm/internal/gitstatus"
 	"github.com/an-lee/gh-wm/internal/types"
@@ -22,6 +24,11 @@ var (
 	runEvent      string
 	runPayload    string
 	runAllowDirty bool
+	runRemote     bool
+	runGhRepo     string
+	runWorkflow   string
+	runRef        string
+	runIssue      int
 )
 
 var runCmd = &cobra.Command{
@@ -36,22 +43,15 @@ func init() {
 	runCmd.Flags().StringVar(&runEvent, "event-name", "", "event name (default: GITHUB_EVENT_NAME)")
 	runCmd.Flags().StringVar(&runPayload, "payload", "", "event JSON path (default: GITHUB_EVENT_PATH; if unset, `{}`)")
 	runCmd.Flags().BoolVar(&runAllowDirty, "allow-dirty", false, "skip git clean working tree check (git status --porcelain must be empty otherwise)")
+	runCmd.Flags().BoolVar(&runRemote, "remote", false, "dispatch wm-agent.yml on GitHub via gh workflow run (requires gh CLI; run gh wm upgrade so workflow has task_name input)")
+	runCmd.Flags().StringVar(&runGhRepo, "repo", "", "GitHub repository OWNER/NAME for --remote (default: gh repo view)")
+	runCmd.Flags().StringVar(&runWorkflow, "workflow", "wm-agent.yml", "workflow file for --remote")
+	runCmd.Flags().StringVar(&runRef, "ref", "", "git ref for --remote (optional; default branch if unset)")
+	runCmd.Flags().IntVar(&runIssue, "issue", 0, "optional issue/PR number for --remote (-f issue_number)")
 	_ = runCmd.MarkFlagRequired("task")
 }
 
 func runRun(_ *cobra.Command, _ []string) error {
-	evName := runEvent
-	if evName == "" {
-		evName = os.Getenv("GITHUB_EVENT_NAME")
-	}
-	path := runPayload
-	if path == "" {
-		path = os.Getenv("GITHUB_EVENT_PATH")
-	}
-	ev, err := engine.ParseEvent(evName, path)
-	if err != nil {
-		return err
-	}
 	glob, tasks, err := config.Load(runRepoRoot)
 	if err != nil {
 		return err
@@ -67,6 +67,24 @@ func runRun(_ *cobra.Command, _ []string) error {
 	if task == nil {
 		return fmt.Errorf("task not found: %s", runTask)
 	}
+
+	if runRemote {
+		return runRemoteDispatch(glob, task)
+	}
+
+	evName := runEvent
+	if evName == "" {
+		evName = os.Getenv("GITHUB_EVENT_NAME")
+	}
+	path := runPayload
+	if path == "" {
+		path = os.Getenv("GITHUB_EVENT_PATH")
+	}
+	ev, err := engine.ParseEvent(evName, path)
+	if err != nil {
+		return err
+	}
+
 	if !runAllowDirty {
 		if err := gitstatus.EnsureClean(runRepoRoot); err != nil {
 			return err
@@ -120,4 +138,45 @@ func runRun(_ *cobra.Command, _ []string) error {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 	}
 	return err
+}
+
+func runRemoteDispatch(glob *config.GlobalConfig, task *config.Task) error {
+	repo := strings.TrimSpace(runGhRepo)
+	if repo == "" {
+		var err error
+		repo, err = ghclient.CurrentRepo()
+		if err != nil {
+			return fmt.Errorf("remote run: set --repo or run from a gh checkout: %w", err)
+		}
+	}
+	repoDisplay := runRepoRoot
+	if abs, err := filepath.Abs(runRepoRoot); err == nil {
+		repoDisplay = abs
+	}
+	engineName := strings.TrimSpace(task.Engine())
+	if engineName == "" {
+		engineName = glob.Engine
+	}
+	fmt.Fprintf(os.Stderr, "wm run: remote workflow_dispatch workflow=%s github_repo=%s task=%q engine=%s repo_root=%s\n",
+		strings.TrimSpace(runWorkflow), repo, runTask, engineName, repoDisplay)
+
+	wf := strings.TrimSpace(runWorkflow)
+	if wf == "" {
+		wf = "wm-agent.yml"
+	}
+	args := []string{"workflow", "run", wf, "-R", repo, "-f", "task_name=" + runTask}
+	if runIssue > 0 {
+		args = append(args, "-f", fmt.Sprintf("issue_number=%d", runIssue))
+	}
+	if r := strings.TrimSpace(runRef); r != "" {
+		args = append(args, "--ref", r)
+	}
+	cmd := exec.Command("gh", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("gh %v: %w", args, err)
+	}
+	return nil
 }

@@ -49,6 +49,24 @@ func TestResolveMatchingTasks(t *testing.T) {
 	}
 }
 
+func TestResolveForcedTask(t *testing.T) {
+	t.Parallel()
+	root := writeMinimalRepo(t)
+	names, err := ResolveForcedTask(root, "a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(names) != 1 || names[0] != "a" {
+		t.Fatalf("got %v", names)
+	}
+	if _, err := ResolveForcedTask(root, "missing"); err == nil {
+		t.Fatal("expected error")
+	}
+	if _, err := ResolveForcedTask(root, ""); err == nil {
+		t.Fatal("expected error for empty")
+	}
+}
+
 func TestResolveMatchingTasks_ScheduleCronEnv(t *testing.T) {
 	root := t.TempDir()
 	wm := filepath.Join(root, ".wm")

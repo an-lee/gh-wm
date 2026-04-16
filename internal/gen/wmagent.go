@@ -32,6 +32,9 @@ on:
       issue_number:
         description: Issue or PR number (optional)
         required: false
+      task_name:
+        description: Run only this task (optional; skips event matching when set)
+        required: false
 
 permissions:
   contents: write
@@ -45,6 +48,7 @@ jobs:
       event_name: {{ "${{" }} github.event_name {{ "}}" }}
       event_json: {{ "${{" }} toJSON(github.event) {{ "}}" }}
       runs_on: '{{ .RunsOnJSON }}'
+      force_task: {{ "${{" }} github.event.inputs.task_name || '' {{ "}}" }}
 
   run:
     needs: resolve
@@ -84,6 +88,9 @@ on:
       issue_number:
         description: Issue or PR number (optional)
         required: false
+      task_name:
+        description: Run only this task (optional; skips event matching when set)
+        required: false
 
 permissions:
   contents: write
@@ -97,6 +104,7 @@ jobs:
       event_name: {{ "${{" }} github.event_name {{ "}}" }}
       event_json: {{ "${{" }} toJSON(github.event) {{ "}}" }}
       runs_on: '{{ .RunsOnJSON }}'
+      force_task: {{ "${{" }} github.event.inputs.task_name || '' {{ "}}" }}
 
   run:
     needs: resolve

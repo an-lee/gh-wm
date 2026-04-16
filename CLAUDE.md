@@ -31,6 +31,9 @@ go test ./internal/config/... -run TestSplitFrontmatter
 # Run a task manually (requires ANTHROPIC_API_KEY or WM_AGENT_CMD)
 # `run` requires a clean git working tree unless you pass --allow-dirty
 ./gh-wm run --repo-root . --task <task-name> --event-name issues --payload /path/to/event.json
+
+# Dispatch wm-agent.yml on GitHub (gh CLI; regenerate wm-agent.yml with gh wm upgrade after upgrading gh-wm)
+./gh-wm run --repo-root . --task <task-name> --remote
 ```
 
 ## Architecture

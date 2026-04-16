@@ -114,6 +114,7 @@ Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run **`gh wm upg
 | `--event-name` | `$GITHUB_EVENT_NAME` | GitHub event name                                      |
 | `--payload`    | `$GITHUB_EVENT_PATH` | Path to event JSON file; if `--payload` and `GITHUB_EVENT_PATH` are both unset, payload defaults to `{}` |
 | `--json`       | `true`               | If true, print JSON array; if false, one name per line |
+| `--force-task` | _(unset)_            | Pin a single task by name; skips event/`on:` matching (same idea as local `run` picking a task). Used for manual runs and CI when the resolve job should return exactly one task. |
 
 ---
 
@@ -121,9 +122,9 @@ Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run **`gh wm upg
 
 **Purpose:** Execute **one** task: **activation** (validate event/engine, optional working label, branch prep for PR mode), **agent**, **validation** (exit + output size), **`safe-outputs:`** steps, then **conclusion** (done/failed labels, checkpoint, branch rollback on failure).
 
-**Usage:** `gh wm run --task <name>`
+**Usage:** `gh wm run --task <name>` (local agent), or `gh wm run --task <name> --remote` to dispatch the **`wm-agent`** workflow on GitHub.
 
-**Git working tree:** Before running, `gh wm` requires a **clean** repository at `--repo-root`: `git status --porcelain` must be empty (no modified, staged, or untracked files). CI checkouts from `actions/checkout` usually satisfy this. Use **`--allow-dirty`** to skip the check (e.g. local scripts or tests).
+**Git working tree:** For **local** runs (default), `gh wm` requires a **clean** repository at `--repo-root`: `git status --porcelain` must be empty (no modified, staged, or untracked files). CI checkouts from `actions/checkout` usually satisfy this. Use **`--allow-dirty`** to skip the check (e.g. local scripts or tests). **`--remote`** does not require a clean tree (it does not run the agent locally).
 
 **Flags:**
 
@@ -131,11 +132,12 @@ Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run **`gh wm upg
 | ---------------- | -------------------- | ---------------------------------- |
 | `--repo-root`    | `.`                  | Repository root                    |
 | `--task`         | _(required)_         | Task name (filename without `.md`) |
-| `--event-name`   | `$GITHUB_EVENT_NAME` | Event name                         |
-| `--payload`      | `$GITHUB_EVENT_PATH` | Path to event JSON; if `--payload` and `GITHUB_EVENT_PATH` are both unset, payload defaults to `{}` |
-| `--allow-dirty`  | `false`              | Skip the git clean working tree check |
+| `--event-name`   | `$GITHUB_EVENT_NAME` | Event name (local run only)        |
+| `--payload`      | `$GITHUB_EVENT_PATH` | Path to event JSON; if `--payload` and `GITHUB_EVENT_PATH` are both unset, payload defaults to `{}` (local run only) |
+| `--allow-dirty`  | `false`              | Skip the git clean working tree check (local run only) |
+| `--remote`       | `false`              | Run **`gh workflow run`** to trigger **`workflow_dispatch`** on the repo’s **`wm-agent.yml`** with **`-f task_name=<task>`**. Requires the **`gh`** CLI and auth. Repository defaults to **`gh repo view`**; override with **`--repo OWNER/NAME`**. Optional **`--workflow`** (default **`wm-agent.yml`**), **`--ref`** (git ref for the workflow run), and **`--issue`** (passed as **`-f issue_number=`** for the dispatch inputs). After upgrading **`gh-wm`**, run **`gh wm upgrade`** in the target repo so the generated workflow declares the **`task_name`** input; older **`wm-agent.yml`** files may reject unknown **`-f`** fields. **`--remote`** does not send a custom GitHub event payload (the run on Actions sees a normal **`workflow_dispatch`** event, optionally with **`issue_number`**). |
 
-**Timeout:** Uses `timeout-minutes` from task frontmatter (default **45**, max **480**). See [`cmd/run.go`](../../cmd/run.go).
+**Timeout:** Uses `timeout-minutes` from task frontmatter (default **45**, max **480**) for **local** runs only. See [`cmd/run.go`](../../cmd/run.go).
 
 **Output:** Before the agent starts, stderr prints a short **banner** (task name, repo path, current git branch, engine). Agent subprocess **stdout and stderr are streamed to stderr** as they are produced. Each run also writes a **per-run artifact directory** under **`.wm/runs/<id>/`** (or **`WM_RUN_DIR/<id>/`** when set): `prompt.md`, combined agent log (default **`agent-stdout.log`**, or **`conversation.json`** / **`conversation.jsonl`** when structured Claude print-mode output is configured — see **`claude_output_format`** / **`WM_CLAUDE_OUTPUT_FORMAT`** in [task-format.md](task-format.md)), `meta.json`, `result.json` (see [architecture.md](architecture.md#what-persists-where)). The summary block on stderr includes a line **`artifacts=<path>`** when that directory was created. After the run, a short **summary line** is printed to stderr (task name, repo path, duration, exit code, success, **`phase=`** — `activation`, `agent`, `validation`, `safe-outputs`, or last phase reached). If the run fails, stderr also prints **`failure phase:`** (for `safe-outputs`, the message still says **safe-outputs (post-agent)**; otherwise the failing **phase** name).
 

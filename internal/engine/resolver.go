@@ -36,6 +36,25 @@ func ResolveMatchingTasks(repoRoot string, event *types.GitHubEvent) ([]string, 
 	return names, nil
 }
 
+// ResolveForcedTask returns [taskName] if a task with that name exists under .wm/tasks.
+// It does not evaluate on: triggers (same semantics as local gh wm run).
+func ResolveForcedTask(repoRoot, taskName string) ([]string, error) {
+	taskName = strings.TrimSpace(taskName)
+	if taskName == "" {
+		return nil, fmt.Errorf("force-task: empty")
+	}
+	_, tasks, err := config.Load(repoRoot)
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range tasks {
+		if t.Name == taskName {
+			return []string{t.Name}, nil
+		}
+	}
+	return nil, fmt.Errorf("task not found: %s", taskName)
+}
+
 func parseEventJSON(eventName string, b []byte) (*types.GitHubEvent, error) {
 	var payload map[string]any
 	if err := json.Unmarshal(b, &payload); err != nil {

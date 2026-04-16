@@ -75,3 +75,33 @@ x
 		t.Fatal("expected task name line")
 	}
 }
+
+func TestResolveCommand_ForceTask(t *testing.T) {
+	root := t.TempDir()
+	wm := filepath.Join(root, ".wm")
+	if err := os.MkdirAll(filepath.Join(wm, "tasks"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wm, "config.yml"), []byte("version: 1\nengine: claude\nmax_turns: 10\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wm, "tasks", "pinned.md"), []byte(`---
+on:
+  issues: {}
+---
+
+x
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"resolve", "--repo-root", root, "--force-task", "pinned", "--json"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(buf.Bytes(), []byte(`"pinned"`)) {
+		t.Fatalf("output: %s", buf.String())
+	}
+}
