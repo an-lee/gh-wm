@@ -11,6 +11,7 @@ import (
 
 	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 var addCmd = &cobra.Command{
@@ -45,8 +46,19 @@ func runAdd(_ *cobra.Command, args []string) error {
 			return err
 		}
 	}
-	if _, _, err := config.SplitFrontmatter(string(data)); err != nil {
+	yamlRaw, _, err := config.SplitFrontmatter(string(data))
+	if err != nil {
 		return fmt.Errorf("task file must start with YAML frontmatter (---): %w", err)
+	}
+	var fm map[string]any
+	if err := yaml.Unmarshal([]byte(yamlRaw), &fm); err != nil {
+		return fmt.Errorf("task frontmatter YAML: %w", err)
+	}
+	isHTTP := strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://")
+	if isHTTP && fm != nil {
+		if _, ok := fm["source"]; !ok {
+			data = injectSource(data, src)
+		}
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -69,4 +81,15 @@ func runAdd(_ *cobra.Command, args []string) error {
 	}
 	fmt.Fprintf(os.Stderr, "Wrote %s\nRun: gh wm upgrade\n", dest)
 	return nil
+}
+
+// injectSource inserts source: <url> immediately after the opening --- line.
+func injectSource(data []byte, src string) []byte {
+	s := string(data)
+	nl := strings.Index(s, "\n")
+	if nl < 0 {
+		return data
+	}
+	line := fmt.Sprintf("source: %q\n", src)
+	return []byte(s[:nl+1] + line + s[nl+1:])
 }

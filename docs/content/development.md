@@ -78,7 +78,7 @@ See [`runAgent`](../../internal/engine/agent.go): `WM_AGENT_CMD` overrides every
 
 ## Workflows and releases
 
-- **Caller** `wm-agent.yml` is **generated**—use `gh wm upgrade`.
+- **Caller** `wm-agent.yml` is **generated**—use `gh wm upgrade` (runs best-effort `gh extension upgrade an-lee/gh-wm`, then regenerates the file).
 - Reusable workflows live in this repo. CI installs **`gh-wm`** with `go install` and invokes **`gh-wm resolve` / `gh-wm run`**.
 
 When changing reusable workflow inputs/outputs, update [`internal/gen/wmagent.go`](../../internal/gen/wmagent.go).

@@ -49,7 +49,7 @@ Optional **checkpoints** ([`internal/checkpoint`](../../internal/checkpoint/chec
 
 | Concern | Location | Role |
 |---------|----------|------|
-| CLI entry | [`cmd/`](../../cmd/) | Cobra commands: `init`, `upgrade`, `assign`, `resolve`, `run`, `status`, `logs`, `add`. |
+| CLI entry | [`cmd/`](../../cmd/) | Cobra commands: `init`, `upgrade`, `update`, `assign`, `resolve`, `run`, `status`, `logs`, `add`. |
 | Config + tasks | [`internal/config/`](../../internal/config/) | Load `.wm/config.yml`, parse `.wm/tasks/*.md` frontmatter ([`frontmatter.go`](../../internal/config/frontmatter.go)). |
 | Event → task names | [`internal/trigger/match.go`](../../internal/trigger/match.go) | `MatchOnOR`: implements `on:` OR-semantics against [`types.GitHubEvent`](../../internal/types/types.go). |
 | Orchestration | [`internal/engine/`](../../internal/engine/) | `ResolveMatchingTasks` ([`resolver.go`](../../internal/engine/resolver.go)), `RunTask` ([`runner.go`](../../internal/engine/runner.go)), `runAgent` ([`agent.go`](../../internal/engine/agent.go)), state labels ([`state.go`](../../internal/engine/state.go)). |

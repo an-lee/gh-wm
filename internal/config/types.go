@@ -56,6 +56,15 @@ func (t *Task) OnMap() map[string]any {
 	return on
 }
 
+// Source returns source: from frontmatter (upstream URL for gh wm update), or empty.
+func (t *Task) Source() string {
+	if t == nil || t.Frontmatter == nil {
+		return ""
+	}
+	s, _ := t.Frontmatter["source"].(string)
+	return strings.TrimSpace(s)
+}
+
 // Engine returns engine: from frontmatter or empty
 func (t *Task) Engine() string {
 	if t == nil {

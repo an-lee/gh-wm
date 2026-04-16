@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -35,6 +36,14 @@ func TestInitCommand(t *testing.T) {
 }
 
 func TestUpgradeCommand(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		prependFakeGh(t, `
+if [ "$1" = "extension" ] && [ "$2" = "upgrade" ] && [ "$3" = "an-lee/gh-wm" ]; then
+  exit 0
+fi
+exit 1
+`)
+	}
 	root := t.TempDir()
 	wm := filepath.Join(root, ".wm", "tasks")
 	if err := os.MkdirAll(wm, 0o755); err != nil {

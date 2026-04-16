@@ -53,7 +53,8 @@ gh wm upgrade
 | Command                   | Purpose                                                       |
 | ------------------------- | ------------------------------------------------------------- |
 | `gh wm init`              | Scaffold `.wm/`, tasks, and `wm-agent.yml`                    |
-| `gh wm upgrade`           | Regenerate `wm-agent.yml` (union of schedules from tasks)     |
+| `gh wm upgrade`           | `gh extension upgrade` (best-effort) + regenerate `wm-agent.yml` |
+| `gh wm update`            | Re-fetch tasks that have `source:` (from `add <https-url>`)   |
 | `gh wm add <url-or-path>` | Add a task `.md` under `.wm/tasks/` (then run `upgrade`)      |
 | `gh wm assign <n>`        | Add label (default `agent`) to issue `#n`                     |
 | `gh wm resolve`           | List task names matching `GITHUB_EVENT` / payload             |

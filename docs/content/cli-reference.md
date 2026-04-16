@@ -34,11 +34,26 @@ The extension is invoked as **`gh wm <subcommand>`** when installed via `gh exte
 
 ## `upgrade`
 
-**Purpose:** Regenerate **only** `.github/workflows/wm-agent.yml` from current tasks (schedule union), **`workflow.runs_on`** and **`workflow.pre_steps`** in `.wm/config.yml` (when present), and `GH_WM_REPO`.
+**Purpose:** Run **`gh extension upgrade an-lee/gh-wm`** (best-effort: if it fails, e.g. the CLI was not installed as a `gh` extension, a message is printed and the command continues), then regenerate `.github/workflows/wm-agent.yml` from current tasks (schedule union), **`workflow.runs_on`** and **`workflow.pre_steps`** in `.wm/config.yml` (when present), and `GH_WM_REPO`.
 
 **Usage:** `gh wm upgrade`
 
 If `.wm/config.yml` is missing, runner labels default to **`ubuntu-latest`** when generating `wm-agent.yml`. **`workflow.pre_steps`** follows the same rules as under **`init`** above.
+
+---
+
+## `update`
+
+**Purpose:** Re-download task files from the URL in each task’s **`source:`** frontmatter (same idea as **`gh aw update`** for workflows with a source).
+
+**Usage:**
+
+- `gh wm update` — update every `.wm/tasks/*.md` that has a non-empty `source:` field.
+- `gh wm update <task-name> …` — update only the named tasks (filename without `.md`, or with `.md`).
+
+Tasks created with **`gh wm add <https-url>`** get a **`source:`** line automatically. After updating tasks, run **`gh wm upgrade`** to refresh `wm-agent.yml` if schedules or other generator inputs changed.
+
+See [`cmd/update.go`](../../cmd/update.go).
 
 ---
 
@@ -64,7 +79,7 @@ If `.wm/config.yml` is missing, runner labels default to **`ubuntu-latest`** whe
 
 **Usage:** `gh wm add <url-or-path>`
 
-Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run `gh wm upgrade`. See [`cmd/add.go`](../../cmd/add.go).
+Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run `gh wm upgrade`. When the argument is an **`https://` or `http://` URL**, a **`source:`** field is added to the frontmatter (if not already present) so **`gh wm update`** can re-fetch the same URL later. See [`cmd/add.go`](../../cmd/add.go).
 
 ---
 

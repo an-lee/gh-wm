@@ -3,7 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/gen"
@@ -12,11 +14,17 @@ import (
 
 var upgradeCmd = &cobra.Command{
 	Use:   "upgrade",
-	Short: "Regenerate wm-agent.yml from .wm/tasks and optional GH_WM_REPO",
+	Short: "Self-upgrade gh-wm extension and regenerate wm-agent.yml",
 	RunE:  runUpgrade,
 }
 
 func runUpgrade(_ *cobra.Command, _ []string) error {
+	fmt.Fprintln(os.Stderr, "Upgrading gh-wm extension...")
+	out, err := exec.Command("gh", "extension", "upgrade", "an-lee/gh-wm").CombinedOutput()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gh extension upgrade skipped or failed: %v\n%s", err, strings.TrimSpace(string(out)))
+	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
