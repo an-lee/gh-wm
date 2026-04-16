@@ -18,6 +18,8 @@ go build -o gh-wm .
 ./gh-wm run --task implement --payload /path/to/event.json --event-name issues
 ```
 
+**`run`** expects a **clean git working tree** at `--repo-root` (use `--allow-dirty` to skip). Agent output streams to stderr; a short summary prints when the run finishes.
+
 Install via module path:
 
 ```bash

@@ -110,16 +110,21 @@ Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run **`gh wm upg
 
 **Usage:** `gh wm run --task <name>`
 
+**Git working tree:** Before running, `gh wm` requires a **clean** repository at `--repo-root`: `git status --porcelain` must be empty (no modified, staged, or untracked files). CI checkouts from `actions/checkout` usually satisfy this. Use **`--allow-dirty`** to skip the check (e.g. local scripts or tests).
+
 **Flags:**
 
-| Flag           | Default              | Description                        |
-| -------------- | -------------------- | ---------------------------------- |
-| `--repo-root`  | `.`                  | Repository root                    |
-| `--task`       | _(required)_         | Task name (filename without `.md`) |
-| `--event-name` | `$GITHUB_EVENT_NAME` | Event name                         |
-| `--payload`    | `$GITHUB_EVENT_PATH` | Path to event JSON; if `--payload` and `GITHUB_EVENT_PATH` are both unset, payload defaults to `{}` |
+| Flag             | Default              | Description                        |
+| ---------------- | -------------------- | ---------------------------------- |
+| `--repo-root`    | `.`                  | Repository root                    |
+| `--task`         | _(required)_         | Task name (filename without `.md`) |
+| `--event-name`   | `$GITHUB_EVENT_NAME` | Event name                         |
+| `--payload`      | `$GITHUB_EVENT_PATH` | Path to event JSON; if `--payload` and `GITHUB_EVENT_PATH` are both unset, payload defaults to `{}` |
+| `--allow-dirty`  | `false`              | Skip the git clean working tree check |
 
 **Timeout:** Uses `timeout-minutes` from task frontmatter (default **45**, max **480**). See [`cmd/run.go`](../../cmd/run.go).
+
+**Output:** Agent subprocess **stdout and stderr are streamed to stderr** as they are produced (full transcript is still captured for `safe-outputs` and checkpoints). After the run, a short **summary line** is printed to stderr (task name, repo path, duration, exit code, success). If the run fails, stderr also indicates whether failure was in the **agent** phase or **`safe-outputs`** (post-agent) phase.
 
 **Agent invocation ([`internal/engine/agent.go`](../../internal/engine/agent.go)):**
 

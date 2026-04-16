@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -14,8 +15,15 @@ import (
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
+// RunOptions configures optional behavior for RunTask (e.g. CLI streaming).
+type RunOptions struct {
+	// LogWriter receives a live copy of the agent subprocess combined stdout+stderr.
+	// When nil, output is buffered until the process exits.
+	LogWriter io.Writer
+}
+
 // RunTask executes one task by name: load task, build context, optional state labels, run agent, outputs.
-func RunTask(ctx context.Context, repoRoot string, taskName string, event *types.GitHubEvent) (*types.AgentResult, error) {
+func RunTask(ctx context.Context, repoRoot string, taskName string, event *types.GitHubEvent, opts *RunOptions) (*types.AgentResult, error) {
 	glob, tasks, err := config.Load(repoRoot)
 	if err != nil {
 		return nil, err
@@ -45,7 +53,7 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 
 	ApplyStateWorking(tc, wm)
 
-	res, err := runAgent(ctx, glob, task, tc)
+	res, err := runAgent(ctx, glob, task, tc, opts)
 	if err != nil {
 		ApplyStateFailed(tc, wm)
 		return res, err

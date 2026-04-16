@@ -4,18 +4,21 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/engine"
+	"github.com/an-lee/gh-wm/internal/gitstatus"
 	"github.com/spf13/cobra"
 )
 
 var (
-	runRepoRoot string
-	runTask     string
-	runEvent    string
-	runPayload  string
+	runRepoRoot    string
+	runTask        string
+	runEvent       string
+	runPayload     string
+	runAllowDirty  bool
 )
 
 var runCmd = &cobra.Command{
@@ -29,6 +32,7 @@ func init() {
 	runCmd.Flags().StringVar(&runTask, "task", "", "task name (filename without .md)")
 	runCmd.Flags().StringVar(&runEvent, "event-name", "", "event name (default: GITHUB_EVENT_NAME)")
 	runCmd.Flags().StringVar(&runPayload, "payload", "", "event JSON path (default: GITHUB_EVENT_PATH; if unset, `{}`)")
+	runCmd.Flags().BoolVar(&runAllowDirty, "allow-dirty", false, "skip git clean working tree check (git status --porcelain must be empty otherwise)")
 	_ = runCmd.MarkFlagRequired("task")
 }
 
@@ -59,15 +63,39 @@ func runRun(_ *cobra.Command, _ []string) error {
 	if task == nil {
 		return fmt.Errorf("task not found: %s", runTask)
 	}
+	if !runAllowDirty {
+		if err := gitstatus.EnsureClean(runRepoRoot); err != nil {
+			return err
+		}
+	}
 	min := task.TimeoutMinutes(45)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(min)*time.Minute)
 	defer cancel()
-	res, err := engine.RunTask(ctx, runRepoRoot, runTask, ev)
+
+	repoDisplay := runRepoRoot
+	if abs, err := filepath.Abs(runRepoRoot); err == nil {
+		repoDisplay = abs
+	}
+
+	start := time.Now()
+	res, err := engine.RunTask(ctx, runRepoRoot, runTask, ev, &engine.RunOptions{LogWriter: os.Stderr})
+	dur := time.Since(start)
+
+	exitCode := -1
+	success := false
 	if res != nil {
-		fmt.Fprintln(os.Stderr, res.Stdout)
-		if res.Stderr != "" {
-			fmt.Fprintln(os.Stderr, res.Stderr)
+		exitCode = res.ExitCode
+		success = res.Success
+	}
+	fmt.Fprintf(os.Stderr, "\n---\nwm run: task=%q repo=%s duration=%s exit_code=%d success=%v\n",
+		runTask, repoDisplay, dur.Round(time.Millisecond), exitCode, success)
+	if err != nil {
+		if res != nil && res.Success {
+			fmt.Fprintf(os.Stderr, "failure phase: safe-outputs (post-agent)\n")
+		} else {
+			fmt.Fprintf(os.Stderr, "failure phase: agent\n")
 		}
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 	}
 	return err
 }

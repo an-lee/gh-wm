@@ -1,8 +1,10 @@
 package engine
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,7 +15,7 @@ import (
 )
 
 // runAgent invokes the configured AI CLI with task body + optional context files.
-func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext) (*types.AgentResult, error) {
+func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext, opts *RunOptions) (*types.AgentResult, error) {
 	prompt := strings.TrimSpace(task.Body)
 	if prompt == "" {
 		prompt = task.Name + ": process repository event."
@@ -65,10 +67,24 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 		env = append(env, "WM_TASK_TOOLS="+tools)
 	}
 	cmd.Env = env
-	out, err := cmd.CombinedOutput()
+
+	var buf bytes.Buffer
+	var err error
+	if opts != nil && opts.LogWriter != nil {
+		w := io.MultiWriter(opts.LogWriter, &buf)
+		cmd.Stdout = w
+		cmd.Stderr = w
+		err = cmd.Run()
+	} else {
+		var out []byte
+		out, err = cmd.CombinedOutput()
+		buf.Write(out)
+	}
+	combined := buf.String()
+
 	res := &types.AgentResult{
-		Stdout:   string(out),
-		Summary:  string(out),
+		Stdout:   combined,
+		Summary:  combined,
 		Success:  err == nil,
 		ExitCode: 0,
 	}

@@ -14,7 +14,7 @@ func TestRunTask_Minimal(t *testing.T) {
 	t.Cleanup(func() { _ = os.Unsetenv("WM_AGENT_CMD") })
 	root := writeMinimalRepo(t)
 	ev := &types.GitHubEvent{Name: "issues", Payload: map[string]any{"action": "opened"}}
-	res, err := RunTask(context.Background(), root, "a", ev)
+	res, err := RunTask(context.Background(), root, "a", ev, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,13 +26,13 @@ func TestRunTask_Minimal(t *testing.T) {
 func TestRunTask_NotFound(t *testing.T) {
 	root := writeMinimalRepo(t)
 	ev := &types.GitHubEvent{Name: "issues", Payload: map[string]any{}}
-	if _, err := RunTask(context.Background(), root, "missing", ev); err == nil {
+	if _, err := RunTask(context.Background(), root, "missing", ev, nil); err == nil {
 		t.Fatal("expected error")
 	}
 }
 
 func TestRunTask_LoadError(t *testing.T) {
-	if _, err := RunTask(context.Background(), "/nonexistent-root-12345", "x", &types.GitHubEvent{}); err == nil {
+	if _, err := RunTask(context.Background(), "/nonexistent-root-12345", "x", &types.GitHubEvent{}, nil); err == nil {
 		t.Fatal("expected error")
 	}
 }

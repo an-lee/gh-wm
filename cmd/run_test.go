@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -31,6 +32,12 @@ run me
 	if err := os.WriteFile(payload, []byte(`{"action":"opened"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	runGit(t, root, "init")
+	runGit(t, root, "config", "user.email", "t@t")
+	runGit(t, root, "config", "user.name", "t")
+	runGit(t, root, "add", ".")
+	runGit(t, root, "commit", "-m", "init")
+
 	buf := new(bytes.Buffer)
 	rootCmd.SetOut(buf)
 	rootCmd.SetErr(buf)
@@ -56,5 +63,14 @@ func TestRunCommand_TaskMissing(t *testing.T) {
 	rootCmd.SetArgs([]string{"run", "--repo-root", root, "--task", "nope", "--payload", payload})
 	if err := rootCmd.Execute(); err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func runGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, out)
 	}
 }

@@ -25,6 +25,7 @@ go test ./internal/config/... -run TestSplitFrontmatter
 ./gh-wm run --repo-root . --task <task-name> --event-name workflow_dispatch
 
 # Run a task manually (requires ANTHROPIC_API_KEY or WM_AGENT_CMD)
+# `run` requires a clean git working tree unless you pass --allow-dirty
 ./gh-wm run --repo-root . --task <task-name> --event-name issues --payload /path/to/event.json
 ```
 
