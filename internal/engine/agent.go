@@ -8,11 +8,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/types"
 )
+
+const wmAgentPromptPlaceholder = "{prompt}"
 
 // runAgent invokes the configured AI CLI with task body + optional context files.
 func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext, opts *RunOptions) (*types.AgentResult, error) {
@@ -39,23 +42,34 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 
 	cmdLine := os.Getenv("WM_AGENT_CMD")
 	var cmd *exec.Cmd
+	var stdin io.Reader
 	if cmdLine != "" {
-		args := strings.Fields(cmdLine)
-		cmd = exec.CommandContext(ctx, args[0], append(args[1:], prompt)...)
+		name, args, r, err := parseWM_AGENT_CMD(cmdLine, prompt)
+		if err != nil {
+			return &types.AgentResult{Success: false, ExitCode: -1, Stderr: err.Error()}, err
+		}
+		cmd = exec.CommandContext(ctx, name, args...)
+		stdin = r
 	} else {
 		switch strings.ToLower(strings.TrimSpace(engineName)) {
 		case "codex":
 			if alt := strings.TrimSpace(os.Getenv("WM_ENGINE_CODEX_CMD")); alt != "" {
-				a := strings.Fields(alt)
-				cmd = exec.CommandContext(ctx, a[0], append(a[1:], prompt)...)
+				name, args, r, err := parseWM_AGENT_CMD(alt, prompt)
+				if err != nil {
+					return &types.AgentResult{Success: false, ExitCode: -1, Stderr: err.Error()}, err
+				}
+				cmd = exec.CommandContext(ctx, name, args...)
+				stdin = r
 			} else {
-				cmd = exec.CommandContext(ctx, "codex", "-p", prompt)
+				cmd = exec.CommandContext(ctx, "codex", agentCLIArgs(glob)...)
+				stdin = strings.NewReader(prompt)
 			}
 		case "copilot":
 			err := fmt.Errorf("engine copilot: set WM_AGENT_CMD to invoke your Copilot-compatible CLI")
 			return &types.AgentResult{Success: false, ExitCode: -1, Stderr: err.Error()}, err
 		default:
-			cmd = exec.CommandContext(ctx, "claude", "-p", prompt)
+			cmd = exec.CommandContext(ctx, "claude", agentCLIArgs(glob)...)
+			stdin = strings.NewReader(prompt)
 		}
 	}
 	cmd.Dir = tc.RepoPath
@@ -67,6 +81,9 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 		env = append(env, "WM_TASK_TOOLS="+tools)
 	}
 	cmd.Env = env
+	if stdin != nil {
+		cmd.Stdin = stdin
+	}
 
 	var buf bytes.Buffer
 	var err error
@@ -98,4 +115,42 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 		return res, fmt.Errorf("agent: %w", err)
 	}
 	return res, nil
+}
+
+// parseWM_AGENT_CMD builds exec name and args from WM_AGENT_CMD / WM_ENGINE_CODEX_CMD.
+// If the line contains "{prompt}", it is replaced by the prompt as a single argument.
+// Otherwise the prompt is appended as the last argument (backward compatible).
+// When stdin is non-nil, the caller should set cmd.Stdin.
+func parseWM_AGENT_CMD(cmdLine, prompt string) (name string, args []string, stdin io.Reader, err error) {
+	if strings.Contains(cmdLine, wmAgentPromptPlaceholder) {
+		parts := strings.SplitN(cmdLine, wmAgentPromptPlaceholder, 2)
+		pre := strings.Fields(strings.TrimSpace(parts[0]))
+		suf := strings.Fields(strings.TrimSpace(parts[1]))
+		if len(pre) == 0 {
+			return "", nil, nil, fmt.Errorf("WM_AGENT_CMD: missing executable before {prompt}")
+		}
+		name = pre[0]
+		args = append(append(append([]string{}, pre[1:]...), prompt), suf...)
+		return name, args, nil, nil
+	}
+	fields := strings.Fields(cmdLine)
+	if len(fields) == 0 {
+		return "", nil, nil, fmt.Errorf("WM_AGENT_CMD: empty")
+	}
+	return fields[0], append(fields[1:], prompt), nil, nil
+}
+
+// agentCLIArgs returns argv for claude/codex non-interactive runs (prompt via stdin).
+func agentCLIArgs(glob *config.GlobalConfig) []string {
+	args := []string{"-p", "--dangerously-skip-permissions"}
+	if glob == nil {
+		return args
+	}
+	if glob.Model != "" {
+		args = append(args, "--model", glob.Model)
+	}
+	if glob.MaxTurns > 0 {
+		args = append(args, "--max-turns", strconv.Itoa(glob.MaxTurns))
+	}
+	return args
 }

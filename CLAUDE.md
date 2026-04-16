@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # gh-wm (this repository)
 
-You are working on the **gh-wm** CLI: a Go `gh` extension that resolves GitHub events to `.wm/tasks/*.md` tasks and runs an agent subprocess (`claude -p` by default, or `WM_AGENT_CMD`).
+You are working on the **gh-wm** CLI: a Go `gh` extension that resolves GitHub events to `.wm/tasks/*.md` tasks and runs an agent subprocess (default: **`claude -p`** with **`--dangerously-skip-permissions`**, prompt on stdin, optional `--model` / `--max-turns` from `.wm/config.yml`, or **`WM_AGENT_CMD`**).
 
 ## Commands
 

@@ -11,6 +11,7 @@ import (
 	"github.com/an-lee/gh-wm/internal/checkpoint"
 	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/ghclient"
+	"github.com/an-lee/gh-wm/internal/gitbranch"
 	"github.com/an-lee/gh-wm/internal/output"
 	"github.com/an-lee/gh-wm/internal/types"
 )
@@ -53,8 +54,23 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 
 	ApplyStateWorking(tc, wm)
 
+	var prevBranch string
+	var branchCreated bool
+	if task.HasSafeOutputKey("create-pull-request") {
+		prev, _, created, prepErr := gitbranch.PrepareFeatureForPR(repoRoot, taskName)
+		if prepErr != nil {
+			ApplyStateFailed(tc, wm)
+			return nil, prepErr
+		}
+		prevBranch = prev
+		branchCreated = created
+	}
+
 	res, err := runAgent(ctx, glob, task, tc, opts)
 	if err != nil {
+		if branchCreated && prevBranch != "HEAD" {
+			_ = gitbranch.Checkout(repoRoot, prevBranch)
+		}
 		ApplyStateFailed(tc, wm)
 		return res, err
 	}

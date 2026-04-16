@@ -5,20 +5,22 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/engine"
+	"github.com/an-lee/gh-wm/internal/gitbranch"
 	"github.com/an-lee/gh-wm/internal/gitstatus"
 	"github.com/spf13/cobra"
 )
 
 var (
-	runRepoRoot    string
-	runTask        string
-	runEvent       string
-	runPayload     string
-	runAllowDirty  bool
+	runRepoRoot   string
+	runTask       string
+	runEvent      string
+	runPayload    string
+	runAllowDirty bool
 )
 
 var runCmd = &cobra.Command{
@@ -49,10 +51,11 @@ func runRun(_ *cobra.Command, _ []string) error {
 	if err != nil {
 		return err
 	}
-	_, tasks, err := config.Load(runRepoRoot)
+	glob, tasks, err := config.Load(runRepoRoot)
 	if err != nil {
 		return err
 	}
+	glob = config.DefaultGlobal(glob)
 	var task *config.Task
 	for _, t := range tasks {
 		if t.Name == runTask {
@@ -76,6 +79,16 @@ func runRun(_ *cobra.Command, _ []string) error {
 	if abs, err := filepath.Abs(runRepoRoot); err == nil {
 		repoDisplay = abs
 	}
+	engineName := strings.TrimSpace(task.Engine())
+	if engineName == "" {
+		engineName = glob.Engine
+	}
+	branch := "(unknown)"
+	if b, err := gitbranch.CurrentBranch(repoDisplay); err == nil {
+		branch = b
+	}
+	fmt.Fprintf(os.Stderr, "wm run: task=%q repo=%s branch=%s engine=%s\n", runTask, repoDisplay, branch, engineName)
+	fmt.Fprintf(os.Stderr, "wm run: agent subprocess starting (streaming stderr)...\n\n")
 
 	start := time.Now()
 	res, err := engine.RunTask(ctx, runRepoRoot, runTask, ev, &engine.RunOptions{LogWriter: os.Stderr})

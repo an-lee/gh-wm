@@ -137,20 +137,22 @@ Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run **`gh wm upg
 
 **Timeout:** Uses `timeout-minutes` from task frontmatter (default **45**, max **480**). See [`cmd/run.go`](../../cmd/run.go).
 
-**Output:** Agent subprocess **stdout and stderr are streamed to stderr** as they are produced (full transcript is still captured for `safe-outputs` and checkpoints). After the run, a short **summary line** is printed to stderr (task name, repo path, duration, exit code, success). If the run fails, stderr also indicates whether failure was in the **agent** phase or **`safe-outputs`** (post-agent) phase.
+**Output:** Before the agent starts, stderr prints a short **banner** (task name, repo path, current git branch, engine). Agent subprocess **stdout and stderr are streamed to stderr** as they are produced (full transcript is still captured for `safe-outputs` and checkpoints). After the run, a short **summary line** is printed to stderr (task name, repo path, duration, exit code, success). If the run fails, stderr also indicates whether failure was in the **agent** phase or **`safe-outputs`** (post-agent) phase.
+
+**Branch + PR (`safe-outputs: create-pull-request`):** If the task lists **`create-pull-request`** under `safe-outputs` and the repo is on the **default branch** (or detached `HEAD`), [`internal/gitbranch`](../../internal/gitbranch/) creates and checks out **`wm/<task-slug>-<UTC-timestamp>`** before the agent runs so commits are not on `main`. If you are **already on a non-default branch**, no branch is created. On **agent failure** after a branch was created, the runner checks out the previous branch when possible (skipped when the previous state was detached `HEAD`). The post-agent step runs **`git push`** then **`gh pr create --base <default>`** when there are commits ahead of the remote default branch; it **skips** if the current branch is still the default, if **`gh pr list`** already shows a PR for the current head (idempotent if the agent opened a PR itself), or if there is nothing to push.
 
 **Agent invocation ([`internal/engine/agent.go`](../../internal/engine/agent.go)):**
 
 | Variable              | Meaning                                                                                                       |
 | --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `WM_AGENT_CMD`        | If set, split on whitespace: first token = executable, rest + prompt = args. Overrides `engine:`.             |
-| `WM_ENGINE_CODEX_CMD` | When `engine: codex` and `WM_AGENT_CMD` unset: full command prefix before prompt (otherwise runs `codex -p`). |
-| _(default)_           | `claude -p <prompt>` when `engine:` is `claude` or empty.                                                     |
+| `WM_AGENT_CMD`        | If set: split on whitespace for argv; **prompt** is appended as the last argument unless the string contains **`{prompt}`**, in which case that placeholder is replaced by the prompt (single argument). Overrides `engine:`. |
+| `WM_ENGINE_CODEX_CMD` | When `engine: codex` and `WM_AGENT_CMD` unset: same `{prompt}` rule as above (otherwise prompt is appended). Default **`codex`** invocation mirrors **claude** (stdin prompt, `--dangerously-skip-permissions`, `--model` / `--max-turns` from config when set). |
+| _(default)_           | **`claude -p --dangerously-skip-permissions`** with the prompt on **stdin**; **`--model`** and **`--max-turns`** come from [`.wm/config.yml`](task-format.md) when set. |
 | `copilot`             | **`engine: copilot`** requires `WM_AGENT_CMD` (no default CLI).                                               |
 
-Subprocess env includes `GITHUB_REPOSITORY`, `WM_TASK`, and **`WM_TASK_TOOLS`** when `tools:` is set in the task frontmatter (JSON for structured values).
+The default **`claude`** invocation uses **`--dangerously-skip-permissions`** so non-interactive runs can use tools (file edits, **`gh`**, git). Subprocess **env** is the parent environment (`GITHUB_TOKEN` in Actions, `gh auth` locally) plus `GITHUB_REPOSITORY`, `WM_TASK`, and **`WM_TASK_TOOLS`** when `tools:` is set in the task frontmatter (JSON for structured values).
 
-**Post-agent:** `safe-outputs` keys drive [`internal/output`](../../internal/output/) (PR / labels / comment). **`WM_CHECKPOINT=1`** enables loading/posting checkpoint comments ([`internal/engine/runner.go`](../../internal/engine/runner.go)).
+**Post-agent:** `safe-outputs` keys drive [`internal/output`](../../internal/output/) (PR / labels / comment). PR titles use **`title-prefix`** from `safe-outputs.create-pull-request` when present. **`WM_CHECKPOINT=1`** enables loading/posting checkpoint comments ([`internal/engine/runner.go`](../../internal/engine/runner.go)).
 
 **Secrets (CI):** `ANTHROPIC_API_KEY` is expected by reusable workflow for Claude Code; ensure the agent you invoke uses it as required.
 

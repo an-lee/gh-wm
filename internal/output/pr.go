@@ -2,6 +2,7 @@ package output
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,12 +10,27 @@ import (
 	"strings"
 
 	"github.com/an-lee/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/gitbranch"
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
 func runPROutput(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext, _ *types.AgentResult) error {
 	dir := tc.RepoPath
-	base := detectDefaultBaseBranch(dir)
+	base := gitbranch.DefaultBaseBranch(dir)
+	cur, err := gitbranch.CurrentBranch(dir)
+	if err != nil {
+		return fmt.Errorf("git current branch: %w", err)
+	}
+	if cur == base {
+		return nil
+	}
+
+	if has, err := headHasOpenPR(ctx, dir, tc.Repo, cur); err != nil {
+		return fmt.Errorf("gh pr list: %w", err)
+	} else if has {
+		return nil
+	}
+
 	ahead, err := commitsAheadOfBase(dir, base)
 	if err != nil || ahead == 0 {
 		return nil
@@ -28,6 +44,7 @@ func runPROutput(ctx context.Context, glob *config.GlobalConfig, task *config.Ta
 
 	draft := glob.PR.Draft
 	var labels []string
+	var titlePrefix string
 	if so := task.SafeOutputsMap(); so != nil {
 		if m, ok := so["create-pull-request"].(map[string]any); ok {
 			if d, ok := m["draft"].(bool); ok {
@@ -40,18 +57,27 @@ func runPROutput(ctx context.Context, glob *config.GlobalConfig, task *config.Ta
 					}
 				}
 			}
+			if p, ok := m["title-prefix"].(string); ok && strings.TrimSpace(p) != "" {
+				titlePrefix = strings.TrimSpace(p)
+			}
 		}
 	}
 
 	title := fmt.Sprintf("[%s] wm task", task.Name)
+	if titlePrefix != "" {
+		title = titlePrefix + title
+	}
 	body := "Opened by **gh-wm** task `" + task.Name + "`."
 
-	args := []string{"pr", "create", "--title", title, "--body", body}
+	args := []string{"pr", "create", "--base", base, "--title", title, "--body", body}
 	if draft {
 		args = append(args, "--draft")
 	}
 	for _, l := range labels {
 		args = append(args, "--label", l)
+	}
+	if tc.Repo != "" {
+		args = append(args, "--repo", tc.Repo)
 	}
 
 	cmd := exec.CommandContext(ctx, "gh", args...)
@@ -68,22 +94,28 @@ func runPROutput(ctx context.Context, glob *config.GlobalConfig, task *config.Ta
 	return nil
 }
 
-func detectDefaultBaseBranch(dir string) string {
-	cmd := exec.Command("git", "-C", dir, "symbolic-ref", "refs/remotes/origin/HEAD")
-	out, err := cmd.Output()
-	if err == nil {
-		s := strings.TrimSpace(string(out))
-		if i := strings.LastIndex(s, "/"); i >= 0 {
-			return strings.TrimSpace(s[i+1:])
-		}
+func headHasOpenPR(ctx context.Context, dir, repo, headBranch string) (bool, error) {
+	args := []string{"pr", "list", "--head", headBranch, "--json", "number"}
+	if repo != "" {
+		args = append(args, "--repo", repo)
 	}
-	for _, b := range []string{"main", "master"} {
-		c := exec.Command("git", "-C", dir, "rev-parse", "--verify", "origin/"+b)
-		if c.Run() == nil {
-			return b
-		}
+	cmd := exec.CommandContext(ctx, "gh", args...)
+	cmd.Dir = dir
+	cmd.Env = os.Environ()
+	if repo != "" {
+		cmd.Env = append(cmd.Env, "GITHUB_REPOSITORY="+repo)
 	}
-	return "main"
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return false, fmt.Errorf("%w: %s", err, strings.TrimSpace(string(out)))
+	}
+	var list []struct {
+		Number int `json:"number"`
+	}
+	if err := json.Unmarshal(out, &list); err != nil {
+		return false, err
+	}
+	return len(list) > 0, nil
 }
 
 func commitsAheadOfBase(dir, base string) (int, error) {

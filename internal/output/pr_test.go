@@ -8,10 +8,11 @@ import (
 	"testing"
 
 	"github.com/an-lee/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/gitbranch"
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
-func TestDetectDefaultBaseBranch(t *testing.T) {
+func TestDefaultBaseBranch(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	runGit(t, dir, "init")
@@ -25,7 +26,7 @@ func TestDetectDefaultBaseBranch(t *testing.T) {
 	runGit(t, dir, "branch", "-M", "main")
 	runGit(t, dir, "remote", "add", "origin", ".")
 	runGit(t, dir, "fetch", "origin")
-	b := detectDefaultBaseBranch(dir)
+	b := gitbranch.DefaultBaseBranch(dir)
 	if b != "main" {
 		t.Fatalf("got %q", b)
 	}

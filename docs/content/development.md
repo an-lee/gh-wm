@@ -18,7 +18,7 @@ go build -o gh-wm .
 ./gh-wm run --task implement --payload /path/to/event.json --event-name issues
 ```
 
-**`run`** expects a **clean git working tree** at `--repo-root` (use `--allow-dirty` to skip). Agent output streams to stderr; a short summary prints when the run finishes.
+**`run`** expects a **clean git working tree** at `--repo-root` (use `--allow-dirty` to skip). A short banner prints to stderr (task, branch, engine), then agent output streams to stderr; a summary line prints when the run finishes.
 
 Install via module path:
 
@@ -50,6 +50,7 @@ Deployment runs via [`.github/workflows/pages.yml`](../../.github/workflows/page
 | [`internal/gen/`](../../internal/gen/)                            | `wm-agent.yml` and schedule collection.                                                                                                |
 | [`internal/templates/`](../../internal/templates/)                | Embedded files for `gh wm init`.                                                                                                       |
 | [`internal/ghclient/`](../../internal/ghclient/)                  | `gh api` helpers (labels, comments).                                                                                                   |
+| [`internal/gitbranch/`](../../internal/gitbranch/)                | Default branch detection; feature branch `wm/<task>-…` before agent when `create-pull-request` is enabled.                             |
 | [`internal/checkpoint/`](../../internal/checkpoint/checkpoint.go) | Checkpoint HTML comments.                                                                                                              |
 | [`docs/`](../../docs/)                                            | Hugo site ([`hugo.toml`](../../docs/hugo.toml), [`content/`](../../docs/content/)) for [GitHub Pages](https://gh-wm.github.io/gh-wm/). |
 | [`.github/workflows/`](../../.github/workflows/)                  | CI + reusable workflows + release + Pages.                                                                                             |

@@ -12,6 +12,34 @@ import (
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
+func TestAgentCLIArgs(t *testing.T) {
+	t.Parallel()
+	args := agentCLIArgs(&config.GlobalConfig{Model: "m1", MaxTurns: 7})
+	want := []string{"-p", "--dangerously-skip-permissions", "--model", "m1", "--max-turns", "7"}
+	if len(args) != len(want) {
+		t.Fatalf("got %v", args)
+	}
+	for i := range want {
+		if args[i] != want[i] {
+			t.Fatalf("i=%d got %v want %v", i, args, want)
+		}
+	}
+	if args2 := agentCLIArgs(nil); len(args2) != 2 || args2[0] != "-p" || args2[1] != "--dangerously-skip-permissions" {
+		t.Fatalf("nil glob: %v", args2)
+	}
+}
+
+func TestParseWM_AGENT_CMD_Placeholder(t *testing.T) {
+	t.Parallel()
+	name, args, stdin, err := parseWM_AGENT_CMD("echo {prompt} tail", "BODY")
+	if err != nil || stdin != nil {
+		t.Fatalf("err=%v stdin=%v", err, stdin)
+	}
+	if name != "echo" || len(args) != 2 || args[0] != "BODY" || args[1] != "tail" {
+		t.Fatalf("name=%q args=%v", name, args)
+	}
+}
+
 func TestRunAgent_WM_AGENT_CMD(t *testing.T) {
 	ctx := context.Background()
 	dir := t.TempDir()

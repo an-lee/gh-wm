@@ -57,6 +57,7 @@ Optional **checkpoints** ([`internal/checkpoint`](../../internal/checkpoint/chec
 | `wm-agent.yml` generation | [`internal/gen/wmagent.go`](../../internal/gen/wmagent.go), [`schedules.go`](../../internal/gen/schedules.go) | Union of `on.schedule` strings; writes caller workflow. |
 | Embedded templates | [`internal/templates/`](../../internal/templates/) | Starters for `gh wm init` (`config.yml`, tasks, `CLAUDE.md`). |
 | GitHub API helpers | [`internal/ghclient/`](../../internal/ghclient/) | Labels, issue comments (`gh api`). |
+| Feature branch before PR | [`internal/gitbranch/`](../../internal/gitbranch/) | When `safe-outputs` includes `create-pull-request`, create `wm/<task>-…` on the default branch so the agent does not commit directly to `main`. |
 
 ## GitHub Actions: reusable workflows and generated `wm-agent.yml`
 
@@ -98,8 +99,8 @@ flowchart LR
 
 ## Run behavior details
 
-- [`engine.RunTask`](../../internal/engine/runner.go) loads config + tasks, builds [`TaskContext`](../../internal/types/types.go), optionally loads checkpoint text, applies **working** label if `wm.state_labels` is set, runs `runAgent`, then on success runs **`output.RunSuccessOutputs`** (PR / labels / comment), posts a checkpoint comment if `WM_CHECKPOINT=1`, then applies **done** labels; on failure it applies **failed** labels.
-- [`runAgent`](../../internal/engine/agent.go) builds the prompt from the task body + `context.files` + optional checkpoint hint; sets `WM_TASK_TOOLS` when `tools:` is present; selects CLI via `WM_AGENT_CMD` or `engine:` (`claude`, `codex`, `copilot` requires `WM_AGENT_CMD`).
+- [`engine.RunTask`](../../internal/engine/runner.go) loads config + tasks, builds [`TaskContext`](../../internal/types/types.go), optionally loads checkpoint text, applies **working** label if `wm.state_labels` is set, optionally creates a **feature branch** via [`internal/gitbranch`](../../internal/gitbranch/) when `safe-outputs` includes `create-pull-request` (see CLI reference), runs `runAgent`, then on success runs **`output.RunSuccessOutputs`** (PR / labels / comment), posts a checkpoint comment if `WM_CHECKPOINT=1`, then applies **done** labels; on failure it applies **failed** labels and may **check out** the previous branch if a feature branch was created.
+- [`runAgent`](../../internal/engine/agent.go) builds the prompt from the task body + `context.files` + optional checkpoint hint; sets `WM_TASK_TOOLS` when `tools:` is present; selects CLI via `WM_AGENT_CMD` or `engine:` (`claude`, `codex`, `copilot` requires `WM_AGENT_CMD`). Default **`claude`** uses **stdin** for the prompt, **`--dangerously-skip-permissions`**, and optional **`--model`** / **`--max-turns`** from global config so the agent can run tools (including **`gh`**) non-interactively.
 - **Timeout**: [`cmd/run`](../../cmd/run.go) uses `timeout-minutes` from task frontmatter (default 45, max 480).
 
 ## Security posture (minimal)
