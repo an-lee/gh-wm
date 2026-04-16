@@ -22,7 +22,7 @@ type GlobalConfig struct {
 	Model              string `yaml:"model"`
 	MaxTurns           int    `yaml:"max_turns"`
 	ClaudeOutputFormat string `yaml:"claude_output_format,omitempty"`
-	Workflow struct {
+	Workflow           struct {
 		RunsOn   []string  `yaml:"runs_on"`
 		PreSteps []StepDef `yaml:"pre_steps"`
 	} `yaml:"workflow"`

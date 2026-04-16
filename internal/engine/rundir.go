@@ -204,20 +204,20 @@ func (r *RunDir) WriteResult(res *types.RunResult) error {
 		}
 	}
 	out := struct {
-		Phase       string `json:"phase"`
-		Success     bool   `json:"success"`
-		Duration    string `json:"duration"`
-		DurationMs  int64  `json:"duration_ms"`
+		Phase       string   `json:"phase"`
+		Success     bool     `json:"success"`
+		Duration    string   `json:"duration"`
+		DurationMs  int64    `json:"duration_ms"`
 		Errors      []string `json:"errors,omitempty"`
-		RunDir      string `json:"run_dir"`
+		RunDir      string   `json:"run_dir"`
 		AgentResult *struct {
-			Success           bool   `json:"success"`
-			ExitCode          int    `json:"exit_code"`
-			Stdout            string `json:"stdout,omitempty"`
-			Stderr            string `json:"stderr,omitempty"`
-			Summary           string `json:"summary,omitempty"`
-			TimedOut          bool   `json:"timed_out,omitempty"`
-			AgentStdoutPath   string `json:"agent_stdout_path,omitempty"`
+			Success         bool   `json:"success"`
+			ExitCode        int    `json:"exit_code"`
+			Stdout          string `json:"stdout,omitempty"`
+			Stderr          string `json:"stderr,omitempty"`
+			Summary         string `json:"summary,omitempty"`
+			TimedOut        bool   `json:"timed_out,omitempty"`
+			AgentStdoutPath string `json:"agent_stdout_path,omitempty"`
 		} `json:"agent_result,omitempty"`
 	}{
 		Phase:      string(res.Phase),
