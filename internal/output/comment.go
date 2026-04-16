@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/an-lee/gh-wm/internal/trigger"
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
@@ -29,6 +30,7 @@ func runCommentFromItem(_ context.Context, tc *types.TaskContext, item ItemAddCo
 	if body == "" {
 		return fmt.Errorf("add_comment: empty body")
 	}
+	body = body + WMAgentCommentMarkerFooter(tc.TaskName)
 	return postComment(tc, n, body)
 }
 
@@ -52,6 +54,15 @@ func postComment(tc *types.TaskContext, n int, body string) error {
 		return fmt.Errorf("%w: %s", err, string(out))
 	}
 	return nil
+}
+
+// WMAgentCommentMarkerFooter appends a hidden HTML marker so resolve can ignore wm-authored comments (loop guard).
+func WMAgentCommentMarkerFooter(taskName string) string {
+	t := strings.TrimSpace(taskName)
+	if t == "" {
+		t = "unknown"
+	}
+	return "\n\n" + trigger.WMAgentCommentMarkerPrefix + t + " -->"
 }
 
 func commentTargetNumber(tc *types.TaskContext) int {

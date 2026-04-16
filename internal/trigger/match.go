@@ -8,6 +8,9 @@ import (
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
+// WMAgentCommentMarkerPrefix is embedded in WM Agent-authored issue/PR comments so resolve can skip re-entrancy loops.
+const WMAgentCommentMarkerPrefix = "<!-- wm-agent:"
+
 // MatchOnOR returns true if any sub-trigger in on: matches (gh-aw / Actions semantics).
 func MatchOnOR(event *types.GitHubEvent, on map[string]any) bool {
 	if on == nil || event == nil {
@@ -49,19 +52,69 @@ func matchIssues(event *types.GitHubEvent, issues map[string]any) bool {
 	}
 	action, _ := event.Payload["action"].(string)
 	typesVal, _ := issues["types"].([]any)
+	typeOK := false
 	if len(typesVal) == 0 {
+		typeOK = true
+	} else {
+		for _, t := range typesVal {
+			if s, ok := t.(string); ok && s == action {
+				typeOK = true
+				break
+			}
+		}
+	}
+	if !typeOK {
+		return false
+	}
+	labelFilter := stringSliceFromAny(issues["labels"])
+	if len(labelFilter) == 0 {
 		return true
 	}
-	for _, t := range typesVal {
-		if s, ok := t.(string); ok && s == action {
+	if action != "labeled" {
+		return false
+	}
+	got := LabelNameFromIssuesPayload(event.Payload)
+	for _, want := range labelFilter {
+		if strings.TrimSpace(want) != "" && want == got {
 			return true
 		}
 	}
 	return false
 }
 
+// LabelNameFromIssuesPayload returns payload.label.name for issues events (e.g. action=labeled).
+func LabelNameFromIssuesPayload(payload map[string]any) string {
+	if payload == nil {
+		return ""
+	}
+	lab, ok := payload["label"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	s, _ := lab["name"].(string)
+	return strings.TrimSpace(s)
+}
+
+func stringSliceFromAny(v any) []string {
+	arr, ok := v.([]any)
+	if !ok || len(arr) == 0 {
+		return nil
+	}
+	var out []string
+	for _, x := range arr {
+		s, ok := x.(string)
+		if ok && strings.TrimSpace(s) != "" {
+			out = append(out, strings.TrimSpace(s))
+		}
+	}
+	return out
+}
+
 func matchIssueComment(event *types.GitHubEvent, ic map[string]any) bool {
 	if event.Name != "issue_comment" {
+		return false
+	}
+	if IssueCommentBodyFromWMAgent(event.Payload) {
 		return false
 	}
 	action, _ := event.Payload["action"].(string)
@@ -79,6 +132,19 @@ func matchIssueComment(event *types.GitHubEvent, ic map[string]any) bool {
 		}
 	}
 	return true
+}
+
+// IssueCommentBodyFromWMAgent reports whether the comment body was produced by gh-wm (loop guard).
+func IssueCommentBodyFromWMAgent(payload map[string]any) bool {
+	if payload == nil {
+		return false
+	}
+	c, ok := payload["comment"].(map[string]any)
+	if !ok {
+		return false
+	}
+	body, _ := c["body"].(string)
+	return strings.Contains(body, WMAgentCommentMarkerPrefix)
 }
 
 func matchPullRequest(event *types.GitHubEvent, pr map[string]any) bool {
@@ -100,6 +166,9 @@ func matchPullRequest(event *types.GitHubEvent, pr map[string]any) bool {
 
 func matchSlashCommand(event *types.GitHubEvent, sc map[string]any) bool {
 	if event.Name != "issue_comment" {
+		return false
+	}
+	if IssueCommentBodyFromWMAgent(event.Payload) {
 		return false
 	}
 	name, _ := sc["name"].(string)

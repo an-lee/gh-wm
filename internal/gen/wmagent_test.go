@@ -20,7 +20,11 @@ func TestWriteWMAgent(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(b)
-	for _, p := range []string{"owner/name", "0 1 * * *", "agent-resolve.yml", "cron:", `runs_on: '["ubuntu-latest"]'`, "install_claude_code: true", "task_name:", "force_task:", "has_tasks == 'true'"} {
+	for _, p := range []string{
+		"owner/name", "0 1 * * *", "agent-resolve.yml", "cron:", `runs_on: '["ubuntu-latest"]'`,
+		"install_claude_code: true", "task_name:", "force_task:", "has_tasks == 'true'",
+		"concurrency:", "cancel-in-progress: false", "github-actions[bot]",
+	} {
 		if !strings.Contains(s, p) {
 			t.Fatalf("missing %q in %s", p, s)
 		}
@@ -105,6 +109,8 @@ func TestWriteWMAgent_PreStepsInline(t *testing.T) {
 		"actions/setup-go@v5",
 		"Install Claude Code",
 		"claude.ai/install.sh",
+		"concurrency:",
+		"github-actions[bot]",
 	} {
 		if !strings.Contains(s, p) {
 			t.Fatalf("missing %q in generated yaml", p)

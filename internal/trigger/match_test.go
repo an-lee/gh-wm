@@ -41,6 +41,66 @@ func TestMatchOnOR_Issues(t *testing.T) {
 	}
 }
 
+func TestMatchOnOR_Issues_LabelsFilter(t *testing.T) {
+	t.Parallel()
+	on := map[string]any{
+		"issues": map[string]any{
+			"types":  []any{"labeled"},
+			"labels": []any{"implement"},
+		},
+	}
+	ev := &types.GitHubEvent{
+		Name: "issues",
+		Payload: map[string]any{
+			"action": "labeled",
+			"label":  map[string]any{"name": "implement"},
+		},
+	}
+	if !MatchOnOR(ev, on) {
+		t.Fatal("expected match when label matches")
+	}
+	ev.Payload["label"] = map[string]any{"name": "bug"}
+	if MatchOnOR(ev, on) {
+		t.Fatal("expected no match when label does not match filter")
+	}
+	ev.Payload["action"] = "opened"
+	ev.Payload["label"] = map[string]any{"name": "implement"}
+	if MatchOnOR(ev, on) {
+		t.Fatal("labels filter requires action labeled")
+	}
+}
+
+func TestMatchOnOR_IssueComment_WMAgentMarker(t *testing.T) {
+	t.Parallel()
+	ev := &types.GitHubEvent{
+		Name: "issue_comment",
+		Payload: map[string]any{
+			"action": "created",
+			"comment": map[string]any{
+				"body": "hello\n\n" + WMAgentCommentMarkerPrefix + "x -->",
+			},
+		},
+	}
+	on := map[string]any{"issue_comment": map[string]any{"types": []any{"created"}}}
+	if MatchOnOR(ev, on) {
+		t.Fatal("wm-authored comment should not match")
+	}
+}
+
+func TestIssueCommentBodyFromWMAgent(t *testing.T) {
+	t.Parallel()
+	if !IssueCommentBodyFromWMAgent(map[string]any{
+		"comment": map[string]any{"body": "<!-- wm-agent:task -->"},
+	}) {
+		t.Fatal("expected true")
+	}
+	if IssueCommentBodyFromWMAgent(map[string]any{
+		"comment": map[string]any{"body": "human text"},
+	}) {
+		t.Fatal("expected false")
+	}
+}
+
 func TestMatchOnOR_IssueComment(t *testing.T) {
 	t.Parallel()
 	ev := &types.GitHubEvent{
@@ -111,6 +171,16 @@ func TestMatchOnOR_SlashCommand(t *testing.T) {
 	onBad := map[string]any{"slash_command": map[string]any{"name": ""}}
 	if MatchOnOR(ev, onBad) {
 		t.Fatal("empty name should not match")
+	}
+	// wm-authored comment should not match slash_command either
+	evWM := &types.GitHubEvent{
+		Name: "issue_comment",
+		Payload: map[string]any{
+			"comment": map[string]any{"body": "/deploy prod\n\n" + WMAgentCommentMarkerPrefix + "t -->"},
+		},
+	}
+	if MatchOnOR(evWM, on) {
+		t.Fatal("wm marker should block slash_command match")
 	}
 }
 

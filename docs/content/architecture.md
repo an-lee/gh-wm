@@ -92,9 +92,18 @@ flowchart LR
 
 **Note:** In CI, the installed binary name is `gh-wm`. When installed as a `gh` extension, the same commands are available as `gh wm …`.
 
+### Loop prevention (generated `wm-agent.yml`)
+
+The generator adds **workflow-level** defenses so agent side effects (labels, comments, PRs) are less likely to cascade into repeated runs—especially when **`gh`** uses a **PAT** (where GitHub does not suppress follow-up workflow runs the way it does for the default **`GITHUB_TOKEN`**):
+
+- **`concurrency`**: one in-flight run per issue/PR number (falls back to `github.run_id` for schedule/dispatch).
+- **`resolve` job `if:`**: skips when **`github.actor`** is **`github-actions[bot]`**, except for **`schedule`** and **`workflow_dispatch`** (those are always evaluated).
+
+[`ResolveMatchingTasks`](../../internal/engine/resolver.go) adds resolver-side guards before **`MatchOnOR`**: skip events whose **`sender`** is a **Bot** (same exceptions: **`schedule`**, **`workflow_dispatch`**); skip **`issues`** + **`labeled`** when the added label is any **`wm.state_labels`** value from any task (so state-machine label churn does not re-resolve tasks); **`issue_comment`** ignores comments that contain the hidden **`<!-- wm-agent:`** marker appended by **`add-comment`** and checkpoint posts. Use **`on.issues.labels`** in tasks that should run only when specific labels are added (see [task-format](task-format.md)).
+
 ## Resolve behavior details
 
-- [`engine.ResolveMatchingTasks`](../../internal/engine/resolver.go) loads all tasks and keeps those where `trigger.MatchOnOR(event, task.OnMap())` is true.
+- [`engine.ResolveMatchingTasks`](../../internal/engine/resolver.go) applies the loop guards above, then loads all tasks and keeps those where `trigger.MatchOnOR(event, task.OnMap())` is true.
 - **Schedule events**: For `event_name == schedule`, every task that includes `on.schedule` matches at resolve time. Optional filter: if `WM_SCHEDULE_CRON` is set (e.g. to the workflow’s cron string), tasks are further filtered with `trigger.ScheduleCronMatches` (recomputes the same fuzzy cron as `gen.FuzzyNormalizeSchedule` for that task path) so only the intended task runs for that cron.
 - **Payload**: Event JSON is read from `--payload` or `GITHUB_EVENT_PATH` when set; if both are unset, the payload defaults to `{}`. Event name comes from `--event-name` or `GITHUB_EVENT_NAME`.
 
@@ -180,7 +189,7 @@ Runs in `defer` via [`concludeRun`](../../internal/engine/conclusion.go) only wh
 
 | Action | Reads | Writes |
 |--------|-------|--------|
-| Checkpoint | `WM_CHECKPOINT=1`, `AgentResult` text | New issue comment (`ghclient.PostIssueComment`) |
+| Checkpoint | `WM_CHECKPOINT=1`, `AgentResult` text | New issue comment (`ghclient.PostIssueComment`), body includes encoded checkpoint plus hidden **`<!-- wm-agent:`** footer for loop prevention |
 | State **done** | `wm.state_labels` | Remove working / add done label on GitHub |
 
 **On failure:**

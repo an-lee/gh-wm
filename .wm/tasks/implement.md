@@ -5,6 +5,7 @@ description: |
 on:
   issues:
     types: [labeled]
+    labels: [implement]
   slash_command:
     name: implement
   schedule: "0 22 * * 1-5"

@@ -2,6 +2,10 @@
 # Regenerate with: gh wm upgrade
 name: WM Agent
 
+concurrency:
+  group: wm-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false
+
 on:
   issues:
     types: [labeled, opened]
@@ -30,6 +34,7 @@ permissions:
 
 jobs:
   resolve:
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.actor != 'github-actions[bot]' }}
     uses: an-lee/gh-wm/.github/workflows/agent-resolve.yml@main
     with:
       event_name: ${{ github.event_name }}

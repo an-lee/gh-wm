@@ -10,6 +10,7 @@ import (
 	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/ghclient"
 	"github.com/an-lee/gh-wm/internal/gitbranch"
+	"github.com/an-lee/gh-wm/internal/output"
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
@@ -84,5 +85,6 @@ func postCheckpointWithErr(tc *types.TaskContext, res *types.AgentResult) error 
 		Summary:   summary,
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
-	return ghclient.PostIssueComment(tc.Repo, n, checkpoint.Encode(cp))
+	body := checkpoint.Encode(cp) + output.WMAgentCommentMarkerFooter(tc.TaskName)
+	return ghclient.PostIssueComment(tc.Repo, n, body)
 }
