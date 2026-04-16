@@ -147,6 +147,32 @@ func testTaskWithSchedule(path, schedule string) *config.Task {
 	}
 }
 
+func BenchmarkMatchOnOR_Issues(b *testing.B) {
+	ev := &types.GitHubEvent{
+		Name:    "issues",
+		Payload: map[string]any{"action": "opened"},
+	}
+	on := map[string]any{"issues": map[string]any{"types": []any{"opened", "closed", "labeled"}}}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		MatchOnOR(ev, on)
+	}
+}
+
+func BenchmarkMatchOnOR_SlashCommand(b *testing.B) {
+	ev := &types.GitHubEvent{
+		Name: "issue_comment",
+		Payload: map[string]any{
+			"comment": map[string]any{"body": "/deploy prod"},
+		},
+	}
+	on := map[string]any{"slash_command": map[string]any{"name": "deploy"}}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		MatchOnOR(ev, on)
+	}
+}
+
 func TestScheduleCronMatches(t *testing.T) {
 	t.Parallel()
 	p := "/repo/.wm/tasks/t.md"

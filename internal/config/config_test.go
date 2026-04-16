@@ -164,6 +164,50 @@ body
 	}
 }
 
+func BenchmarkConfigLoad(b *testing.B) {
+	root := b.TempDir()
+	wm := filepath.Join(root, DirName)
+	if err := os.MkdirAll(filepath.Join(wm, TasksDir), 0o755); err != nil {
+		b.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wm, "config.yml"), []byte("version: 1\nengine: claude\nmax_turns: 10\n"), 0o644); err != nil {
+		b.Fatal(err)
+	}
+	task := `---
+name: hello
+on:
+  issues:
+    types: [opened]
+---
+
+body
+`
+	if err := os.WriteFile(filepath.Join(wm, TasksDir, "hello.md"), []byte(task), 0o644); err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, _, err := Load(root); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkParseGlobal(b *testing.B) {
+	data := []byte(`version: 1
+engine: claude
+max_turns: 100
+workflow:
+  runs_on: [ubuntu-latest]
+`)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := ParseGlobal(data); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func TestLoad_MissingConfig(t *testing.T) {
 	t.Parallel()
 	if _, _, err := Load(t.TempDir()); err == nil {
