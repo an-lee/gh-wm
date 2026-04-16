@@ -1,6 +1,6 @@
 # Development guide
 
-How to build, test, and extend **gh-wm**. Pair this with [architecture.md](architecture.md).
+How to build, test, and extend **gh-wm**. Pair this with [architecture.md](architecture.md) (especially [RunTask pipeline (detailed reference)](architecture.md#runtask-pipeline-detailed-reference) for reads, writes, and persistence per phase).
 
 ## Prerequisites
 

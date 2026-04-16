@@ -17,7 +17,7 @@ This documentation is the **canonical reference** for how the project works and 
 
 | Doc | Purpose |
 |-----|---------|
-| [architecture.md](architecture.md) | End-to-end flow: GitHub Actions → `resolve` → matrix `run`, and how that maps to Go packages. |
+| [architecture.md](architecture.md) | End-to-end flow: GitHub Actions → `resolve` → matrix `run`, Go packages, and **RunTask pipeline (detailed reference)** (reads/writes per phase). |
 | [task-format.md](task-format.md) | `.wm/config.yml`, `.wm/tasks/<name>.md` frontmatter, `on:` trigger semantics, `wm:` extensions. |
 | [cli-reference.md](cli-reference.md) | Every `gh wm` / `gh-wm` subcommand, flags, and environment variables. |
 | [development.md](development.md) | Repo layout, extension points, build/test, and conventions for contributors. |

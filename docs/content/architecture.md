@@ -103,6 +103,100 @@ flowchart LR
 - [`runAgent`](../../internal/engine/agent.go) builds the prompt from the task body + `context.files` + optional checkpoint hint; sets `WM_TASK_TOOLS` when `tools:` is present; selects CLI via `WM_AGENT_CMD` or `engine:` (`claude`, `codex`, `copilot` requires `WM_AGENT_CMD`). Default **`claude`** uses **stdin** for the prompt, **`--dangerously-skip-permissions`**, and optional **`--model`** / **`--max-turns`** from global config so the agent can run tools (including **`gh`**) non-interactively.
 - **Timeout**: [`cmd/run`](../../cmd/run.go) uses `timeout-minutes` from task frontmatter (default 45, max 480).
 
+## RunTask pipeline (detailed reference)
+
+Implementation: [`RunTask`](../../internal/engine/runner.go), [`activation.go`](../../internal/engine/activation.go), [`validation.go`](../../internal/engine/validation.go), [`conclusion.go`](../../internal/engine/conclusion.go), [`state.go`](../../internal/engine/state.go).
+
+**Contract:** One `gh-wm run` / `gh wm run` process executes the pipeline below. The primary API result is [`types.RunResult`](../../internal/types/types.go) (`Phase`, `Success`, `AgentResult`, `Errors`, `Duration`) plus a Go `error`. **Conclusion** (labels, checkpoint, branch rollback) runs in a **`defer`** after `task` and `tc` are set; if the run fails earlier (e.g. config load, missing task, invalid event), `tc` may be nil and **conclusion does nothing**.
+
+### Phase 1 — Activation (`PhaseActivation`)
+
+| Reads | Purpose |
+|-------|---------|
+| Disk: `.wm/config.yml`, `.wm/tasks/*.md` | `config.Load` → global config + tasks |
+| In-memory: `*GitHubEvent` | Must be non-nil; `Payload` non-nil; `Name` non-empty (except `unknown` for local empty-event runs) |
+| Env: `GITHUB_REPOSITORY`, `WM_AGENT_CMD`, task `engine:` / global `engine` | Engine validation |
+| Env: `WM_CHECKPOINT=1` (optional) | Enables checkpoint **read** below |
+| GitHub API: `ghclient.ListIssueCommentBodies` (optional) | Only with checkpoint mode + `GITHUB_REPOSITORY` + issue/PR number: load comment bodies to find latest `<!-- wm-checkpoint: … -->` |
+
+| In-memory outputs | |
+|-------------------|--|
+| `TaskContext` | Task name, `RepoPath`, event, issue/PR numbers from payload (`extractNumbers`) |
+| `CheckpointHint` | Latest checkpoint summary text for the agent prompt |
+| `wm` extension | `wm.state_labels` from task frontmatter |
+
+| Writes / side effects | Where |
+|----------------------|--------|
+| Optional: **working** label | GitHub (if `wm.state_labels.working` and repo + issue/PR number). Errors are logged and appended to `RunResult.Errors`; run **continues**. |
+| Optional: feature branch | Local git repo (`gitbranch.PrepareFeatureForPR`) when `safe-outputs` includes `create-pull-request` |
+
+### Phase 2 — Agent (`PhaseAgent`)
+
+| Reads | Purpose |
+|-------|---------|
+| Task body, global `context.files` | Prompt in [`runAgent`](../../internal/engine/agent.go) |
+| `CheckpointHint` | Appended to prompt |
+| Repo working tree | Agent subprocess `Dir` = `--repo-root`; agent may edit files / run git |
+
+| Outputs | |
+|---------|--|
+| `AgentResult` | Combined stdout+stderr in `Stdout` / `Summary`, `Success`, `ExitCode` (memory only) |
+| Optional stream | Copy to `RunOptions.LogWriter` (CLI uses stderr) |
+
+### Phase 3 — Validation (`PhaseValidation`)
+
+| Reads | Purpose |
+|-------|---------|
+| `AgentResult` only | In-process checks |
+
+| Checks | |
+|--------|--|
+| [`validateAgentOutputErr`](../../internal/engine/validation.go) | Non-nil result, `Success`, combined text length ≤ 12 MiB. **Empty** successful output is allowed. |
+
+### Phase 4 — Safe outputs (`PhaseOutputs`)
+
+| Reads | Purpose |
+|-------|---------|
+| `AgentResult`, `TaskContext`, `safe-outputs:` keys | [`RunSuccessOutputs`](../../internal/output/output.go) |
+
+| Writes (if configured) | Persistence |
+|---------------------------|-------------|
+| `create-pull-request` | `git push`, `gh pr create` → GitHub |
+| `add-labels` | GitHub API → labels |
+| `add-comment` | `gh issue comment` / `gh pr comment` → GitHub |
+
+### Phase 5 — Conclusion (deferred)
+
+Runs in `defer` via [`concludeRun`](../../internal/engine/conclusion.go) only when **`task` and `tc` are non-nil**.
+
+**On success (`runSucceeded`):**
+
+| Action | Reads | Writes |
+|--------|-------|--------|
+| Checkpoint | `WM_CHECKPOINT=1`, `AgentResult` text | New issue comment (`ghclient.PostIssueComment`) |
+| State **done** | `wm.state_labels` | Remove working / add done label on GitHub |
+
+**On failure:**
+
+| Action | Reads | Writes |
+|--------|-------|--------|
+| Branch rollback | `branchCreated`, `prevBranch` | `git checkout` previous branch on disk (if applicable) |
+| State **failed** | `wm.state_labels` | Remove working / add failed label on GitHub |
+
+Checkpoint or label failures are appended to `RunResult.Errors` and do not always change the primary returned `error` from an earlier phase.
+
+### What persists where
+
+| Kind | Where |
+|------|--------|
+| `RunResult` / errors | In-memory for the process; CLI prints `phase=` and `failure phase:` on **stderr** |
+| Agent transcript | `AgentResult` in memory; optional live stream to stderr. gh-wm does **not** write a log file by default |
+| Repo state | Whatever git / the agent wrote under `--repo-root` |
+| Coordination | GitHub: labels, issue/PR comments, PRs — the main external persistence |
+| Checkpoints | Issue comments when `WM_CHECKPOINT=1`, encoded in [`internal/checkpoint`](../../internal/checkpoint/checkpoint.go) |
+
+**Note:** `RunResult.Phase` is the last phase reached or where failure occurred; it is **not** set to a separate `conclusion` value after the defer. There is no collaborator/actor permission gate in the current implementation.
+
 ## Security posture (minimal)
 
 - No sandbox or `safe-outputs` enforcement in-process; workflow permissions and branch protection apply.
