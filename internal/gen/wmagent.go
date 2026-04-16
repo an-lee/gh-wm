@@ -52,7 +52,7 @@ jobs:
 
   run:
     needs: resolve
-    if: {{ "${{" }} needs.resolve.outputs.tasks != '[]' {{ "}}" }}
+    if: {{ "${{" }} needs.resolve.outputs.has_tasks == 'true' {{ "}}" }}
     strategy:
       fail-fast: false
       matrix:
@@ -109,7 +109,7 @@ jobs:
 
   run:
     needs: resolve
-    if: {{ "${{" }} needs.resolve.outputs.tasks != '[]' {{ "}}" }}
+    if: {{ "${{" }} needs.resolve.outputs.has_tasks == 'true' {{ "}}" }}
     strategy:
       fail-fast: false
       matrix:

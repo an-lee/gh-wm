@@ -73,17 +73,17 @@ flowchart LR
   RunJob[agent-run.yml or inline run job]
 
   Caller --> ResolveJob
-  ResolveJob -->|"outputs.tasks JSON array"| RunJob
+  ResolveJob -->|"outputs.tasks + has_tasks"| RunJob
 ```
 
 1. **`agent-resolve.yml`** ([`.github/workflows/agent-resolve.yml`](../../.github/workflows/agent-resolve.yml))  
    - `runs-on` is driven by the **`runs_on` workflow input** (JSON array of labels), with default `["ubuntu-latest"]`; generated `wm-agent.yml` passes labels from `.wm/config.yml`.
    - Checks out the repo, installs `gh-wm` (`go install`), writes the GitHub event JSON to **`.wm/runs/github-event.json`** (under the ignored `runs/` tree; see **`.wm/.gitignore`**) so `git status` stays clean for `gh-wm run`’s working-tree check, then runs:
    - `gh-wm resolve --repo-root . --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json --json`  
-   - Exposes the printed JSON array as job output `tasks`.
+   - Exposes the printed JSON array as job output `tasks`, and sets **`has_tasks`** to the string **`true`** or **`false`** so the caller can skip the **`run`** job when nothing matched (avoids matrix/`fromJSON` errors on empty input).
 
 2. **`agent-run.yml`** ([`.github/workflows/agent-run.yml`](../../.github/workflows/agent-run.yml)) — **when `workflow.pre_steps` is unset**  
-   - Matrix over `fromJSON(needs.resolve.outputs.tasks)` with `fail-fast: false`.  
+   - The generated caller runs this job only when **`needs.resolve.outputs.has_tasks == 'true'`**. Matrix over `fromJSON(needs.resolve.outputs.tasks)` with `fail-fast: false`.  
    - Unless **`install_claude_code`** is **false**, runs the official Claude Code installer (`https://claude.ai/install.sh`) and appends **`$HOME/.local/bin`** to **`GITHUB_PATH`** so **`claude`** is on **`PATH`** on minimal self-hosted runners.  
    - Writes the same **`.wm/runs/github-event.json`** payload and runs `gh-wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json` with `ANTHROPIC_API_KEY` for the agent.
 

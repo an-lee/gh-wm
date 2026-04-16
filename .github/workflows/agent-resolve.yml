@@ -23,12 +23,16 @@ on:
       tasks:
         description: JSON array of matching task names
         value: ${{ jobs.resolve.outputs.tasks }}
+      has_tasks:
+        description: Whether at least one task matched (string true or false)
+        value: ${{ jobs.resolve.outputs.has_tasks }}
 
 jobs:
   resolve:
     runs-on: ${{ fromJson(inputs.runs_on) }}
     outputs:
       tasks: ${{ steps.match.outputs.tasks }}
+      has_tasks: ${{ steps.match.outputs.has_tasks }}
     steps:
       - uses: actions/checkout@v6
 
@@ -58,8 +62,26 @@ jobs:
             printf '%s' "$EVENT_JSON" > .wm/runs/github-event.json
             TASKS=$(gh-wm resolve --repo-root . --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json --json)
           fi
+          TASKS=$(printf '%s' "$TASKS")
+          if [ -z "$TASKS" ]; then
+            TASKS='[]'
+          fi
           {
             echo "tasks<<WM_DELIM"
             echo "$TASKS"
             echo "WM_DELIM"
           } >> "$GITHUB_OUTPUT"
+          if command -v jq >/dev/null 2>&1; then
+            if printf '%s' "$TASKS" | jq -e 'length > 0' >/dev/null 2>&1; then
+              echo "has_tasks=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "has_tasks=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            _c=$(printf '%s' "$TASKS" | tr -d ' \n\r\t')
+            if [ "$_c" = "[]" ] || [ -z "$_c" ]; then
+              echo "has_tasks=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "has_tasks=true" >> "$GITHUB_OUTPUT"
+            fi
+          fi

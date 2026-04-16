@@ -20,7 +20,7 @@ func TestWriteWMAgent(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(b)
-	for _, p := range []string{"owner/name", "0 1 * * *", "agent-resolve.yml", "cron:", `runs_on: '["ubuntu-latest"]'`, "install_claude_code: true", "task_name:", "force_task:"} {
+	for _, p := range []string{"owner/name", "0 1 * * *", "agent-resolve.yml", "cron:", `runs_on: '["ubuntu-latest"]'`, "install_claude_code: true", "task_name:", "force_task:", "has_tasks == 'true'"} {
 		if !strings.Contains(s, p) {
 			t.Fatalf("missing %q in %s", p, s)
 		}
@@ -100,6 +100,7 @@ func TestWriteWMAgent_PreStepsInline(t *testing.T) {
 		"jdx/mise-action@v4",
 		"Bundle install",
 		"bundle install",
+		"has_tasks == 'true'",
 		"runs-on: ${{ fromJson('[\"ubuntu-latest\"]') }}",
 		"actions/setup-go@v5",
 		"Install Claude Code",
