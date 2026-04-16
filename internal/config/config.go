@@ -4,32 +4,55 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"gopkg.in/yaml.v3"
 )
+
+// loadCache caches Load results per repo root for the lifetime of a process.
+// Safe for gh-wm's single-shot-per-event model where config files don't change
+// between resolve→run calls within the same process.
+var loadCache sync.Map
+
+type cachedLoad struct {
+	cfg   *GlobalConfig
+	tasks []*Task
+	err   error
+}
+
+// ResetLoadCache clears the config cache. Intended for use in tests to prevent
+// cross-test pollution; not needed in normal operation.
+func ResetLoadCache() { loadCache = sync.Map{} }
 
 const (
 	DirName  = ".wm"
 	TasksDir = "tasks"
 )
 
-// Load loads global config from repoRoot/.wm/config.yml and tasks from .wm/tasks/*.md
+// Load loads global config from repoRoot/.wm/config.yml and tasks from .wm/tasks/*.md.
+// Results are cached per repoRoot for the lifetime of the process to avoid redundant
+// file I/O and YAML parsing across multiple calls (e.g. resolve→run in one CLI invocation).
 func Load(repoRoot string) (*GlobalConfig, []*Task, error) {
+	if cached, ok := loadCache.Load(repoRoot); ok {
+		c := cached.(*cachedLoad)
+		return c.cfg, c.tasks, c.err
+	}
 	cfgPath := filepath.Join(repoRoot, DirName, "config.yml")
 	data, err := os.ReadFile(cfgPath)
 	if err != nil {
+		loadCache.Store(repoRoot, &cachedLoad{err: err})
 		return nil, nil, err
 	}
 	var g GlobalConfig
 	if err := yaml.Unmarshal(data, &g); err != nil {
+		loadCache.Store(repoRoot, &cachedLoad{err: err})
 		return nil, nil, err
 	}
 	tasksDir := filepath.Join(repoRoot, DirName, TasksDir)
 	tasks, err := LoadTasksDir(tasksDir)
-	if err != nil {
-		return nil, nil, err
-	}
-	return &g, tasks, nil
+	result := &cachedLoad{cfg: &g, tasks: tasks, err: err}
+	loadCache.Store(repoRoot, result)
+	return result.cfg, result.tasks, result.err
 }
 
 // LoadGlobalOnly reads only repoRoot/.wm/config.yml (no tasks). If the file is missing, returns (nil, nil).

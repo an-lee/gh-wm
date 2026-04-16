@@ -127,6 +127,44 @@ prompt
 	}
 }
 
+// BenchmarkResolveMatchingTasks_CacheHit measures the cached (warm) path: a second call
+// to ResolveMatchingTasks with the same repo root hits the config cache, skipping
+// all file I/O and YAML parsing. First call within each iteration establishes the cache.
+func BenchmarkResolveMatchingTasks_CacheHit(b *testing.B) {
+	root := b.TempDir()
+	wm := filepath.Join(root, ".wm")
+	if err := os.MkdirAll(filepath.Join(wm, "tasks"), 0o755); err != nil {
+		b.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wm, "config.yml"), []byte("version: 1\nengine: claude\nmax_turns: 10\n"), 0o644); err != nil {
+		b.Fatal(err)
+	}
+	task := `---
+on:
+  issues:
+    types: [opened]
+---
+
+prompt
+`
+	if err := os.WriteFile(filepath.Join(wm, "tasks", "a.md"), []byte(task), 0o644); err != nil {
+		b.Fatal(err)
+	}
+	ev := &types.GitHubEvent{Name: "issues", Payload: map[string]any{"action": "opened"}}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		// cold call — primes the cache
+		if _, err := ResolveMatchingTasks(root, ev); err != nil {
+			b.Fatal(err)
+		}
+		// hot call — served from cache
+		if _, err := ResolveMatchingTasks(root, ev); err != nil {
+			b.Fatal(err)
+		}
+	}
+	b.ReportMetric(0.5, "calls/op")
+}
+
 func TestParseEventFile(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "ev.json")
 	if err := os.WriteFile(p, []byte(`{"action":"opened"}`), 0o644); err != nil {
