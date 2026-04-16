@@ -4,11 +4,57 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/an-lee/gh-wm/internal/types"
 )
+
+// withFakeGH prepends a fake gh that instantly succeeds for common api calls used in tests.
+func withFakeGH(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("fake gh script is unix-only")
+	}
+	dir := t.TempDir()
+	gh := filepath.Join(dir, "gh")
+	script := `#!/bin/sh
+set -e
+# gh repo view --json nameWithOwner
+if [ "$1" = "repo" ] && [ "$2" = "view" ]; then
+  echo 'test-owner/test-repo'
+  exit 0
+fi
+if [ "$1" != "api" ]; then
+  exit 1
+fi
+# GET comments list
+if echo "$2" | grep -q '/issues/[0-9]*/comments$' && ! echo "$*" | grep -q -- '-X'; then
+  echo '[{"body":"<!-- wm-checkpoint: {\"summary\":\"checkpoint summary\"} -->"}]'
+  exit 0
+fi
+# POST comment with stdin
+if echo "$*" | grep -q -- '-X POST' && echo "$*" | grep -q '/comments'; then
+  cat >/dev/null
+  exit 0
+fi
+# POST label
+if echo "$*" | grep -q -- '-X POST' && echo "$*" | grep -q '/labels'; then
+  exit 0
+fi
+# DELETE label
+if echo "$*" | grep -q -- '-X DELETE' && echo "$*" | grep -q '/labels/'; then
+  exit 0
+fi
+exit 1
+`
+	if err := os.WriteFile(gh, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
 
 func TestAddRunErr(t *testing.T) {
 	t.Parallel()
@@ -76,6 +122,7 @@ func TestLoadCheckpointHint_NoIssue(t *testing.T) {
 }
 
 func TestPostCheckpoint_TruncatesSummary(t *testing.T) {
+	withFakeGH(t)
 	t.Setenv("WM_CHECKPOINT", "1")
 	t.Cleanup(func() { _ = os.Unsetenv("WM_CHECKPOINT") })
 	long := strings.Repeat("x", 2500)
@@ -84,6 +131,7 @@ func TestPostCheckpoint_TruncatesSummary(t *testing.T) {
 }
 
 func TestPostCheckpoint_UsesStdoutWhenSummaryEmpty(t *testing.T) {
+	withFakeGH(t)
 	t.Setenv("WM_CHECKPOINT", "1")
 	t.Cleanup(func() { _ = os.Unsetenv("WM_CHECKPOINT") })
 	tc := &types.TaskContext{Repo: "o/r", IssueNumber: 1}

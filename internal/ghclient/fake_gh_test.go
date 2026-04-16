@@ -8,7 +8,7 @@ import (
 )
 
 // prepends a fake gh that succeeds for common api calls used in tests.
-func withFakeGH(t *testing.T) {
+func WithFakeGH(t *testing.T) {
 	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("fake gh script is unix-only")
@@ -17,6 +17,11 @@ func withFakeGH(t *testing.T) {
 	gh := filepath.Join(dir, "gh")
 	script := `#!/bin/sh
 set -e
+# gh repo view --json nameWithOwner [-q .nameWithOwner]
+if [ "$1" = "repo" ] && [ "$2" = "view" ]; then
+  echo 'test-owner/test-repo'
+  exit 0
+fi
 if [ "$1" != "api" ]; then
   exit 1
 fi
@@ -47,7 +52,7 @@ exit 1
 }
 
 func TestListIssueCommentBodies_WithFakeGh(t *testing.T) {
-	withFakeGH(t)
+	WithFakeGH(t)
 	bodies, err := ListIssueCommentBodies("o/r", 42)
 	if err != nil {
 		t.Fatal(err)
@@ -58,21 +63,21 @@ func TestListIssueCommentBodies_WithFakeGh(t *testing.T) {
 }
 
 func TestPostIssueComment_WithFakeGh(t *testing.T) {
-	withFakeGH(t)
+	WithFakeGH(t)
 	if err := PostIssueComment("o/r", 1, "hello"); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestAddIssueLabel_WithFakeGh(t *testing.T) {
-	withFakeGH(t)
+	WithFakeGH(t)
 	if err := AddIssueLabel("o/r", 1, "lb"); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestRemoveIssueLabel_WithFakeGh(t *testing.T) {
-	withFakeGH(t)
+	WithFakeGH(t)
 	if err := RemoveIssueLabel("o/r", 1, "lb"); err != nil {
 		t.Fatal(err)
 	}
