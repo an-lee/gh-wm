@@ -53,6 +53,11 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 
 	cmdLine := os.Getenv("WM_AGENT_CMD")
 	artifactFormat := agentOutputFormatForRun(cmdLine, engineName, glob)
+	// Built-in claude with default text format buffers all stdout until exit; when a LogWriter
+	// is attached (e.g. gh wm run), force stream-json so subprocess output is line-delimited in real time.
+	if opts != nil && opts.LogWriter != nil && isBuiltinClaude(cmdLine, engineName) {
+		artifactFormat = config.ClaudeOutputFormatStreamJSON
+	}
 
 	if rd != nil {
 		if err := rd.WritePrompt(prompt); err != nil {
@@ -113,6 +118,14 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 
 	setGracefulAgentCancel(cmd)
 
+	var logW io.Writer
+	if opts != nil && opts.LogWriter != nil {
+		logW = opts.LogWriter
+		if isBuiltinClaude(cmdLine, engineName) {
+			logW = newLogStreamWriter(opts.LogWriter)
+		}
+	}
+
 	var tail tailBuffer
 	var buf bytes.Buffer
 	var agentLog *os.File
@@ -126,12 +139,12 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 		}
 		defer func() { _ = agentLog.Close() }()
 		stdoutWriter = io.MultiWriter(agentLog, &tail)
-		if opts != nil && opts.LogWriter != nil {
-			stdoutWriter = io.MultiWriter(agentLog, &tail, opts.LogWriter)
+		if logW != nil {
+			stdoutWriter = io.MultiWriter(agentLog, &tail, logW)
 		}
 	} else {
-		if opts != nil && opts.LogWriter != nil {
-			stdoutWriter = io.MultiWriter(&buf, opts.LogWriter)
+		if logW != nil {
+			stdoutWriter = io.MultiWriter(&buf, logW)
 		} else {
 			stdoutWriter = &buf
 		}
@@ -211,6 +224,19 @@ func parseWM_AGENT_CMD(cmdLine, prompt string) (name string, args []string, stdi
 		return "", nil, nil, fmt.Errorf("WM_AGENT_CMD: empty")
 	}
 	return fields[0], append(fields[1:], prompt), nil, nil
+}
+
+// isBuiltinClaude reports whether runAgent will invoke the stock claude binary (not WM_AGENT_CMD, codex, or copilot).
+func isBuiltinClaude(wmAgentCmd, engineName string) bool {
+	if strings.TrimSpace(wmAgentCmd) != "" {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(engineName)) {
+	case "codex", "copilot":
+		return false
+	default:
+		return true
+	}
 }
 
 // agentOutputFormatForRun selects the claude -p --output-format and run-dir filename base.
