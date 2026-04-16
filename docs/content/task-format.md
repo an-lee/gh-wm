@@ -99,7 +99,7 @@ Other gh-aw keys (`create-issue`, `create-discussion`, …) are **not** implemen
 | Field | In gh-wm |
 |-------|----------|
 | `on:` | **Used** for matching (see table above). |
-| `source:` | Optional URL of the upstream task Markdown. Set automatically when adding a task via **`gh wm add <https-url>`**; **`gh wm update`** re-fetches from this URL and overwrites the file. |
+| `source:` | Optional upstream reference: an **https URL** or **`owner/repo/path`** to the file on **`main`** (e.g. **`owner/repo/workflows/task.md`**, same style as gh aw). Set when adding via **`gh wm add`** (URL or **`owner/repo/task`** shorthand); **`gh wm update`** resolves it and re-fetches the file. |
 | `description:` | Stored in frontmatter; useful for humans/tools. |
 | `engine:` | Selects backend when `WM_AGENT_CMD` is unset: `claude` (default), `codex` (`codex -p` or `WM_ENGINE_CODEX_CMD`), `copilot` requires `WM_AGENT_CMD`. |
 | `timeout-minutes:` | **Used** by [`cmd/run`](../../cmd/run.go) for the context timeout (capped). |

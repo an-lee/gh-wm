@@ -16,8 +16,10 @@ import (
 
 var updateCmd = &cobra.Command{
 	Use:   "update [task-name...]",
-	Short: "Re-fetch task files from their source URLs",
-	Long: `Updates .wm/tasks/*.md files that have a source: field in frontmatter (set when adding via gh wm add <https-url>).
+	Short: "Re-fetch task files from their source: URL or owner/repo/path",
+	Long: `Updates .wm/tasks/*.md files that have a source: field in frontmatter (set when adding via gh wm add).
+
+source: may be an https URL or an owner/repo/path shorthand (same as gh aw), e.g. owner/repo/workflows/task.md.
 
 With no arguments, updates every task with a non-empty source. Pass task names (with or without .md) to update specific tasks.`,
 	RunE: runUpdate,
@@ -45,7 +47,7 @@ func runUpdate(_ *cobra.Command, args []string) error {
 			}
 		}
 		if len(toUpdate) == 0 {
-			fmt.Fprintln(os.Stderr, "No tasks with source: in frontmatter. Add tasks via gh wm add <https-url> to record a source.")
+			fmt.Fprintln(os.Stderr, "No tasks with source: in frontmatter. Add tasks via gh wm add <url | owner/repo/task | path> to record a source.")
 			return nil
 		}
 	} else {
@@ -76,9 +78,13 @@ func runUpdate(_ *cobra.Command, args []string) error {
 	updated := 0
 	for _, t := range toUpdate {
 		src := t.Source()
-		resp, err := client.Get(src)
+		fetchURL, err := resolveSourceToURL(src)
 		if err != nil {
-			return fmt.Errorf("%s: fetch %q: %w", t.Name, src, err)
+			return fmt.Errorf("%s: %w", t.Name, err)
+		}
+		resp, err := client.Get(fetchURL)
+		if err != nil {
+			return fmt.Errorf("%s: fetch %q: %w", t.Name, fetchURL, err)
 		}
 		bodyBytes, err := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
@@ -86,7 +92,7 @@ func runUpdate(_ *cobra.Command, args []string) error {
 			return fmt.Errorf("%s: read body: %w", t.Name, err)
 		}
 		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("%s: HTTP %s from %s", t.Name, resp.Status, src)
+			return fmt.Errorf("%s: HTTP %s from %s (source %q)", t.Name, resp.Status, fetchURL, src)
 		}
 		yamlRaw, _, err := config.SplitFrontmatter(string(bodyBytes))
 		if err != nil {

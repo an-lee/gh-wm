@@ -54,8 +54,8 @@ gh wm upgrade
 | ------------------------- | ------------------------------------------------------------- |
 | `gh wm init`              | Scaffold `.wm/`, tasks, and `wm-agent.yml`                    |
 | `gh wm upgrade`           | `gh extension upgrade` (best-effort) + regenerate `wm-agent.yml` |
-| `gh wm update`            | Re-fetch tasks that have `source:` (from `add <https-url>`)   |
-| `gh wm add <url-or-path>` | Add a task `.md` under `.wm/tasks/` (then run `upgrade`)      |
+| `gh wm update`            | Re-fetch tasks that have `source:` (URL or `owner/repo/path`)   |
+| `gh wm add <…>`           | Add a task `.md` (`owner/repo/task`, URL, or path; then `upgrade`) |
 | `gh wm assign <n>`        | Add label (default `agent`) to issue `#n`                     |
 | `gh wm resolve`           | List task names matching `GITHUB_EVENT` / payload             |
 | `gh wm run --task <name>` | Run one task (agent + optional `safe-outputs` / labels)       |

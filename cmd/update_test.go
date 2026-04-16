@@ -58,6 +58,60 @@ old body
 	}
 }
 
+func TestUpdateCommand_ShorthandSource(t *testing.T) {
+	content := `---
+on:
+  issues: {}
+---
+
+from shorthand
+`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/o/r/main/workflows/x.md") {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(content))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(srv.Close)
+
+	prev := rawGitHubBaseURL
+	rawGitHubBaseURL = srv.URL
+	t.Cleanup(func() { rawGitHubBaseURL = prev })
+
+	root := t.TempDir()
+	wm := filepath.Join(root, ".wm", "tasks")
+	if err := os.MkdirAll(wm, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	task := `---
+source: "o/r/workflows/x.md"
+on:
+  issues: {}
+---
+old
+`
+	if err := os.WriteFile(filepath.Join(wm, "x.md"), []byte(task), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	chdirTemp(t, root)
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"update"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(wm, "x.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "from shorthand") {
+		t.Fatalf("expected updated body: %s", b)
+	}
+}
+
 func TestUpdateCommand_SpecificTask(t *testing.T) {
 	content := `---
 on:

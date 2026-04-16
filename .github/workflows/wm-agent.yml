@@ -10,6 +10,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, review_requested]
   schedule:
+    - cron: "0 0 * * *"
     - cron: "0 22 * * 1-5"
   workflow_dispatch:
     inputs:

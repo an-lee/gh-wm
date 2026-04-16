@@ -44,14 +44,14 @@ If `.wm/config.yml` is missing, runner labels default to **`ubuntu-latest`** whe
 
 ## `update`
 
-**Purpose:** Re-download task files from the URL in each task’s **`source:`** frontmatter (same idea as **`gh aw update`** for workflows with a source).
+**Purpose:** Re-download task files using each task’s **`source:`** frontmatter (same idea as **`gh aw update`** for workflows with a source). **`source:`** may be an **https URL** or an **`owner/repo/path`** shorthand (path under the repo on **`main`**, e.g. `owner/repo/workflows/task.md`).
 
 **Usage:**
 
 - `gh wm update` — update every `.wm/tasks/*.md` that has a non-empty `source:` field.
 - `gh wm update <task-name> …` — update only the named tasks (filename without `.md`, or with `.md`).
 
-Tasks created with **`gh wm add <https-url>`** get a **`source:`** line automatically. After updating tasks, run **`gh wm upgrade`** to refresh `wm-agent.yml` if schedules or other generator inputs changed.
+Tasks created with **`gh wm add`** (URL, **`owner/repo/task`** shorthand, or path) get a **`source:`** when appropriate so **`gh wm update`** can re-fetch. After updating tasks, run **`gh wm upgrade`** to refresh `wm-agent.yml` if schedules or other generator inputs changed.
 
 See [`cmd/update.go`](../../cmd/update.go).
 
@@ -75,11 +75,15 @@ See [`cmd/update.go`](../../cmd/update.go).
 
 ## `add`
 
-**Purpose:** Copy or download a gh-aw-style Markdown file into `.wm/tasks/` (validates YAML frontmatter).
+**Purpose:** Copy or download a gh-aw–compatible Markdown file into `.wm/tasks/` (validates YAML frontmatter).
 
-**Usage:** `gh wm add <url-or-path>`
+**Usage:** `gh wm add <owner/repo/task | url | path>`
 
-Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run `gh wm upgrade`. When the argument is an **`https://` or `http://` URL**, a **`source:`** field is added to the frontmatter (if not already present) so **`gh wm update`** can re-fetch the same URL later. See [`cmd/add.go`](../../cmd/add.go).
+- **`owner/repo/task-name`** — Fetches from the default branch (**`main`**), trying **`workflows/<task>.md`** first (gh aw layout), then **`.wm/tasks/<task>.md`**. Records **`source:`** as **`owner/repo/workflows/…`** or **`owner/repo/.wm/tasks/…`** (gh aw-style shorthand), not a raw URL.
+- **`https://…` or `http://…`** — Downloads the file; **`source:`** is the same URL (unless already set in the file).
+- **Local path** — Copies the file; no **`source:`** is injected unless the file already has one.
+
+Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run **`gh wm upgrade`**. See [`cmd/add.go`](../../cmd/add.go) and [`cmd/github.go`](../../cmd/github.go).
 
 ---
 

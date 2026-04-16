@@ -50,6 +50,114 @@ from url
 	}
 }
 
+func TestAddCommand_GitHubShorthand(t *testing.T) {
+	content := `---
+on:
+  issues: {}
+---
+
+from workflows
+`
+	var order []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		order = append(order, r.URL.Path)
+		if strings.HasSuffix(r.URL.Path, "/workflows/daily-doc-updater.md") {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(content))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(srv.Close)
+
+	prev := rawGitHubBaseURL
+	rawGitHubBaseURL = srv.URL
+	t.Cleanup(func() { rawGitHubBaseURL = prev })
+
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".wm"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	chdirTemp(t, root)
+
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"add", "githubnext/agentics/daily-doc-updater"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if len(order) < 1 || !strings.HasSuffix(order[0], "/workflows/daily-doc-updater.md") {
+		t.Fatalf("expected workflows path tried first, got paths %v", order)
+	}
+	dst := filepath.Join(root, ".wm", "tasks", "daily-doc-updater.md")
+	b, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	if !strings.Contains(s, "source:") || !strings.Contains(s, "githubnext/agentics/workflows/daily-doc-updater.md") {
+		t.Fatalf("expected gh aw-style source shorthand, got:\n%s", b)
+	}
+	if strings.Contains(s, "raw.githubusercontent.com") {
+		t.Fatalf("source should not be raw URL, got:\n%s", b)
+	}
+}
+
+func TestAddCommand_GitHubShorthand_WmFallback(t *testing.T) {
+	content := `---
+on:
+  issues: {}
+---
+
+from wm tasks
+`
+	var order []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		order = append(order, r.URL.Path)
+		if strings.HasSuffix(r.URL.Path, "/workflows/only-wm.md") {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/.wm/tasks/only-wm.md") {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(content))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(srv.Close)
+
+	prev := rawGitHubBaseURL
+	rawGitHubBaseURL = srv.URL
+	t.Cleanup(func() { rawGitHubBaseURL = prev })
+
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".wm"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	chdirTemp(t, root)
+
+	rootCmd.SetArgs([]string{"add", "o/r/only-wm"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if len(order) < 2 {
+		t.Fatalf("expected two probes, got %v", order)
+	}
+	if !strings.HasSuffix(order[0], "/workflows/only-wm.md") || !strings.HasSuffix(order[1], "/.wm/tasks/only-wm.md") {
+		t.Fatalf("unexpected probe order: %v", order)
+	}
+	dst := filepath.Join(root, ".wm", "tasks", "only-wm.md")
+	b, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "o/r/.wm/tasks/only-wm.md") {
+		t.Fatalf("expected .wm/tasks source, got:\n%s", b)
+	}
+}
+
 func TestAddCommand_HTTPNotOK(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
