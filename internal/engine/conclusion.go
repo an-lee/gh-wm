@@ -58,6 +58,7 @@ func concludeRun(result *types.RunResult, a *concludeArgs) {
 		if err := a.rd.WriteResult(result); err != nil {
 			addRunErr(result, fmt.Errorf("write run result: %w", err))
 		}
+		appendClaudeGitHubStepSummary(result, a)
 	}
 }
 
