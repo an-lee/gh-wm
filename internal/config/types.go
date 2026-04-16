@@ -5,6 +5,16 @@ import (
 	"strings"
 )
 
+// StepDef is one GitHub Actions job step (uses or run) for workflow.pre_steps.
+type StepDef struct {
+	Name string         `yaml:"name,omitempty"`
+	Uses string         `yaml:"uses,omitempty"`
+	Run  string         `yaml:"run,omitempty"`
+	With map[string]any `yaml:"with,omitempty"`
+	Env  map[string]any `yaml:"env,omitempty"`
+	If   string         `yaml:"if,omitempty"`
+}
+
 // GlobalConfig is .wm/config.yml
 type GlobalConfig struct {
 	Version  int    `yaml:"version"`
@@ -12,7 +22,8 @@ type GlobalConfig struct {
 	Model    string `yaml:"model"`
 	MaxTurns int    `yaml:"max_turns"`
 	Workflow struct {
-		RunsOn []string `yaml:"runs_on"`
+		RunsOn   []string  `yaml:"runs_on"`
+		PreSteps []StepDef `yaml:"pre_steps"`
 	} `yaml:"workflow"`
 	Context struct {
 		Files []string `yaml:"files"`

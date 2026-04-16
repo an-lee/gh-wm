@@ -23,6 +23,35 @@ max_turns: 50
 	}
 }
 
+func TestParseGlobal_WorkflowPreSteps(t *testing.T) {
+	t.Parallel()
+	g, err := ParseGlobal([]byte(`version: 1
+workflow:
+  runs_on: [ubuntu-latest]
+  pre_steps:
+    - uses: jdx/mise-action@v4
+      with:
+        cache: true
+    - name: Deps
+      run: bundle install
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(g.Workflow.PreSteps) != 2 {
+		t.Fatalf("pre_steps: got %d items", len(g.Workflow.PreSteps))
+	}
+	if g.Workflow.PreSteps[0].Uses != "jdx/mise-action@v4" {
+		t.Fatalf("step 0: %+v", g.Workflow.PreSteps[0])
+	}
+	if v, ok := g.Workflow.PreSteps[0].With["cache"].(bool); !ok || !v {
+		t.Fatalf("step 0 with.cache: %+v", g.Workflow.PreSteps[0].With)
+	}
+	if g.Workflow.PreSteps[1].Name != "Deps" || g.Workflow.PreSteps[1].Run != "bundle install" {
+		t.Fatalf("step 1: %+v", g.Workflow.PreSteps[1])
+	}
+}
+
 func TestParseGlobal_WorkflowRunsOn(t *testing.T) {
 	t.Parallel()
 	g, err := ParseGlobal([]byte(`version: 1

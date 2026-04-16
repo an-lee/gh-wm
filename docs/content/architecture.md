@@ -58,15 +58,18 @@ Optional **checkpoints** ([`internal/checkpoint`](../../internal/checkpoint/chec
 | Embedded templates | [`internal/templates/`](../../internal/templates/) | Starters for `gh wm init` (`config.yml`, tasks, `CLAUDE.md`). |
 | GitHub API helpers | [`internal/ghclient/`](../../internal/ghclient/) | Labels, issue comments (`gh api`). |
 
-## GitHub Actions: two reusable workflows
+## GitHub Actions: reusable workflows and generated `wm-agent.yml`
 
-Business repos use an **auto-generated** `wm-agent.yml` (from `gh wm init` / `gh wm upgrade`) that calls into **this** repository’s reusable workflows. Runner labels come from **`workflow.runs_on`** in [`.wm/config.yml`](task-format.md); `upgrade` rewrites `wm-agent.yml` when you change them.
+Business repos use an **auto-generated** `wm-agent.yml` (from `gh wm init` / `gh wm upgrade`). Runner labels come from **`workflow.runs_on`** in [`.wm/config.yml`](task-format.md); optional **`workflow.pre_steps`** lists prerequisite Actions steps (toolchains, deps); `upgrade` rewrites `wm-agent.yml` when you change them.
+
+- **Resolve** always uses reusable **`agent-resolve.yml`**.
+- **Run** uses reusable **`agent-run.yml`** when **`workflow.pre_steps` is empty**. If **`workflow.pre_steps` is set**, the generator embeds the same checkout → pre-steps → `gh-wm` install → `gh-wm run` sequence **inline** in `wm-agent.yml` (reusable workflows cannot take arbitrary step YAML as inputs).
 
 ```mermaid
 flowchart LR
   Caller[wm-agent.yml caller]
   ResolveJob[agent-resolve.yml]
-  RunJob[agent-run.yml]
+  RunJob[agent-run.yml or inline run job]
 
   Caller --> ResolveJob
   ResolveJob -->|"outputs.tasks JSON array"| RunJob
@@ -78,9 +81,12 @@ flowchart LR
    - `gh-wm resolve --repo-root . --event-name "$EVENT_NAME" --payload event.json --json`  
    - Exposes the printed JSON array as job output `tasks`.
 
-2. **`agent-run.yml`** ([`.github/workflows/agent-run.yml`](../../.github/workflows/agent-run.yml))  
+2. **`agent-run.yml`** ([`.github/workflows/agent-run.yml`](../../.github/workflows/agent-run.yml)) — **when `workflow.pre_steps` is unset**  
    - Matrix over `fromJSON(needs.resolve.outputs.tasks)` with `fail-fast: false`.  
    - Runs `gh-wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload event.json` with `ANTHROPIC_API_KEY` for the agent.
+
+3. **Inline `run` job** — **when `workflow.pre_steps` is set**  
+   - Same matrix and `gh-wm run` invocation; steps include **`workflow.pre_steps`** after checkout and before installing `gh-wm`.
 
 **Note:** In CI, the installed binary name is `gh-wm`. When installed as a `gh` extension, the same commands are available as `gh wm …`.
 

@@ -52,7 +52,8 @@ func runInit(_ *cobra.Command, _ []string) error {
 		return err
 	}
 	runsOn := config.WorkflowRunsOnLabels(glob)
-	if err := gen.WriteWMAgent(ghDir, repo, schedules, runsOn); err != nil {
+	preSteps := glob.Workflow.PreSteps
+	if err := gen.WriteWMAgent(ghDir, repo, schedules, runsOn, preSteps); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "Initialized .wm/ and .github/workflows/wm-agent.yml")

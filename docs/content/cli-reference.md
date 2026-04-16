@@ -22,6 +22,8 @@ The extension is invoked as **`gh wm <subcommand>`** when installed via `gh exte
 3. Write `CLAUDE.md` in repo root if missing (from template).
 4. Collect schedules from `.wm/tasks` and generate `wm-agent.yml` via [`gen.WriteWMAgent`](../../internal/gen/wmagent.go), including **`workflow.runs_on`** from `.wm/config.yml` (default `ubuntu-latest` if unset).
 
+**`workflow.pre_steps` (optional):** A list of GitHub Actions job steps (`name`, `uses`, `run`, `with`, `env`, `if`) run **after** checkout and **before** installing `gh-wm` and running the task. Use this for toolchains (e.g. [`jdx/mise-action`](https://github.com/jdx/mise-action)), dependency installs, or installing the agent CLI. When **`pre_steps` is non-empty**, the generated `wm-agent.yml` uses an **inline** `run` job (steps embedded in the file) instead of calling the reusable [`agent-run.yml`](../../.github/workflows/agent-run.yml) workflow, because reusable workflows cannot accept arbitrary step YAML as inputs.
+
 **Environment:**
 
 | Variable     | Default        | Meaning                                                                     |
@@ -32,11 +34,11 @@ The extension is invoked as **`gh wm <subcommand>`** when installed via `gh exte
 
 ## `upgrade`
 
-**Purpose:** Regenerate **only** `.github/workflows/wm-agent.yml` from current tasks (schedule union), **`workflow.runs_on`** in `.wm/config.yml` (when present), and `GH_WM_REPO`.
+**Purpose:** Regenerate **only** `.github/workflows/wm-agent.yml` from current tasks (schedule union), **`workflow.runs_on`** and **`workflow.pre_steps`** in `.wm/config.yml` (when present), and `GH_WM_REPO`.
 
 **Usage:** `gh wm upgrade`
 
-If `.wm/config.yml` is missing, runner labels default to **`ubuntu-latest`** when generating `wm-agent.yml`.
+If `.wm/config.yml` is missing, runner labels default to **`ubuntu-latest`** when generating `wm-agent.yml`. **`workflow.pre_steps`** follows the same rules as under **`init`** above.
 
 ---
 
