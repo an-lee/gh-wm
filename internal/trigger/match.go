@@ -3,6 +3,8 @@ package trigger
 import (
 	"strings"
 
+	"github.com/an-lee/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/gen"
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
@@ -118,9 +120,14 @@ func matchScheduleBlock(event *types.GitHubEvent, sched any) bool {
 	return event.Name == "schedule"
 }
 
-// ScheduleCronMatches checks task schedule string vs cron from workflow (for filtering in run).
-func ScheduleCronMatches(taskSchedule string, workflowCron string) bool {
-	if taskSchedule == "" {
+// ScheduleCronMatches checks task schedule vs cron from workflow (for filtering in run).
+// For keywords daily/weekly/hourly it re-derives the same fuzzy cron as gen.FuzzyNormalizeSchedule(task.Path).
+func ScheduleCronMatches(task *config.Task, workflowCron string) bool {
+	if task == nil {
+		return false
+	}
+	ts := task.ScheduleString()
+	if strings.TrimSpace(ts) == "" {
 		return true
 	}
 	norm := func(s string) string {
@@ -128,13 +135,6 @@ func ScheduleCronMatches(taskSchedule string, workflowCron string) bool {
 		s = strings.Join(strings.Fields(s), " ")
 		return s
 	}
-	switch strings.ToLower(strings.TrimSpace(taskSchedule)) {
-	case "daily":
-		taskSchedule = "0 0 * * *"
-	case "weekly":
-		taskSchedule = "0 0 * * 0"
-	case "hourly":
-		taskSchedule = "0 * * * *"
-	}
-	return norm(taskSchedule) == norm(workflowCron)
+	expected := gen.FuzzyNormalizeSchedule(ts, task.Path)
+	return norm(expected) == norm(workflowCron)
 }

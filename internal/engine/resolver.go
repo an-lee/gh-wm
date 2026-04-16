@@ -25,8 +25,7 @@ func ResolveMatchingTasks(repoRoot string, event *types.GitHubEvent) ([]string, 
 			if event.Name == "schedule" {
 				wc := os.Getenv("WM_SCHEDULE_CRON")
 				if wc != "" {
-					ts := t.ScheduleString()
-					if ts != "" && !trigger.ScheduleCronMatches(ts, wc) {
+					if !trigger.ScheduleCronMatches(t, wc) {
 						continue
 					}
 				}

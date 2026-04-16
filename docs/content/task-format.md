@@ -72,14 +72,14 @@ GitHub’s `GITHUB_EVENT_NAME` must align with the keys below (e.g. `issues`, no
 
 ### Schedule strings
 
-In frontmatter, `on.schedule` is a **string** (see [`Task.ScheduleString`](../../internal/config/types.go)). Recognized aliases when normalizing for `wm-agent.yml` and cron comparison:
+In frontmatter, `on.schedule` is a **string** (see [`Task.ScheduleString`](../../internal/config/types.go)). Aliases are expanded with [`gen.FuzzyNormalizeSchedule`](../../internal/gen/schedules.go) (github/gh-aw–compatible: FNV-1a hash of the task file path + weighted time pool) so each task gets a **stable, distinct** cron instead of everyone at midnight:
 
-| Value | Normalized cron (typical) |
-|-------|---------------------------|
-| `daily` | `0 0 * * *` |
-| `weekly` | `0 0 * * 0` |
-| `hourly` | `0 * * * *` |
-| other | used as-is (must be valid cron for GitHub Actions) |
+| Value | Normalized cron |
+|-------|-----------------|
+| `daily` | One run per day at a deterministic minute/hour (e.g. `43 5 * * *`) |
+| `weekly` | One run per week: scattered weekday (0–6) + time from the same pool |
+| `hourly` | `M */1 * * *` with scattered minute `M` in 5–54 |
+| other | If it is already a **5-field** cron string, whitespace-normalized and used as-is; otherwise passed through unchanged (must be valid for GitHub Actions if used as cron) |
 
 ## `safe-outputs:` — implemented vs hints
 

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/an-lee/gh-wm/internal/gen"
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
@@ -64,11 +65,12 @@ on:
 
 x
 `
-	if err := os.WriteFile(filepath.Join(wm, "tasks", "sched.md"), []byte(task), 0o644); err != nil {
+	schedPath := filepath.Join(wm, "tasks", "sched.md")
+	if err := os.WriteFile(schedPath, []byte(task), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	ev := &types.GitHubEvent{Name: "schedule", Payload: map[string]any{}}
-	t.Setenv("WM_SCHEDULE_CRON", "0 0 * * *")
+	t.Setenv("WM_SCHEDULE_CRON", gen.FuzzyNormalizeSchedule("daily", schedPath))
 	names, err := ResolveMatchingTasks(root, ev)
 	if err != nil {
 		t.Fatal(err)

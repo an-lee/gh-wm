@@ -1,8 +1,11 @@
 package trigger
 
 import (
+	"path/filepath"
 	"testing"
 
+	"github.com/an-lee/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/gen"
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
@@ -134,24 +137,41 @@ func TestMatchOnOR_Schedule(t *testing.T) {
 	}
 }
 
+func testTaskWithSchedule(path, schedule string) *config.Task {
+	return &config.Task{
+		Name: filepath.Base(path),
+		Path: path,
+		Frontmatter: map[string]any{
+			"on": map[string]any{"schedule": schedule},
+		},
+	}
+}
+
 func TestScheduleCronMatches(t *testing.T) {
 	t.Parallel()
-	if !ScheduleCronMatches("", "0 0 * * *") {
+	p := "/repo/.wm/tasks/t.md"
+	if !ScheduleCronMatches(testTaskWithSchedule(p, ""), "0 0 * * *") {
 		t.Fatal("empty task schedule matches any")
 	}
-	if !ScheduleCronMatches("daily", "0 0 * * *") {
-		t.Fatal("daily alias")
+	if ScheduleCronMatches(nil, "0 0 * * *") {
+		t.Fatal("nil task should not match")
 	}
-	if !ScheduleCronMatches("weekly", "0 0 * * 0") {
-		t.Fatal("weekly alias")
+	dailyCron := gen.FuzzyNormalizeSchedule("daily", p)
+	if !ScheduleCronMatches(testTaskWithSchedule(p, "daily"), dailyCron) {
+		t.Fatal("daily fuzzy cron")
 	}
-	if !ScheduleCronMatches("hourly", "0 * * * *") {
-		t.Fatal("hourly alias")
+	weeklyCron := gen.FuzzyNormalizeSchedule("weekly", p)
+	if !ScheduleCronMatches(testTaskWithSchedule(p, "weekly"), weeklyCron) {
+		t.Fatal("weekly fuzzy cron")
 	}
-	if !ScheduleCronMatches("0  0   * * *", "0 0 * * *") {
-		t.Fatal("whitespace normalization")
+	hourlyCron := gen.FuzzyNormalizeSchedule("hourly", p)
+	if !ScheduleCronMatches(testTaskWithSchedule(p, "hourly"), hourlyCron) {
+		t.Fatal("hourly fuzzy cron")
 	}
-	if ScheduleCronMatches("0 1 * * *", "0 0 * * *") {
+	if !ScheduleCronMatches(testTaskWithSchedule(p, "0  0   * * *"), "0 0 * * *") {
+		t.Fatal("whitespace normalization for raw cron")
+	}
+	if ScheduleCronMatches(testTaskWithSchedule(p, "0 1 * * *"), "0 0 * * *") {
 		t.Fatal("should not match different crons")
 	}
 }
