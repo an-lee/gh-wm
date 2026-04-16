@@ -10,15 +10,13 @@ func TestAddIssueLabel_InvalidRepo(t *testing.T) {
 }
 
 func TestCurrentRepo(t *testing.T) {
-	t.Parallel()
-	_, err := CurrentRepo()
-	if err == nil {
-		// gh may work in CI
-		return
+	WithFakeGH(t)
+	repo, err := CurrentRepo()
+	if err != nil {
+		t.Fatal(err)
 	}
-	// expected when gh not authenticated
-	if err.Error() == "" {
-		t.Fatal("empty error")
+	if repo != "test-owner/test-repo" {
+		t.Fatalf("got %q", repo)
 	}
 }
 
