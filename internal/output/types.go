@@ -40,10 +40,10 @@ type ItemLabels struct {
 
 // ItemCreateIssue fields for create_issue.
 type ItemCreateIssue struct {
-	Title      string   `json:"title"`
-	Body       string   `json:"body"`
-	Labels     []string `json:"labels,omitempty"`
-	Assignees  []string `json:"assignees,omitempty"`
+	Title     string   `json:"title"`
+	Body      string   `json:"body"`
+	Labels    []string `json:"labels,omitempty"`
+	Assignees []string `json:"assignees,omitempty"`
 }
 
 // ItemNoop records completion without GitHub writes.
