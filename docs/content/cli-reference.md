@@ -99,10 +99,8 @@ Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run **`gh wm upg
 | -------------- | -------------------- | ------------------------------------------------------ |
 | `--repo-root`  | `.`                  | Repository root containing `.wm/`                      |
 | `--event-name` | `$GITHUB_EVENT_NAME` | GitHub event name                                      |
-| `--payload`    | `$GITHUB_EVENT_PATH` | Path to event JSON file                                |
+| `--payload`    | `$GITHUB_EVENT_PATH` | Path to event JSON file; if `--payload` and `GITHUB_EVENT_PATH` are both unset, payload defaults to `{}` |
 | `--json`       | `true`               | If true, print JSON array; if false, one name per line |
-
-**Requires:** `--payload` or `GITHUB_EVENT_PATH` set.
 
 ---
 
@@ -119,7 +117,7 @@ Writes `<cwd>/.wm/tasks/<basename>.md` and prints a reminder to run **`gh wm upg
 | `--repo-root`  | `.`                  | Repository root                    |
 | `--task`       | _(required)_         | Task name (filename without `.md`) |
 | `--event-name` | `$GITHUB_EVENT_NAME` | Event name                         |
-| `--payload`    | `$GITHUB_EVENT_PATH` | Path to event JSON                 |
+| `--payload`    | `$GITHUB_EVENT_PATH` | Path to event JSON; if `--payload` and `GITHUB_EVENT_PATH` are both unset, payload defaults to `{}` |
 
 **Timeout:** Uses `timeout-minutes` from task frontmatter (default **45**, max **480**). See [`cmd/run.go`](../../cmd/run.go).
 
@@ -170,7 +168,7 @@ If none match, prints recent runs with a note. See [`cmd/logs.go`](../../cmd/log
 
 | Variable                                 | Used by                                                                           |
 | ---------------------------------------- | --------------------------------------------------------------------------------- |
-| `GITHUB_EVENT_NAME`, `GITHUB_EVENT_PATH` | `resolve`, `run` when flags omitted                                               |
+| `GITHUB_EVENT_NAME`, `GITHUB_EVENT_PATH` | `resolve`, `run`: event name / payload file when flags omitted; if `GITHUB_EVENT_PATH` unset, payload is `{}` |
 | `GITHUB_REPOSITORY`                      | Agent + `gh` outputs; required for labels/comments                                |
 | `WM_SCHEDULE_CRON`                       | `resolve` schedule narrowing ([`resolver.go`](../../internal/engine/resolver.go)) |
 | `WM_AGENT_CMD`                           | Override agent command ([`agent.go`](../../internal/engine/agent.go))             |

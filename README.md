@@ -64,8 +64,8 @@ gh wm upgrade
 
 ### CI entrypoints
 
-- **`gh wm resolve`** — reads `--payload` (or `GITHUB_EVENT_PATH`), prints JSON array of matching task names.
-- **`gh wm run --task …`** — runs the agent (default: `claude -p` with task body + `CLAUDE.md`; `timeout-minutes` from frontmatter). Override with `WM_AGENT_CMD`. On success, runs `safe-outputs` steps (e.g. PR, comment) and optional `wm.state_labels`. Use `WM_CHECKPOINT=1` for checkpoint load/post.
+- **`gh wm resolve`** — reads `--payload` or `GITHUB_EVENT_PATH` (if both unset, payload defaults to `{}`), prints JSON array of matching task names.
+- **`gh wm run --task …`** — same payload resolution as `resolve`; runs the agent (default: `claude -p` with task body + `CLAUDE.md`; `timeout-minutes` from frontmatter). Override with `WM_AGENT_CMD`. On success, runs `safe-outputs` steps (e.g. PR, comment) and optional `wm.state_labels`. Use `WM_CHECKPOINT=1` for checkpoint load/post.
 
 ### Secrets
 

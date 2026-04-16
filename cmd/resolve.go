@@ -25,7 +25,7 @@ var resolveCmd = &cobra.Command{
 func init() {
 	resolveCmd.Flags().StringVar(&resolveRepoRoot, "repo-root", ".", "repository root (contains .wm/)")
 	resolveCmd.Flags().StringVar(&resolveEvent, "event-name", "", "GitHub event name (default: GITHUB_EVENT_NAME)")
-	resolveCmd.Flags().StringVar(&resolvePayload, "payload", "", "path to event JSON (default: GITHUB_EVENT_PATH)")
+	resolveCmd.Flags().StringVar(&resolvePayload, "payload", "", "path to event JSON (default: GITHUB_EVENT_PATH; if unset, `{}`)")
 	resolveCmd.Flags().BoolVar(&resolveJSON, "json", true, "print JSON array to stdout")
 }
 
@@ -38,10 +38,7 @@ func runResolve(cmd *cobra.Command, _ []string) error {
 	if path == "" {
 		path = os.Getenv("GITHUB_EVENT_PATH")
 	}
-	if path == "" {
-		return fmt.Errorf("set --payload or GITHUB_EVENT_PATH")
-	}
-	ev, err := engine.ParseEventFile(evName, path)
+	ev, err := engine.ParseEvent(evName, path)
 	if err != nil {
 		return err
 	}

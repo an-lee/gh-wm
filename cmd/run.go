@@ -28,7 +28,7 @@ func init() {
 	runCmd.Flags().StringVar(&runRepoRoot, "repo-root", ".", "repository root")
 	runCmd.Flags().StringVar(&runTask, "task", "", "task name (filename without .md)")
 	runCmd.Flags().StringVar(&runEvent, "event-name", "", "event name (default: GITHUB_EVENT_NAME)")
-	runCmd.Flags().StringVar(&runPayload, "payload", "", "event JSON path (default: GITHUB_EVENT_PATH)")
+	runCmd.Flags().StringVar(&runPayload, "payload", "", "event JSON path (default: GITHUB_EVENT_PATH; if unset, `{}`)")
 	_ = runCmd.MarkFlagRequired("task")
 }
 
@@ -41,10 +41,7 @@ func runRun(_ *cobra.Command, _ []string) error {
 	if path == "" {
 		path = os.Getenv("GITHUB_EVENT_PATH")
 	}
-	if path == "" {
-		return fmt.Errorf("set --payload or GITHUB_EVENT_PATH")
-	}
-	ev, err := engine.ParseEventFile(evName, path)
+	ev, err := engine.ParseEvent(evName, path)
 	if err != nil {
 		return err
 	}

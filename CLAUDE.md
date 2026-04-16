@@ -21,6 +21,9 @@ go test ./internal/config/... -run TestSplitFrontmatter
 # Run resolve manually
 ./gh-wm resolve --repo-root . --event-name issues --payload /path/to/event.json --json
 
+# Omit --payload (and GITHUB_EVENT_PATH) to use an empty event `{}` for quick local runs
+./gh-wm run --repo-root . --task <task-name> --event-name workflow_dispatch
+
 # Run a task manually (requires ANTHROPIC_API_KEY or WM_AGENT_CMD)
 ./gh-wm run --repo-root . --task <task-name> --event-name issues --payload /path/to/event.json
 ```

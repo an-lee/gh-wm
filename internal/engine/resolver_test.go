@@ -117,3 +117,28 @@ func TestParseEventFile_DefaultNameFromEnv(t *testing.T) {
 		t.Fatal(ev.Name)
 	}
 }
+
+func TestParseEvent_EmptyPath(t *testing.T) {
+	t.Setenv("GITHUB_EVENT_NAME", "")
+	ev, err := ParseEvent("issues", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ev.Name != "issues" {
+		t.Fatalf("name: %q", ev.Name)
+	}
+	if len(ev.Payload) != 0 {
+		t.Fatalf("payload: %+v", ev.Payload)
+	}
+}
+
+func TestParseEvent_EmptyPath_DefaultNameFromEnv(t *testing.T) {
+	t.Setenv("GITHUB_EVENT_NAME", "workflow_dispatch")
+	ev, err := ParseEvent("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ev.Name != "workflow_dispatch" {
+		t.Fatal(ev.Name)
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/trigger"
@@ -36,12 +37,7 @@ func ResolveMatchingTasks(repoRoot string, event *types.GitHubEvent) ([]string, 
 	return names, nil
 }
 
-// ParseEventFile reads event JSON from path (github.event payload).
-func ParseEventFile(eventName, path string) (*types.GitHubEvent, error) {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
+func parseEventJSON(eventName string, b []byte) (*types.GitHubEvent, error) {
 	var payload map[string]any
 	if err := json.Unmarshal(b, &payload); err != nil {
 		return nil, fmt.Errorf("parse event json: %w", err)
@@ -54,4 +50,26 @@ func ParseEventFile(eventName, path string) (*types.GitHubEvent, error) {
 		name = "unknown"
 	}
 	return &types.GitHubEvent{Name: name, Payload: payload}, nil
+}
+
+// ParseEventFile reads event JSON from path (github.event payload).
+func ParseEventFile(eventName, path string) (*types.GitHubEvent, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return parseEventJSON(eventName, b)
+}
+
+// ParseEvent loads a GitHub event from path, or uses an empty JSON object when path is empty
+// (neither --payload nor GITHUB_EVENT_PATH), for local quick runs.
+func ParseEvent(eventName, path string) (*types.GitHubEvent, error) {
+	if strings.TrimSpace(path) == "" {
+		return parseEventJSON(eventName, []byte("{}"))
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return parseEventJSON(eventName, b)
 }

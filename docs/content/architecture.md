@@ -94,7 +94,7 @@ flowchart LR
 
 - [`engine.ResolveMatchingTasks`](../../internal/engine/resolver.go) loads all tasks and keeps those where `trigger.MatchOnOR(event, task.OnMap())` is true.
 - **Schedule events**: For `event_name == schedule`, every task that includes `on.schedule` matches at resolve time. Optional filter: if `WM_SCHEDULE_CRON` is set (e.g. to the workflow’s cron string), tasks are further filtered with `trigger.ScheduleCronMatches` so only the intended task runs for that cron.
-- **Payload**: Event JSON is read from `--payload` or `GITHUB_EVENT_PATH`; name from `--event-name` or `GITHUB_EVENT_NAME`.
+- **Payload**: Event JSON is read from `--payload` or `GITHUB_EVENT_PATH` when set; if both are unset, the payload defaults to `{}`. Event name comes from `--event-name` or `GITHUB_EVENT_NAME`.
 
 ## Run behavior details
 
