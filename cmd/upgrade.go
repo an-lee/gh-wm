@@ -22,7 +22,13 @@ func runUpgrade(_ *cobra.Command, _ []string) error {
 	fmt.Fprintln(os.Stderr, "Upgrading gh-wm extension...")
 	out, err := exec.Command("gh", "extension", "upgrade", "an-lee/gh-wm").CombinedOutput()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "gh extension upgrade skipped or failed: %v\n%s", err, strings.TrimSpace(string(out)))
+		msg := strings.TrimSpace(string(out))
+		if msg != "" {
+			fmt.Fprintf(os.Stderr, "gh extension upgrade skipped or failed: %v\n%s\n", err, msg)
+		} else {
+			fmt.Fprintf(os.Stderr, "gh extension upgrade skipped or failed: %v\n", err)
+		}
+		fmt.Fprintln(os.Stderr, "Continuing: regenerating .github/workflows/wm-agent.yml (independent of extension upgrade).")
 	}
 
 	cwd, err := os.Getwd()

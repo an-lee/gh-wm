@@ -72,6 +72,45 @@ x
 	}
 }
 
+func TestUpgradeCommand_ExtensionFailsStillWritesWorkflow(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("unix shell fake gh only")
+	}
+	prependFakeGh(t, `
+if [ "$1" = "extension" ] && [ "$2" = "upgrade" ] && [ "$3" = "an-lee/gh-wm" ]; then
+  echo "X Failed upgrading extension wm: local extensions can not be upgraded" >&2
+  exit 1
+fi
+exit 1
+`)
+	root := t.TempDir()
+	wm := filepath.Join(root, ".wm", "tasks")
+	if err := os.MkdirAll(wm, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wm, "s.md"), []byte(`---
+on:
+  schedule: hourly
+---
+
+x
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	chdirTemp(t, root)
+	t.Setenv("GH_WM_REPO", "test/hello")
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"upgrade"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("upgrade must succeed and still write wm-agent.yml when extension upgrade fails: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".github", "workflows", "wm-agent.yml")); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestAddCommand_LocalFile(t *testing.T) {
 	srcDir := t.TempDir()
 	src := filepath.Join(srcDir, "task.md")

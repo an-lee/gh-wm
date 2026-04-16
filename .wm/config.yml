@@ -6,12 +6,10 @@ workflow:
     - linux
   # Optional: prerequisite steps before gh-wm runs (toolchains, deps, engine CLI).
   # When set, `gh wm upgrade` generates an inline run job (not reusable agent-run.yml).
-  # pre_steps:
-  #   - uses: jdx/mise-action@v4
-  #     with:
-  #       cache: true
-  #   - name: Install dependencies
-  #     run: bundle install
+  pre_steps:
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
 
 engine: claude
 model: claude-sonnet-4-20250514
