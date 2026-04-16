@@ -18,7 +18,6 @@ max_turns: 100
 
 context:
   files:
-    - CLAUDE.md
 
 pr:
   draft: true
