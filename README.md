@@ -39,7 +39,6 @@ This creates:
 - `.wm/config.yml` — global defaults (`engine`, `context.files`, …)
 - `.wm/tasks/*.md` — starter tasks (gh-aw–style frontmatter + markdown body = agent prompt)
 - `.github/workflows/wm-agent.yml` — **auto-generated** caller workflow (do not edit by hand)
-- `CLAUDE.md` if missing
 
 Set where reusable workflows live (default `an-lee/gh-wm`):
 
@@ -65,7 +64,7 @@ gh wm upgrade
 ### CI entrypoints
 
 - **`gh wm resolve`** — reads `--payload` or `GITHUB_EVENT_PATH` (if both unset, payload defaults to `{}`), prints JSON array of matching task names.
-- **`gh wm run --task …`** — same payload resolution as `resolve`; requires a **clean git working tree** unless **`--allow-dirty`**. Streams agent output to **stderr** and prints a short summary when finished. Runs the agent (default: `claude -p` with task body + `CLAUDE.md`; `timeout-minutes` from frontmatter). Override with `WM_AGENT_CMD`. On success, runs `safe-outputs` steps (e.g. PR, comment) and optional `wm.state_labels`. Use `WM_CHECKPOINT=1` for checkpoint load/post.
+- **`gh wm run --task …`** — same payload resolution as `resolve`; requires a **clean git working tree** unless **`--allow-dirty`**. Streams agent output to **stderr** and prints a short summary when finished. Runs the agent (default: `claude -p` with the task body plus optional `context.files` from `.wm/config.yml`; `timeout-minutes` from frontmatter). Override with `WM_AGENT_CMD`. On success, runs `safe-outputs` steps (e.g. PR, comment) and optional `wm.state_labels`. Use `WM_CHECKPOINT=1` for checkpoint load/post.
 
 ### Secrets
 

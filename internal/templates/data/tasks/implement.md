@@ -34,4 +34,4 @@ You are a developer agent working on this repository.
 Implement the feature or fix described in the issue.
 Create tests if applicable. Commit with clear messages.
 
-Read CLAUDE.md first for project-specific conventions.
+Follow repository conventions and any project agent guide your team maintains.

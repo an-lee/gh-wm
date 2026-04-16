@@ -33,9 +33,6 @@ func runInit(_ *cobra.Command, _ []string) error {
 	if err := templates.WriteStarterTasks(filepath.Join(wm, "tasks")); err != nil {
 		return err
 	}
-	if err := templates.WriteCLAUDE(cwd); err != nil {
-		return err
-	}
 	ghDir := filepath.Join(cwd, ".github", "workflows")
 	if err := os.MkdirAll(ghDir, 0o755); err != nil {
 		return err

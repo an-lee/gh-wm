@@ -16,9 +16,12 @@ engine: claude
 model: claude-sonnet-4-20250514
 max_turns: 100
 
-context:
-  files:
-    - CLAUDE.md
+# Optional: extra repo files appended to the task prompt (paths relative to repo root).
+# Do not list CLAUDE.md — Claude Code loads it from the repo automatically; listing it
+# here would duplicate it in the prompt.
+# context:
+#   files:
+#     - docs/architecture.md
 
 pr:
   draft: true

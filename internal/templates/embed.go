@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-//go:embed data/config.yml data/CLAUDE.md data/tasks/*.md
+//go:embed data/config.yml data/tasks/*.md
 var embedded embed.FS
 
 // WriteConfig writes default config.yml
@@ -17,19 +17,6 @@ func WriteConfig(wmDir string) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(wmDir, "config.yml"), b, 0o644)
-}
-
-// WriteCLAUDE writes CLAUDE.md at repo root if missing
-func WriteCLAUDE(repoRoot string) error {
-	p := filepath.Join(repoRoot, "CLAUDE.md")
-	if _, err := os.Stat(p); err == nil {
-		return nil
-	}
-	b, err := embedded.ReadFile("data/CLAUDE.md")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(p, b, 0o644)
 }
 
 // WriteStarterTasks extracts embedded data/tasks/*.md

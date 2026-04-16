@@ -29,7 +29,7 @@ jobs:
     with:
       event_name: ${{ github.event_name }}
       event_json: ${{ toJSON(github.event) }}
-      runs_on: '["self-hosted","linux"]'
+      runs_on: '["ubuntu-latest"]'
 
   run:
     needs: resolve
@@ -38,32 +38,11 @@ jobs:
       fail-fast: false
       matrix:
         task: ${{ fromJSON(needs.resolve.outputs.tasks) }}
-    runs-on: ${{ fromJson('["self-hosted","linux"]') }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: stable
-
-      - name: Install gh-wm
-        run: go install github.com/an-lee/gh-wm@latest
-        env:
-          GOBIN: ${{ runner.temp }}/bin
-
-      - name: Add gh-wm to PATH
-        run: echo "${{ runner.temp }}/bin" >> "$GITHUB_PATH"
-
-      - name: Run task
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          EVENT_NAME: ${{ github.event_name }}
-          EVENT_JSON: ${{ toJSON(github.event) }}
-          TASK_NAME: ${{ matrix.task }}
-        run: |
-          printf '%s' "$EVENT_JSON" > event.json
-          gh-wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload event.json
+    uses: an-lee/gh-wm/.github/workflows/agent-run.yml@main
+    with:
+      task_name: ${{ matrix.task }}
+      event_name: ${{ github.event_name }}
+      event_json: ${{ toJSON(github.event) }}
+      runs_on: '["ubuntu-latest"]'
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
