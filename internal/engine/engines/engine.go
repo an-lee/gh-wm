@@ -16,19 +16,24 @@ type Engine interface {
 	// ID returns a short name for logging (claude, codex, custom).
 	ID() string
 	// BuildCommand returns the command, stdin reader, and artifact format basename key.
-	BuildCommand(ctx context.Context, glob *config.GlobalConfig, prompt string, forceStreamJSON bool) (*exec.Cmd, io.Reader, string, error)
+	// appendSystemPrompt is passed to the built-in claude CLI as --append-system-prompt when non-empty; other engines ignore it.
+	BuildCommand(ctx context.Context, glob *config.GlobalConfig, prompt string, forceStreamJSON bool, appendSystemPrompt string) (*exec.Cmd, io.Reader, string, error)
 }
 
 type claudeEngine struct{}
 
 func (claudeEngine) ID() string { return "claude" }
 
-func (claudeEngine) BuildCommand(ctx context.Context, glob *config.GlobalConfig, prompt string, forceStreamJSON bool) (*exec.Cmd, io.Reader, string, error) {
+func (claudeEngine) BuildCommand(ctx context.Context, glob *config.GlobalConfig, prompt string, forceStreamJSON bool, appendSystemPrompt string) (*exec.Cmd, io.Reader, string, error) {
 	artifactFormat := AgentOutputFormatForRun("", "claude", glob)
 	if forceStreamJSON {
 		artifactFormat = config.ClaudeOutputFormatStreamJSON
 	}
-	cmd := exec.CommandContext(ctx, "claude", AgentCLIArgs(glob, artifactFormat)...)
+	args := AgentCLIArgs(glob, artifactFormat)
+	if s := strings.TrimSpace(appendSystemPrompt); s != "" {
+		args = append(args, "--append-system-prompt", s)
+	}
+	cmd := exec.CommandContext(ctx, "claude", args...)
 	return cmd, strings.NewReader(prompt), artifactFormat, nil
 }
 
@@ -36,7 +41,7 @@ type codexEngine struct{}
 
 func (codexEngine) ID() string { return "codex" }
 
-func (codexEngine) BuildCommand(ctx context.Context, glob *config.GlobalConfig, prompt string, _ bool) (*exec.Cmd, io.Reader, string, error) {
+func (codexEngine) BuildCommand(ctx context.Context, glob *config.GlobalConfig, prompt string, _ bool, _ string) (*exec.Cmd, io.Reader, string, error) {
 	artifactFormat := AgentOutputFormatForRun("", "codex", glob)
 	if alt := strings.TrimSpace(os.Getenv("WM_ENGINE_CODEX_CMD")); alt != "" {
 		name, args, stdin, err := ParseWMAgentCmd(alt, prompt)
@@ -57,7 +62,7 @@ type customEngine struct {
 
 func (c customEngine) ID() string { return "custom" }
 
-func (c customEngine) BuildCommand(ctx context.Context, glob *config.GlobalConfig, prompt string, _ bool) (*exec.Cmd, io.Reader, string, error) {
+func (c customEngine) BuildCommand(ctx context.Context, glob *config.GlobalConfig, prompt string, _ bool, _ string) (*exec.Cmd, io.Reader, string, error) {
 	name, args, stdin, err := ParseWMAgentCmd(c.cmdLine, prompt)
 	if err != nil {
 		return nil, nil, "", err
@@ -82,11 +87,11 @@ func ResolveEngine(engineName, wmAgentCmd string) (Engine, error) {
 	}
 }
 
-// BuildAgentCommand delegates to [ResolveEngine] for backwards compatibility with tests and callers.
-func BuildAgentCommand(ctx context.Context, glob *config.GlobalConfig, engineName, wmAgentCmd, prompt string, forceStreamJSON bool) (*exec.Cmd, io.Reader, string, error) {
+// BuildAgentCommand delegates to [ResolveEngine]. appendSystemPrompt is passed to the built-in claude CLI only; see [output.SafeOutputsSystemPromptAppend].
+func BuildAgentCommand(ctx context.Context, glob *config.GlobalConfig, engineName, wmAgentCmd, prompt string, forceStreamJSON bool, appendSystemPrompt string) (*exec.Cmd, io.Reader, string, error) {
 	eng, err := ResolveEngine(engineName, wmAgentCmd)
 	if err != nil {
 		return nil, nil, "", err
 	}
-	return eng.BuildCommand(ctx, glob, prompt, forceStreamJSON)
+	return eng.BuildCommand(ctx, glob, prompt, forceStreamJSON, appendSystemPrompt)
 }

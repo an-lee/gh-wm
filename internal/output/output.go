@@ -10,9 +10,8 @@ import (
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
-// RunSuccessOutputs runs agent-driven safe outputs from WM_OUTPUT_FILE (output.json).
-// If the task declares safe-outputs: with at least one key, a non-empty {"items":[...]} is required
-// (use type noop when no GitHub follow-up is needed). If safe-outputs is absent or empty, this is a no-op.
+// RunSuccessOutputs runs agent-driven safe outputs from WM_SAFE_OUTPUT_FILE (output.jsonl NDJSON)
+// and/or legacy WM_OUTPUT_FILE (output.json). If both are empty, logs a warning and succeeds (implicit noop).
 func RunSuccessOutputs(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext, res *types.AgentResult) error {
 	if glob == nil || task == nil || tc == nil || res == nil {
 		return nil
@@ -24,14 +23,22 @@ func RunSuccessOutputs(ctx context.Context, glob *config.GlobalConfig, task *con
 	if err != nil {
 		return err
 	}
-	if ao == nil || len(ao.Items) == 0 {
-		path := strings.TrimSpace(res.OutputFilePath)
-		if path == "" {
-			path = "$WM_OUTPUT_FILE (per-run output.json path)"
-		}
-		return fmt.Errorf("safe-outputs: missing or empty structured output; write JSON to %s with {\"items\":[{\"type\":\"noop\",\"message\":\"…\"}]} or other allowed types", path)
+	ndItems, err := ParseAgentOutputJSONLFile(res.SafeOutputFilePath)
+	if err != nil {
+		return err
 	}
-	return runAgentDrivenOutputs(ctx, glob, task, tc, ao)
+	var legacy []map[string]any
+	if ao != nil {
+		legacy = ao.Items
+	}
+	merged := append(append([]map[string]any(nil), ndItems...), legacy...)
+	if len(merged) == 0 {
+		slog.Warn("wm: safe-outputs: no structured output (implicit noop); use `gh-wm emit noop` or other emit subcommands when safe-outputs is set",
+			"safe_output_file", strings.TrimSpace(res.SafeOutputFilePath),
+			"legacy_output_file", strings.TrimSpace(res.OutputFilePath))
+		return nil
+	}
+	return runAgentDrivenOutputs(ctx, glob, task, tc, &AgentOutputFile{Items: merged})
 }
 
 func taskDeclaresSafeOutputs(task *config.Task) bool {
@@ -52,6 +59,14 @@ func runAgentDrivenOutputs(ctx context.Context, glob *config.GlobalConfig, task 
 		}
 		if kind == KindNoop {
 			runNoop(mapToNoop(raw))
+			continue
+		}
+		if kind == KindMissingTool {
+			runMissingTool(mapToMissingTool(raw))
+			continue
+		}
+		if kind == KindMissingData {
+			runMissingData(mapToMissingData(raw))
 			continue
 		}
 		if !p.Allowed(kind) {

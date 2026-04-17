@@ -26,8 +26,11 @@ const (
 	metaFileName              = "meta.json"
 	resultFileName            = "result.json"
 	runFileName               = "run.json"
+	activationFileName        = "activation.json"
 	// outputJSONFileName is the agent-written structured safe-outputs request (WM_OUTPUT_FILE).
 	outputJSONFileName = "output.json"
+	// safeOutputJSONLFileName is the NDJSON log from `gh-wm emit` (WM_SAFE_OUTPUT_FILE).
+	safeOutputJSONLFileName = "output.jsonl"
 
 	defaultPruneAge = 7 * 24 * time.Hour
 )
@@ -135,6 +138,62 @@ func (r *RunDir) writeMeta(m *runMeta) error {
 	return nil
 }
 
+// FindLatestRunDirForTask returns the absolute path to the newest `.wm/runs/<id>/` directory
+// whose meta.json task_name matches taskName (newest is determined by meta.json file modtime).
+// Used by `gh wm process-outputs --task` in CI when the exact run id is not passed as a flag.
+// Only repoRoot/.wm/runs is searched (not WM_RUN_DIR), matching the default CI layout after checkout.
+func FindLatestRunDirForTask(repoRoot, taskName string) (string, error) {
+	taskName = strings.TrimSpace(taskName)
+	if taskName == "" {
+		return "", fmt.Errorf("find run dir: empty task name")
+	}
+	absRoot, err := filepath.Abs(repoRoot)
+	if err != nil {
+		return "", fmt.Errorf("find run dir: %w", err)
+	}
+	base := filepath.Join(absRoot, ".wm", "runs")
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("find run dir: missing %s", base)
+		}
+		return "", fmt.Errorf("find run dir: %w", err)
+	}
+	var bestPath string
+	var bestMtime time.Time
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		dir := filepath.Join(base, e.Name())
+		metaPath := filepath.Join(dir, metaFileName)
+		st, err := os.Stat(metaPath)
+		if err != nil {
+			continue
+		}
+		b, err := os.ReadFile(metaPath)
+		if err != nil {
+			continue
+		}
+		var meta runMeta
+		if err := json.Unmarshal(b, &meta); err != nil {
+			continue
+		}
+		if meta.TaskName != taskName {
+			continue
+		}
+		mt := st.ModTime()
+		if bestPath == "" || mt.After(bestMtime) {
+			bestMtime = mt
+			bestPath = dir
+		}
+	}
+	if bestPath == "" {
+		return "", fmt.Errorf("find run dir: no run for task %q under %s", taskName, base)
+	}
+	return bestPath, nil
+}
+
 // UpdateMeta writes phase and optional success flag to meta.json.
 func (r *RunDir) UpdateMeta(phase types.Phase, success bool) error {
 	if r == nil {
@@ -190,6 +249,54 @@ func (r *RunDir) OutputJSONPath() string {
 	return filepath.Join(r.Path, outputJSONFileName)
 }
 
+// SafeOutputJSONLPath returns the path for NDJSON safe-output lines from `gh-wm emit` (WM_SAFE_OUTPUT_FILE).
+func (r *RunDir) SafeOutputJSONLPath() string {
+	if r == nil {
+		return ""
+	}
+	return filepath.Join(r.Path, safeOutputJSONLFileName)
+}
+
+// ActivationMeta is persisted when a feature branch is created before the agent runs (for CI rollback).
+type ActivationMeta struct {
+	PrevBranch    string `json:"prev_branch"`
+	BranchCreated bool   `json:"branch_created"`
+}
+
+// WriteActivationMeta writes activation.json when a feature branch was created for create-pull-request.
+func (r *RunDir) WriteActivationMeta(prevBranch string, branchCreated bool) error {
+	if r == nil || !branchCreated {
+		return nil
+	}
+	m := ActivationMeta{PrevBranch: prevBranch, BranchCreated: true}
+	b, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode activation.json: %w", err)
+	}
+	path := filepath.Join(r.Path, activationFileName)
+	if err := os.WriteFile(path, b, 0o644); err != nil {
+		return fmt.Errorf("write activation.json: %w", err)
+	}
+	return nil
+}
+
+// ReadActivationMeta reads activation.json if present.
+func ReadActivationMeta(runDirPath string) (ActivationMeta, error) {
+	var out ActivationMeta
+	path := filepath.Join(runDirPath, activationFileName)
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return out, nil
+		}
+		return out, err
+	}
+	if err := json.Unmarshal(b, &out); err != nil {
+		return out, fmt.Errorf("parse activation.json: %w", err)
+	}
+	return out, nil
+}
+
 // OpenAgentOutput creates or truncates the agent output file for writing (see agentArtifactFilename).
 func (r *RunDir) OpenAgentOutput(format string) (*os.File, error) {
 	if r == nil {
@@ -222,14 +329,15 @@ func (r *RunDir) WriteResult(res *types.RunResult) error {
 		Errors      []string `json:"errors,omitempty"`
 		RunDir      string   `json:"run_dir"`
 		AgentResult *struct {
-			Success         bool   `json:"success"`
-			ExitCode        int    `json:"exit_code"`
-			Stdout          string `json:"stdout,omitempty"`
-			Stderr          string `json:"stderr,omitempty"`
-			Summary         string `json:"summary,omitempty"`
-			TimedOut        bool   `json:"timed_out,omitempty"`
-			AgentStdoutPath string `json:"agent_stdout_path,omitempty"`
-			OutputFilePath  string `json:"output_file_path,omitempty"`
+			Success            bool   `json:"success"`
+			ExitCode           int    `json:"exit_code"`
+			Stdout             string `json:"stdout,omitempty"`
+			Stderr             string `json:"stderr,omitempty"`
+			Summary            string `json:"summary,omitempty"`
+			TimedOut           bool   `json:"timed_out,omitempty"`
+			AgentStdoutPath    string `json:"agent_stdout_path,omitempty"`
+			OutputFilePath     string `json:"output_file_path,omitempty"`
+			SafeOutputFilePath string `json:"safe_output_file_path,omitempty"`
 		} `json:"agent_result,omitempty"`
 	}{
 		Phase:      string(res.Phase),
@@ -242,23 +350,25 @@ func (r *RunDir) WriteResult(res *types.RunResult) error {
 	if res.AgentResult != nil {
 		ar := res.AgentResult
 		out.AgentResult = &struct {
-			Success         bool   `json:"success"`
-			ExitCode        int    `json:"exit_code"`
-			Stdout          string `json:"stdout,omitempty"`
-			Stderr          string `json:"stderr,omitempty"`
-			Summary         string `json:"summary,omitempty"`
-			TimedOut        bool   `json:"timed_out,omitempty"`
-			AgentStdoutPath string `json:"agent_stdout_path,omitempty"`
-			OutputFilePath  string `json:"output_file_path,omitempty"`
+			Success            bool   `json:"success"`
+			ExitCode           int    `json:"exit_code"`
+			Stdout             string `json:"stdout,omitempty"`
+			Stderr             string `json:"stderr,omitempty"`
+			Summary            string `json:"summary,omitempty"`
+			TimedOut           bool   `json:"timed_out,omitempty"`
+			AgentStdoutPath    string `json:"agent_stdout_path,omitempty"`
+			OutputFilePath     string `json:"output_file_path,omitempty"`
+			SafeOutputFilePath string `json:"safe_output_file_path,omitempty"`
 		}{
-			Success:         ar.Success,
-			ExitCode:        ar.ExitCode,
-			Stdout:          ar.Stdout,
-			Stderr:          ar.Stderr,
-			Summary:         ar.Summary,
-			TimedOut:        ar.TimedOut,
-			AgentStdoutPath: ar.AgentStdoutPath,
-			OutputFilePath:  ar.OutputFilePath,
+			Success:            ar.Success,
+			ExitCode:           ar.ExitCode,
+			Stdout:             ar.Stdout,
+			Stderr:             ar.Stderr,
+			Summary:            ar.Summary,
+			TimedOut:           ar.TimedOut,
+			AgentStdoutPath:    ar.AgentStdoutPath,
+			OutputFilePath:     ar.OutputFilePath,
+			SafeOutputFilePath: ar.SafeOutputFilePath,
 		}
 	}
 	b, err := json.MarshalIndent(out, "", "  ")
@@ -299,14 +409,15 @@ func (r *RunDir) WriteRunJSON(res *types.RunResult) error {
 		Errors      []string `json:"errors,omitempty"`
 		RunDir      string   `json:"run_dir"`
 		AgentResult *struct {
-			Success         bool   `json:"success"`
-			ExitCode        int    `json:"exit_code"`
-			Stdout          string `json:"stdout,omitempty"`
-			Stderr          string `json:"stderr,omitempty"`
-			Summary         string `json:"summary,omitempty"`
-			TimedOut        bool   `json:"timed_out,omitempty"`
-			AgentStdoutPath string `json:"agent_stdout_path,omitempty"`
-			OutputFilePath  string `json:"output_file_path,omitempty"`
+			Success            bool   `json:"success"`
+			ExitCode           int    `json:"exit_code"`
+			Stdout             string `json:"stdout,omitempty"`
+			Stderr             string `json:"stderr,omitempty"`
+			Summary            string `json:"summary,omitempty"`
+			TimedOut           bool   `json:"timed_out,omitempty"`
+			AgentStdoutPath    string `json:"agent_stdout_path,omitempty"`
+			OutputFilePath     string `json:"output_file_path,omitempty"`
+			SafeOutputFilePath string `json:"safe_output_file_path,omitempty"`
 		} `json:"agent_result,omitempty"`
 	}{
 		runMeta:    m,
@@ -318,23 +429,25 @@ func (r *RunDir) WriteRunJSON(res *types.RunResult) error {
 	if res.AgentResult != nil {
 		ar := res.AgentResult
 		out.AgentResult = &struct {
-			Success         bool   `json:"success"`
-			ExitCode        int    `json:"exit_code"`
-			Stdout          string `json:"stdout,omitempty"`
-			Stderr          string `json:"stderr,omitempty"`
-			Summary         string `json:"summary,omitempty"`
-			TimedOut        bool   `json:"timed_out,omitempty"`
-			AgentStdoutPath string `json:"agent_stdout_path,omitempty"`
-			OutputFilePath  string `json:"output_file_path,omitempty"`
+			Success            bool   `json:"success"`
+			ExitCode           int    `json:"exit_code"`
+			Stdout             string `json:"stdout,omitempty"`
+			Stderr             string `json:"stderr,omitempty"`
+			Summary            string `json:"summary,omitempty"`
+			TimedOut           bool   `json:"timed_out,omitempty"`
+			AgentStdoutPath    string `json:"agent_stdout_path,omitempty"`
+			OutputFilePath     string `json:"output_file_path,omitempty"`
+			SafeOutputFilePath string `json:"safe_output_file_path,omitempty"`
 		}{
-			Success:         ar.Success,
-			ExitCode:        ar.ExitCode,
-			Stdout:          ar.Stdout,
-			Stderr:          ar.Stderr,
-			Summary:         ar.Summary,
-			TimedOut:        ar.TimedOut,
-			AgentStdoutPath: ar.AgentStdoutPath,
-			OutputFilePath:  ar.OutputFilePath,
+			Success:            ar.Success,
+			ExitCode:           ar.ExitCode,
+			Stdout:             ar.Stdout,
+			Stderr:             ar.Stderr,
+			Summary:            ar.Summary,
+			TimedOut:           ar.TimedOut,
+			AgentStdoutPath:    ar.AgentStdoutPath,
+			OutputFilePath:     ar.OutputFilePath,
+			SafeOutputFilePath: ar.SafeOutputFilePath,
 		}
 	}
 	b, err := json.MarshalIndent(out, "", "  ")

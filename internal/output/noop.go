@@ -13,3 +13,11 @@ func runNoop(item ItemNoop) {
 	}
 	slog.Info("wm: safe-output noop", "message", msg)
 }
+
+func runMissingTool(item ItemMissingTool) {
+	slog.Info("wm: safe-output missing_tool", "tool", strings.TrimSpace(item.Tool), "reason", strings.TrimSpace(item.Reason))
+}
+
+func runMissingData(item ItemMissingData) {
+	slog.Info("wm: safe-output missing_data", "what", strings.TrimSpace(item.What), "reason", strings.TrimSpace(item.Reason))
+}

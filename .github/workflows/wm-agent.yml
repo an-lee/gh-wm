@@ -42,6 +42,7 @@ jobs:
       runs_on: '["self-hosted","linux"]'
       force_task: ${{ github.event.inputs.task_name || '' }}
 
+
   run:
     needs: resolve
     if: ${{ needs.resolve.outputs.has_tasks == 'true' }}
@@ -49,7 +50,6 @@ jobs:
       fail-fast: false
       matrix:
         task: ${{ fromJSON(needs.resolve.outputs.tasks) }}
-
     uses: an-lee/gh-wm/.github/workflows/agent-run.yml@main
     with:
       task_name: ${{ matrix.task }}
@@ -59,3 +59,4 @@ jobs:
       install_claude_code: true
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
