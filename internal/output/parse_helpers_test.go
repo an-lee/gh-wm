@@ -1,70 +1,74 @@
 package output
 
-import "testing"
+import (
+	"testing"
 
-// --- stringField ---
+	"github.com/an-lee/gh-wm/internal/config/scalar"
+)
+
+// --- scalar.StringField ---
 
 func TestStringField_NilMap(t *testing.T) {
 	t.Parallel()
-	if got := stringField(nil, "key"); got != "" {
+	if got := scalar.StringField(nil, "key"); got != "" {
 		t.Fatalf("got %q", got)
 	}
 }
 
 func TestStringField_MissingKey(t *testing.T) {
 	t.Parallel()
-	if got := stringField(map[string]any{}, "key"); got != "" {
+	if got := scalar.StringField(map[string]any{}, "key"); got != "" {
 		t.Fatalf("got %q", got)
 	}
 }
 
 func TestStringField_WrongType(t *testing.T) {
 	t.Parallel()
-	if got := stringField(map[string]any{"key": 42}, "key"); got != "" {
+	if got := scalar.StringField(map[string]any{"key": 42}, "key"); got != "" {
 		t.Fatalf("got %q", got)
 	}
 }
 
 func TestStringField_Valid(t *testing.T) {
 	t.Parallel()
-	if got := stringField(map[string]any{"key": "  hello  "}, "key"); got != "hello" {
+	if got := scalar.StringField(map[string]any{"key": "  hello  "}, "key"); got != "hello" {
 		t.Fatalf("got %q", got)
 	}
 }
 
 func TestStringField_PreservesUntrimmed(t *testing.T) {
 	t.Parallel()
-	if got := stringField(map[string]any{"key": "  hello  "}, "key"); got == "  hello  " {
+	if got := scalar.StringField(map[string]any{"key": "  hello  "}, "key"); got == "  hello  " {
 		t.Fatal("should trim")
 	}
 }
 
-// --- stringSliceField ---
+// --- scalar.StringSliceField ---
 
 func TestStringSliceField_NilMap(t *testing.T) {
 	t.Parallel()
-	if got := stringSliceField(nil, "key"); got != nil {
+	if got := scalar.StringSliceField(nil, "key"); got != nil {
 		t.Fatalf("got %#v", got)
 	}
 }
 
 func TestStringSliceField_MissingKey(t *testing.T) {
 	t.Parallel()
-	if got := stringSliceField(map[string]any{}, "key"); got != nil {
+	if got := scalar.StringSliceField(map[string]any{}, "key"); got != nil {
 		t.Fatalf("got %#v", got)
 	}
 }
 
 func TestStringSliceField_WrongType(t *testing.T) {
 	t.Parallel()
-	if got := stringSliceField(map[string]any{"key": "not-an-array"}, "key"); got != nil {
+	if got := scalar.StringSliceField(map[string]any{"key": "not-an-array"}, "key"); got != nil {
 		t.Fatalf("got %#v", got)
 	}
 }
 
 func TestStringSliceField_Valid(t *testing.T) {
 	t.Parallel()
-	got := stringSliceField(map[string]any{"key": []any{"a", "b", "  c  "}}, "key")
+	got := scalar.StringSliceField(map[string]any{"key": []any{"a", "b", "  c  "}}, "key")
 	want := []string{"a", "b", "c"}
 	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] || got[2] != want[2] {
 		t.Fatalf("got %#v, want %#v", got, want)
@@ -73,7 +77,7 @@ func TestStringSliceField_Valid(t *testing.T) {
 
 func TestStringSliceField_IgnoresEmptyStrings(t *testing.T) {
 	t.Parallel()
-	got := stringSliceField(map[string]any{"key": []any{"a", "", "  "}}, "key")
+	got := scalar.StringSliceField(map[string]any{"key": []any{"a", "", "  "}}, "key")
 	if len(got) != 1 || got[0] != "a" {
 		t.Fatalf("got %#v", got)
 	}
@@ -81,82 +85,82 @@ func TestStringSliceField_IgnoresEmptyStrings(t *testing.T) {
 
 func TestStringSliceField_IgnoresNonStrings(t *testing.T) {
 	t.Parallel()
-	got := stringSliceField(map[string]any{"key": []any{"a", 42, true}}, "key")
+	got := scalar.StringSliceField(map[string]any{"key": []any{"a", 42, true}}, "key")
 	if len(got) != 1 || got[0] != "a" {
 		t.Fatalf("got %#v", got)
 	}
 }
 
-// --- intField ---
+// --- scalar.IntField ---
 
 func TestIntField_NilMap(t *testing.T) {
 	t.Parallel()
-	if got := intField(nil, "key"); got != 0 {
+	if got := scalar.IntField(nil, "key"); got != 0 {
 		t.Fatalf("got %d", got)
 	}
 }
 
 func TestIntField_MissingKey(t *testing.T) {
 	t.Parallel()
-	if got := intField(map[string]any{}, "key"); got != 0 {
+	if got := scalar.IntField(map[string]any{}, "key"); got != 0 {
 		t.Fatalf("got %d", got)
 	}
 }
 
 func TestIntField_WrongType(t *testing.T) {
 	t.Parallel()
-	if got := intField(map[string]any{"key": "not-an-int"}, "key"); got != 0 {
+	if got := scalar.IntField(map[string]any{"key": "not-an-int"}, "key"); got != 0 {
 		t.Fatalf("got %d", got)
 	}
 }
 
 func TestIntField_Float64(t *testing.T) {
 	t.Parallel()
-	if got := intField(map[string]any{"key": float64(42)}, "key"); got != 42 {
+	if got := scalar.IntField(map[string]any{"key": float64(42)}, "key"); got != 42 {
 		t.Fatalf("got %d", got)
 	}
 }
 
 func TestIntField_Int(t *testing.T) {
 	t.Parallel()
-	if got := intField(map[string]any{"key": 42}, "key"); got != 42 {
+	if got := scalar.IntField(map[string]any{"key": 42}, "key"); got != 42 {
 		t.Fatalf("got %d", got)
 	}
 }
 
 func TestIntField_Int64(t *testing.T) {
 	t.Parallel()
-	if got := intField(map[string]any{"key": int64(42)}, "key"); got != 42 {
+	if got := scalar.IntField(map[string]any{"key": int64(42)}, "key"); got != 42 {
 		t.Fatalf("got %d", got)
 	}
 }
 
-// --- boolPtrField ---
+// --- scalar.BoolPtrField ---
 
 func TestBoolPtrField_NilMap(t *testing.T) {
 	t.Parallel()
-	if got := boolPtrField(nil, "key"); got != nil {
+	if got := scalar.BoolPtrField(nil, "key"); got != nil {
 		t.Fatalf("got %#v", got)
 	}
 }
 
 func TestBoolPtrField_MissingKey(t *testing.T) {
 	t.Parallel()
-	if got := boolPtrField(map[string]any{}, "key"); got != nil {
+	if got := scalar.BoolPtrField(map[string]any{}, "key"); got != nil {
 		t.Fatalf("got %#v", got)
 	}
 }
 
 func TestBoolPtrField_WrongType(t *testing.T) {
 	t.Parallel()
-	if got := boolPtrField(map[string]any{"key": "not-a-bool"}, "key"); got != nil {
+	if got := scalar.BoolPtrField(map[string]any{"key": "not-a-bool"}, "key"); got != nil {
 		t.Fatalf("got %#v", got)
 	}
 }
 
 func TestBoolPtrField_True(t *testing.T) {
 	t.Parallel()
-	got := boolPtrField(map[string]any{"key": true}, "key")
+	got := scalar.BoolPtrField(map[string]any{"key": true}, "key")
 	if got == nil || !*got {
 		t.Fatalf("got %#v", got)
 	}
@@ -164,7 +168,7 @@ func TestBoolPtrField_True(t *testing.T) {
 
 func TestBoolPtrField_False(t *testing.T) {
 	t.Parallel()
-	got := boolPtrField(map[string]any{"key": false}, "key")
+	got := scalar.BoolPtrField(map[string]any{"key": false}, "key")
 	if got == nil || *got {
 		t.Fatalf("got %#v", got)
 	}

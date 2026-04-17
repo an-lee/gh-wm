@@ -3,7 +3,7 @@ package output
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
 	"github.com/an-lee/gh-wm/internal/config"
@@ -47,7 +47,7 @@ func runAgentDrivenOutputs(ctx context.Context, glob *config.GlobalConfig, task 
 		}
 		kind := ParseOutputKind(ItemType(raw))
 		if kind == "" {
-			log.Printf("wm: safe-output: unknown item type %q, skipping", ItemType(raw))
+			slog.Info("wm: safe-output: unknown item type, skipping", "type", ItemType(raw))
 			continue
 		}
 		if kind == KindNoop {
@@ -55,43 +55,18 @@ func runAgentDrivenOutputs(ctx context.Context, glob *config.GlobalConfig, task 
 			continue
 		}
 		if !p.Allowed(kind) {
-			log.Printf("wm: safe-output: type %q not permitted by safe-outputs:, skipping", kind)
+			slog.Info("wm: safe-output: type not permitted by safe-outputs:, skipping", "kind", kind)
 			continue
 		}
 		if err := p.CheckMax(kind); err != nil {
 			return err
 		}
 
-		var execErr error
-		switch kind {
-		case KindCreatePullRequest:
-			item := mapToCreatePR(raw)
-			execErr = runCreatePullRequestItem(ctx, glob, task, tc, p, item)
-		case KindAddComment:
-			item := mapToAddComment(raw)
-			execErr = runCommentFromItem(ctx, tc, item)
-		case KindAddLabels:
-			item := mapToLabels(raw)
-			execErr = runAddLabelsFromItem(ctx, tc, p, item)
-		case KindRemoveLabels:
-			item := mapToLabels(raw)
-			if len(item.Labels) == 0 {
-				execErr = fmt.Errorf("remove_labels: empty labels")
-			} else {
-				execErr = runRemoveLabelsFromItemWithPolicy(ctx, tc, p, item)
-			}
-		case KindCreateIssue:
-			item := mapToCreateIssue(raw)
-			item.Title = p.ApplyTitlePrefix(KindCreateIssue, strings.TrimSpace(item.Title))
-			if strings.TrimSpace(item.Title) == "" {
-				execErr = fmt.Errorf("create_issue: empty title")
-			} else {
-				item.Labels = p.MergeLabels(KindCreateIssue, item.Labels)
-				execErr = runCreateIssue(ctx, tc, item)
-			}
-		default:
-			continue
+		fn, ok := executorFor(kind)
+		if !ok {
+			return fmt.Errorf("safe-outputs: no executor registered for kind %q", kind)
 		}
+		execErr := fn(ctx, glob, task, tc, p, raw)
 		if execErr != nil {
 			return fmt.Errorf("%s: %w", kind, execErr)
 		}

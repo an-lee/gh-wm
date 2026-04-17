@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/an-lee/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/config/scalar"
 )
 
 // Frontmatter keys (dash form) used in safe-outputs:
@@ -50,63 +51,6 @@ func defaultMaxPerKind(kind OutputKind) int {
 	default:
 		return 1
 	}
-}
-
-func maxIntFromMap(m map[string]any) int {
-	if m == nil {
-		return 0
-	}
-	v, ok := m["max"]
-	if !ok {
-		return 0
-	}
-	switch x := v.(type) {
-	case float64:
-		return int(x)
-	case int:
-		return x
-	case int64:
-		return int(x)
-	default:
-		return 0
-	}
-}
-
-func stringFromMap(m map[string]any, key string) string {
-	if m == nil {
-		return ""
-	}
-	v, ok := m[key]
-	if !ok {
-		return ""
-	}
-	s, ok := v.(string)
-	if !ok {
-		return ""
-	}
-	return strings.TrimSpace(s)
-}
-
-func stringSliceFromMap(m map[string]any, key string) []string {
-	if m == nil {
-		return nil
-	}
-	v, ok := m[key]
-	if !ok {
-		return nil
-	}
-	arr, ok := v.([]any)
-	if !ok {
-		return nil
-	}
-	var out []string
-	for _, x := range arr {
-		s, ok := x.(string)
-		if ok && strings.TrimSpace(s) != "" {
-			out = append(out, strings.TrimSpace(s))
-		}
-	}
-	return out
 }
 
 // Policy holds per-run counters and task config lookups.
@@ -163,7 +107,7 @@ func (p *Policy) CheckMax(kind OutputKind) error {
 		return nil
 	}
 	block := p.fmBlock(kind)
-	maxN := maxIntFromMap(block)
+	maxN := scalar.IntFromMap(block, "max")
 	if maxN <= 0 {
 		maxN = defaultMaxPerKind(kind)
 	}
@@ -184,7 +128,7 @@ func (p *Policy) RecordSuccess(kind OutputKind) {
 // ApplyTitlePrefix prepends title-prefix from policy when set.
 func (p *Policy) ApplyTitlePrefix(kind OutputKind, title string) string {
 	block := p.fmBlock(kind)
-	prefix := stringFromMap(block, "title-prefix")
+	prefix := scalar.StringFromMap(block, "title-prefix")
 	if prefix == "" {
 		return title
 	}
@@ -201,7 +145,7 @@ func (p *Policy) ApplyTitlePrefix(kind OutputKind, title string) string {
 // MergeLabels merges policy default labels with agent labels (dedupe, preserve order).
 func (p *Policy) MergeLabels(kind OutputKind, agent []string) []string {
 	block := p.fmBlock(kind)
-	def := stringSliceFromMap(block, "labels")
+	def := scalar.StringSliceFromMap(block, "labels")
 	seen := make(map[string]struct{})
 	var out []string
 	for _, x := range def {
@@ -257,7 +201,7 @@ func (p *Policy) LabelAllowed(kind OutputKind, label string) bool {
 	if block == nil {
 		return false
 	}
-	for _, pat := range stringSliceFromMap(block, "blocked") {
+	for _, pat := range scalar.StringSliceFromMap(block, "blocked") {
 		if pat == "" {
 			continue
 		}
@@ -265,7 +209,7 @@ func (p *Policy) LabelAllowed(kind OutputKind, label string) bool {
 			return false
 		}
 	}
-	allowed := stringSliceFromMap(block, "allowed")
+	allowed := scalar.StringSliceFromMap(block, "allowed")
 	if len(allowed) == 0 {
 		return true
 	}
@@ -283,7 +227,7 @@ func (p *Policy) RemoveLabelAllowed(label string) bool {
 	if block == nil {
 		return false
 	}
-	for _, pat := range stringSliceFromMap(block, "blocked") {
+	for _, pat := range scalar.StringSliceFromMap(block, "blocked") {
 		if pat == "" {
 			continue
 		}
@@ -291,7 +235,7 @@ func (p *Policy) RemoveLabelAllowed(label string) bool {
 			return false
 		}
 	}
-	allowed := stringSliceFromMap(block, "allowed")
+	allowed := scalar.StringSliceFromMap(block, "allowed")
 	if len(allowed) == 0 {
 		return true
 	}

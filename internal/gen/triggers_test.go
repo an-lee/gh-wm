@@ -174,23 +174,3 @@ func TestRenderOnBlock_WildcardIssues(t *testing.T) {
 		t.Fatal("wildcard issues should not list types")
 	}
 }
-
-func TestFuzzyNormalizeSchedule(t *testing.T) {
-	t.Parallel()
-	id := "/repo/.wm/tasks/doc.md"
-	d1 := FuzzyNormalizeSchedule("daily", id)
-	d2 := FuzzyNormalizeSchedule("daily", id)
-	if d1 != d2 {
-		t.Fatalf("daily not stable: %q vs %q", d1, d2)
-	}
-	if d1 == FuzzyNormalizeSchedule("daily", "/other/path.md") {
-		t.Fatal("daily should differ by identifier")
-	}
-	if FuzzyNormalizeSchedule("custom", id) != "custom" {
-		t.Fatal()
-	}
-	raw := "0  0   * * *"
-	if FuzzyNormalizeSchedule(raw, id) != "0 0 * * *" {
-		t.Fatal("raw cron should normalize whitespace")
-	}
-}

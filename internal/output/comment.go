@@ -3,11 +3,10 @@ package output
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/exec"
 	"strings"
 
-	"github.com/an-lee/gh-wm/internal/trigger"
+	"github.com/an-lee/gh-wm/internal/antiloop"
+	"github.com/an-lee/gh-wm/internal/ghclient"
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
@@ -38,31 +37,10 @@ func postComment(tc *types.TaskContext, n int, body string) error {
 	if len(body) > maxCommentBody {
 		body = body[:maxCommentBody] + "\n\n…(truncated)"
 	}
-	var cmd *exec.Cmd
-	if tc.PRNumber > 0 && n == tc.PRNumber {
-		cmd = exec.Command("gh", "pr", "comment", fmt.Sprintf("%d", n), "--body", body)
-	} else {
-		cmd = exec.Command("gh", "issue", "comment", fmt.Sprintf("%d", n), "--body", body)
+	if tc.Repo == "" {
+		return fmt.Errorf("add_comment: GITHUB_REPOSITORY not set")
 	}
-	cmd.Dir = tc.RepoPath
-	cmd.Env = os.Environ()
-	if tc.Repo != "" {
-		cmd.Env = append(cmd.Env, "GITHUB_REPOSITORY="+tc.Repo)
-	}
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%w: %s", err, string(out))
-	}
-	return nil
-}
-
-// WMAgentCommentMarkerFooter appends a hidden HTML marker so resolve can ignore wm-authored comments (loop guard).
-func WMAgentCommentMarkerFooter(taskName string) string {
-	t := strings.TrimSpace(taskName)
-	if t == "" {
-		t = "unknown"
-	}
-	return "\n\n" + trigger.WMAgentCommentMarkerPrefix + t + " -->"
+	return ghclient.PostIssueComment(tc.Repo, n, body)
 }
 
 func commentTargetNumber(tc *types.TaskContext) int {
@@ -70,4 +48,9 @@ func commentTargetNumber(tc *types.TaskContext) int {
 		return tc.PRNumber
 	}
 	return tc.IssueNumber
+}
+
+// WMAgentCommentMarkerFooter appends a hidden HTML marker so resolve can ignore wm-authored comments (loop guard).
+func WMAgentCommentMarkerFooter(taskName string) string {
+	return antiloop.WMAgentCommentMarkerFooter(taskName)
 }

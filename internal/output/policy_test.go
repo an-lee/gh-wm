@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/an-lee/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/config/scalar"
 )
 
 // ---------------------------------------------------------------------------
@@ -75,7 +76,7 @@ func TestDefaultMaxPerKind_Unknown(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// maxIntFromMap
+// scalar.IntFromMap (max key)
 // ---------------------------------------------------------------------------
 
 func TestMaxIntFromMap(t *testing.T) {
@@ -96,15 +97,15 @@ func TestMaxIntFromMap(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if got := maxIntFromMap(tc.m); got != tc.want {
-				t.Fatalf("maxIntFromMap: got %d, want %d", got, tc.want)
+			if got := scalar.IntFromMap(tc.m, "max"); got != tc.want {
+				t.Fatalf("IntFromMap max: got %d, want %d", got, tc.want)
 			}
 		})
 	}
 }
 
 // ---------------------------------------------------------------------------
-// stringFromMap
+// scalar.StringFromMap
 // ---------------------------------------------------------------------------
 
 func TestStringFromMap(t *testing.T) {
@@ -124,8 +125,8 @@ func TestStringFromMap(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if got := stringFromMap(tc.m, tc.key); got != tc.want {
-				t.Fatalf("stringFromMap(%s): got %q, want %q", tc.key, got, tc.want)
+			if got := scalar.StringFromMap(tc.m, tc.key); got != tc.want {
+				t.Fatalf("StringFromMap(%s): got %q, want %q", tc.key, got, tc.want)
 			}
 		})
 	}
@@ -155,13 +156,13 @@ func TestStringSliceFromMap(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := stringSliceFromMap(tc.m, tc.key)
+			got := scalar.StringSliceFromMap(tc.m, tc.key)
 			if len(got) != len(tc.want) {
-				t.Fatalf("stringSliceFromMap(%s): got %v, want %v", tc.key, got, tc.want)
+				t.Fatalf("StringSliceFromMap(%s): got %v, want %v", tc.key, got, tc.want)
 			}
 			for i := range got {
 				if got[i] != tc.want[i] {
-					t.Fatalf("stringSliceFromMap(%s): got %v, want %v", tc.key, got, tc.want)
+					t.Fatalf("StringSliceFromMap(%s): got %v, want %v", tc.key, got, tc.want)
 				}
 			}
 		})

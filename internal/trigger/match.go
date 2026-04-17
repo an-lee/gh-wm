@@ -3,13 +3,14 @@ package trigger
 import (
 	"strings"
 
+	"github.com/an-lee/gh-wm/internal/antiloop"
 	"github.com/an-lee/gh-wm/internal/config"
-	"github.com/an-lee/gh-wm/internal/gen"
+	"github.com/an-lee/gh-wm/internal/schedule"
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
 // WMAgentCommentMarkerPrefix is embedded in WM Agent-authored issue/PR comments so resolve can skip re-entrancy loops.
-const WMAgentCommentMarkerPrefix = "<!-- wm-agent:"
+const WMAgentCommentMarkerPrefix = antiloop.WMAgentCommentMarkerPrefix
 
 // MatchOnOR returns true if any sub-trigger in on: matches (gh-aw / Actions semantics).
 func MatchOnOR(event *types.GitHubEvent, on map[string]any) bool {
@@ -190,7 +191,7 @@ func matchScheduleBlock(event *types.GitHubEvent, sched any) bool {
 }
 
 // ScheduleCronMatches checks task schedule vs cron from workflow (for filtering in run).
-// For keywords daily/weekly/hourly it re-derives the same fuzzy cron as gen.FuzzyNormalizeSchedule(task.Path).
+// For keywords daily/weekly/hourly it re-derives the same fuzzy cron as schedule.FuzzyNormalizeSchedule(task.Path).
 func ScheduleCronMatches(task *config.Task, workflowCron string) bool {
 	if task == nil {
 		return false
@@ -204,6 +205,6 @@ func ScheduleCronMatches(task *config.Task, workflowCron string) bool {
 		s = strings.Join(strings.Fields(s), " ")
 		return s
 	}
-	expected := gen.FuzzyNormalizeSchedule(ts, task.Path)
+	expected := schedule.FuzzyNormalizeSchedule(ts, task.Path)
 	return norm(expected) == norm(workflowCron)
 }

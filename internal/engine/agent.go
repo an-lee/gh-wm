@@ -9,17 +9,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/an-lee/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/engine/engines"
 	"github.com/an-lee/gh-wm/internal/output"
 	"github.com/an-lee/gh-wm/internal/types"
 )
-
-const wmAgentPromptPlaceholder = "{prompt}"
 
 const agentGracefulShutdownWait = 30 * time.Second
 
@@ -52,48 +50,15 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 	}
 
 	cmdLine := os.Getenv("WM_AGENT_CMD")
-	artifactFormat := agentOutputFormatForRun(cmdLine, engineName, glob)
-	// Built-in claude with default text format buffers all stdout until exit; when a LogWriter
-	// is attached (e.g. gh wm run), force stream-json so subprocess output is line-delimited in real time.
-	if opts != nil && opts.LogWriter != nil && isBuiltinClaude(cmdLine, engineName) {
-		artifactFormat = config.ClaudeOutputFormatStreamJSON
+	forceStream := opts != nil && opts.LogWriter != nil && engines.IsBuiltinClaude(cmdLine, engineName)
+	cmd, stdin, artifactFormat, errBuild := engines.BuildAgentCommand(ctx, glob, engineName, cmdLine, prompt, forceStream)
+	if errBuild != nil {
+		return &types.AgentResult{Success: false, ExitCode: -1, Stderr: errBuild.Error()}, errBuild
 	}
 
 	if rd != nil {
 		if err := rd.WritePrompt(prompt); err != nil {
 			return &types.AgentResult{Success: false, ExitCode: -1, Stderr: err.Error()}, err
-		}
-	}
-
-	var cmd *exec.Cmd
-	var stdin io.Reader
-	if cmdLine != "" {
-		name, args, r, err := parseWM_AGENT_CMD(cmdLine, prompt)
-		if err != nil {
-			return &types.AgentResult{Success: false, ExitCode: -1, Stderr: err.Error()}, err
-		}
-		cmd = exec.CommandContext(ctx, name, args...)
-		stdin = r
-	} else {
-		switch strings.ToLower(strings.TrimSpace(engineName)) {
-		case "codex":
-			if alt := strings.TrimSpace(os.Getenv("WM_ENGINE_CODEX_CMD")); alt != "" {
-				name, args, r, err := parseWM_AGENT_CMD(alt, prompt)
-				if err != nil {
-					return &types.AgentResult{Success: false, ExitCode: -1, Stderr: err.Error()}, err
-				}
-				cmd = exec.CommandContext(ctx, name, args...)
-				stdin = r
-			} else {
-				cmd = exec.CommandContext(ctx, "codex", agentCLIArgs(glob, config.ClaudeOutputFormatText)...)
-				stdin = strings.NewReader(prompt)
-			}
-		case "copilot":
-			err := fmt.Errorf("engine copilot: set WM_AGENT_CMD to invoke your Copilot-compatible CLI")
-			return &types.AgentResult{Success: false, ExitCode: -1, Stderr: err.Error()}, err
-		default:
-			cmd = exec.CommandContext(ctx, "claude", agentCLIArgs(glob, artifactFormat)...)
-			stdin = strings.NewReader(prompt)
 		}
 	}
 	cmd.Dir = tc.RepoPath
@@ -116,12 +81,12 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 		cmd.Stdin = stdin
 	}
 
-	setGracefulAgentCancel(cmd)
+	SetGracefulAgentCancel(cmd)
 
 	var logW io.Writer
 	if opts != nil && opts.LogWriter != nil {
 		logW = opts.LogWriter
-		if isBuiltinClaude(cmdLine, engineName) {
+		if engines.IsBuiltinClaude(cmdLine, engineName) {
 			logW = newLogStreamWriter(opts.LogWriter)
 		}
 	}
@@ -130,7 +95,6 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 	var buf bytes.Buffer
 	var agentLog *os.File
 	var err error
-
 	var stdoutWriter io.Writer
 	if rd != nil {
 		agentLog, err = rd.OpenAgentOutput(artifactFormat)
@@ -187,7 +151,8 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 	return res, nil
 }
 
-func setGracefulAgentCancel(cmd *exec.Cmd) {
+// SetGracefulAgentCancel configures SIGTERM on context cancel (exported for tests).
+func SetGracefulAgentCancel(cmd *exec.Cmd) {
 	if cmd == nil {
 		return
 	}
@@ -201,76 +166,4 @@ func setGracefulAgentCancel(cmd *exec.Cmd) {
 		}
 		return cmd.Process.Signal(syscall.SIGTERM)
 	}
-}
-
-// parseWM_AGENT_CMD builds exec name and args from WM_AGENT_CMD / WM_ENGINE_CODEX_CMD.
-// If the line contains "{prompt}", it is replaced by the prompt as a single argument.
-// Otherwise the prompt is appended as the last argument (backward compatible).
-// When stdin is non-nil, the caller should set cmd.Stdin.
-func parseWM_AGENT_CMD(cmdLine, prompt string) (name string, args []string, stdin io.Reader, err error) {
-	if strings.Contains(cmdLine, wmAgentPromptPlaceholder) {
-		parts := strings.SplitN(cmdLine, wmAgentPromptPlaceholder, 2)
-		pre := strings.Fields(strings.TrimSpace(parts[0]))
-		suf := strings.Fields(strings.TrimSpace(parts[1]))
-		if len(pre) == 0 {
-			return "", nil, nil, fmt.Errorf("WM_AGENT_CMD: missing executable before {prompt}")
-		}
-		name = pre[0]
-		args = append(append(append([]string{}, pre[1:]...), prompt), suf...)
-		return name, args, nil, nil
-	}
-	fields := strings.Fields(cmdLine)
-	if len(fields) == 0 {
-		return "", nil, nil, fmt.Errorf("WM_AGENT_CMD: empty")
-	}
-	return fields[0], append(fields[1:], prompt), nil, nil
-}
-
-// isBuiltinClaude reports whether runAgent will invoke the stock claude binary (not WM_AGENT_CMD, codex, or copilot).
-func isBuiltinClaude(wmAgentCmd, engineName string) bool {
-	if strings.TrimSpace(wmAgentCmd) != "" {
-		return false
-	}
-	switch strings.ToLower(strings.TrimSpace(engineName)) {
-	case "codex", "copilot":
-		return false
-	default:
-		return true
-	}
-}
-
-// agentOutputFormatForRun selects the claude -p --output-format and run-dir filename base.
-// Custom agent commands (WM_AGENT_CMD), codex, and copilot always use plain text capture.
-func agentOutputFormatForRun(wmAgentCmd, engineName string, glob *config.GlobalConfig) string {
-	if strings.TrimSpace(wmAgentCmd) != "" {
-		return config.ClaudeOutputFormatText
-	}
-	switch strings.ToLower(strings.TrimSpace(engineName)) {
-	case "codex", "copilot":
-		return config.ClaudeOutputFormatText
-	default:
-		return config.EffectiveClaudeOutputFormat(glob)
-	}
-}
-
-// agentCLIArgs returns argv for claude/codex non-interactive runs (prompt via stdin).
-// claudeOutputFormat is only applied for the built-in claude binary; use ClaudeOutputFormatText for codex.
-func agentCLIArgs(glob *config.GlobalConfig, claudeOutputFormat string) []string {
-	args := []string{"-p", "--dangerously-skip-permissions"}
-	if glob == nil {
-		if claudeOutputFormat == config.ClaudeOutputFormatJSON || claudeOutputFormat == config.ClaudeOutputFormatStreamJSON {
-			args = append(args, "--output-format", claudeOutputFormat)
-		}
-		return args
-	}
-	if glob.Model != "" {
-		args = append(args, "--model", glob.Model)
-	}
-	if glob.MaxTurns > 0 {
-		args = append(args, "--max-turns", strconv.Itoa(glob.MaxTurns))
-	}
-	if claudeOutputFormat == config.ClaudeOutputFormatJSON || claudeOutputFormat == config.ClaudeOutputFormatStreamJSON {
-		args = append(args, "--output-format", claudeOutputFormat)
-	}
-	return args
 }

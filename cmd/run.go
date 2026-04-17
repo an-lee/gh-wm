@@ -90,10 +90,6 @@ func runRun(_ *cobra.Command, _ []string) error {
 			return err
 		}
 	}
-	min := task.TimeoutMinutes(45)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(min)*time.Minute)
-	defer cancel()
-
 	repoDisplay := runRepoRoot
 	if abs, err := filepath.Abs(runRepoRoot); err == nil {
 		repoDisplay = abs
@@ -106,11 +102,12 @@ func runRun(_ *cobra.Command, _ []string) error {
 	if b, err := gitbranch.CurrentBranch(repoDisplay); err == nil {
 		branch = b
 	}
+	timeoutMin := task.TimeoutMinutes(45)
 	fmt.Fprintf(os.Stderr, "wm run: task=%q repo=%s branch=%s engine=%s timeout=%dm\n\n",
-		runTask, repoDisplay, branch, engineName, min)
+		runTask, repoDisplay, branch, engineName, timeoutMin)
 
 	start := time.Now()
-	runResult, err := engine.RunTask(ctx, runRepoRoot, runTask, ev, &engine.RunOptions{
+	runResult, err := engine.RunTask(context.Background(), runRepoRoot, runTask, ev, &engine.RunOptions{
 		LogWriter:      os.Stderr,
 		ProgressWriter: os.Stderr,
 	})

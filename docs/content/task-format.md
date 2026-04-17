@@ -39,7 +39,7 @@ Instructions for the agent…
 
 ## `.wm/config.yml` (global)
 
-Loaded by [`config.Load`](../../internal/config/config.go). Struct: [`GlobalConfig`](../../internal/config/types.go).
+Loaded by [`config.Load`](../../internal/config/config.go). Struct: [`GlobalConfig`](../../internal/config/types.go). **Machine-readable schema:** [global-schema.json](global-schema.json) (subset; extra keys allowed).
 
 | Field | Purpose |
 |-------|---------|
@@ -55,6 +55,8 @@ Loaded by [`config.Load`](../../internal/config/config.go). Struct: [`GlobalConf
 | `pr.draft`, `pr.reviewers` | Defaults merged with `safe-outputs.create-pull-request` for `gh pr create`. |
 
 Starter template: [`internal/templates/data/config.yml`](../../internal/templates/data/config.yml).
+
+**Machine-readable schema:** [task-schema.json](task-schema.json) (subset of interpreted fields; extra keys are allowed for gh-aw compatibility).
 
 ## `on:` block — what gh-wm implements
 

@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/an-lee/gh-wm/internal/antiloop"
 	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/trigger"
 	"github.com/an-lee/gh-wm/internal/types"
@@ -17,11 +18,11 @@ func ResolveMatchingTasks(repoRoot string, event *types.GitHubEvent) ([]string, 
 	if err != nil {
 		return nil, err
 	}
-	if shouldSkipAutomatedSender(event) {
+	if antiloop.ShouldSkipAutomatedSender(event) {
 		return nil, nil
 	}
-	stateLabels := collectAllStateLabelValues(tasks)
-	if shouldSkipIssuesLabeledStateLabel(event, stateLabels) {
+	stateLabels := antiloop.CollectStateLabelValues(tasks)
+	if antiloop.ShouldSkipIssuesLabeledStateLabel(event, stateLabels) {
 		return nil, nil
 	}
 	var names []string
@@ -41,68 +42,6 @@ func ResolveMatchingTasks(repoRoot string, event *types.GitHubEvent) ([]string, 
 		}
 	}
 	return names, nil
-}
-
-func collectAllStateLabelValues(tasks []*config.Task) map[string]struct{} {
-	out := make(map[string]struct{})
-	for _, t := range tasks {
-		if t == nil {
-			continue
-		}
-		wm := t.WM()
-		for _, v := range wm.StateLabels {
-			v = strings.TrimSpace(v)
-			if v != "" {
-				out[v] = struct{}{}
-			}
-		}
-	}
-	return out
-}
-
-func shouldSkipIssuesLabeledStateLabel(ev *types.GitHubEvent, stateLabels map[string]struct{}) bool {
-	if len(stateLabels) == 0 || ev == nil || ev.Name != "issues" {
-		return false
-	}
-	action, _ := ev.Payload["action"].(string)
-	if action != "labeled" {
-		return false
-	}
-	name := trigger.LabelNameFromIssuesPayload(ev.Payload)
-	if name == "" {
-		return false
-	}
-	_, ok := stateLabels[name]
-	return ok
-}
-
-// shouldSkipAutomatedSender skips resolve for bot-originated events (defense when workflows run with PATs).
-// schedule and workflow_dispatch are never skipped.
-func shouldSkipAutomatedSender(ev *types.GitHubEvent) bool {
-	if ev == nil {
-		return false
-	}
-	switch strings.TrimSpace(ev.Name) {
-	case "schedule", "workflow_dispatch":
-		return false
-	case "":
-		return false
-	}
-	p := ev.Payload
-	if p == nil {
-		return false
-	}
-	sender, ok := p["sender"].(map[string]any)
-	if !ok {
-		return false
-	}
-	if t, _ := sender["type"].(string); strings.EqualFold(strings.TrimSpace(t), "Bot") {
-		return true
-	}
-	if login, _ := sender["login"].(string); strings.HasSuffix(strings.ToLower(strings.TrimSpace(login)), "[bot]") {
-		return true
-	}
-	return false
 }
 
 // ResolveForcedTask returns [taskName] if a task with that name exists under .wm/tasks.

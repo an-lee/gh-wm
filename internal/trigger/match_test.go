@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/an-lee/gh-wm/internal/config"
-	"github.com/an-lee/gh-wm/internal/gen"
+	"github.com/an-lee/gh-wm/internal/schedule"
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
@@ -252,15 +252,15 @@ func TestScheduleCronMatches(t *testing.T) {
 	if ScheduleCronMatches(nil, "0 0 * * *") {
 		t.Fatal("nil task should not match")
 	}
-	dailyCron := gen.FuzzyNormalizeSchedule("daily", p)
+	dailyCron := schedule.FuzzyNormalizeSchedule("daily", p)
 	if !ScheduleCronMatches(testTaskWithSchedule(p, "daily"), dailyCron) {
 		t.Fatal("daily fuzzy cron")
 	}
-	weeklyCron := gen.FuzzyNormalizeSchedule("weekly", p)
+	weeklyCron := schedule.FuzzyNormalizeSchedule("weekly", p)
 	if !ScheduleCronMatches(testTaskWithSchedule(p, "weekly"), weeklyCron) {
 		t.Fatal("weekly fuzzy cron")
 	}
-	hourlyCron := gen.FuzzyNormalizeSchedule("hourly", p)
+	hourlyCron := schedule.FuzzyNormalizeSchedule("hourly", p)
 	if !ScheduleCronMatches(testTaskWithSchedule(p, "hourly"), hourlyCron) {
 		t.Fatal("hourly fuzzy cron")
 	}
