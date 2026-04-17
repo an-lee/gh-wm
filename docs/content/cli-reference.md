@@ -120,7 +120,7 @@ Writes `<cwd>/.wm/tasks/<basename>.md`, then runs **`gh wm upgrade`** (same as t
 
 ## `run`
 
-**Purpose:** Execute **one** task: **activation** (validate event/engine, optional working label, branch prep for PR mode), **agent**, **validation** (exit + output size), **`safe-outputs:`** steps, then **conclusion** (done/failed labels, checkpoint, branch rollback on failure).
+**Purpose:** Execute **one** task: **activation** (validate event/engine, optional working label, branch prep for PR mode), **agent**, **validation** (exit + output size), **`safe-outputs:`** steps, then **conclusion** (done/failed labels, checkpoint, branch rollback on failure). With **`--agent-only`**, stops after a successful validation phase (skips safe-outputs and conclusion) so a follow-up **`gh wm process-outputs`** job can run with a write-capable `GITHUB_TOKEN` while the agent job used read-only permissions (see [architecture.md](architecture.md#github-actions-token-sandbox)).
 
 **Usage:** `gh wm run --task <name>` (local agent), or `gh wm run --task <name> --remote` to dispatch the **`wm-agent`** workflow on GitHub.
 
@@ -135,6 +135,7 @@ Writes `<cwd>/.wm/tasks/<basename>.md`, then runs **`gh wm upgrade`** (same as t
 | `--event-name`   | `$GITHUB_EVENT_NAME` | Event name (local run only)        |
 | `--payload`      | `$GITHUB_EVENT_PATH` | Path to event JSON; if `--payload` and `GITHUB_EVENT_PATH` are both unset, payload defaults to `{}` (local run only) |
 | `--allow-dirty`  | `false`              | Skip the git clean working tree check (local run only) |
+| `--agent-only`   | `false`              | Stop after agent **validation**; do not run **safe-outputs** or **conclusion**. Writes **`result.json`** / **`run.json`** for the partial run. Pair with **`gh wm process-outputs`** in a second CI job (see [architecture.md](architecture.md#github-actions-token-sandbox)). |
 | `--remote`       | `false`              | Run **`gh workflow run`** to trigger **`workflow_dispatch`** on the repo’s **`wm-agent.yml`** with **`-f task_name=<task>`**. Requires the **`gh`** CLI and auth. Repository defaults to **`gh repo view`**; override with **`--repo OWNER/NAME`**. Optional **`--workflow`** (default **`wm-agent.yml`**), **`--ref`** (git ref for the workflow run), and **`--issue`** (passed as **`-f issue_number=`** for the dispatch inputs). After upgrading **`gh-wm`**, run **`gh wm upgrade`** in the target repo so the generated workflow declares the **`task_name`** input; older **`wm-agent.yml`** files may reject unknown **`-f`** fields. **`--remote`** does not send a custom GitHub event payload (the run on Actions sees a normal **`workflow_dispatch`** event, optionally with **`issue_number`**). |
 
 **Timeout:** Uses `timeout-minutes` from task frontmatter (default **45**, max **480**). The deadline is applied inside **[`engine.RunTask`](../../internal/engine/runner.go)** (so direct library use gets the same behavior as the CLI). See [`cmd/run.go`](../../cmd/run.go) for the stderr banner.
@@ -159,6 +160,25 @@ The default **`claude`** invocation uses **`--dangerously-skip-permissions`** so
 **Post-agent:** When **`safe-outputs:`** has at least one key, outputs are normally recorded via **`gh wm emit`** (see [Emit](#emit) below) into **`WM_SAFE_OUTPUT_FILE`** (`output.jsonl`). Legacy **`WM_OUTPUT_FILE`** (`output.json` **`items`**) is merged in after NDJSON. If both are empty, the phase **warns** and succeeds (implicit noop). **`WM_CHECKPOINT=1`** enables loading/posting checkpoint comments ([`internal/engine/runner.go`](../../internal/engine/runner.go)).
 
 **Secrets (CI):** `ANTHROPIC_API_KEY` is expected by reusable workflow for Claude Code; ensure the agent you invoke uses it as required.
+
+---
+
+## `process-outputs`
+
+**Purpose:** Resume the pipeline after **`gh wm run --agent-only`**: run **`safe-outputs:`** ([`output.RunSuccessOutputs`](../../internal/output/output.go)) and **conclusion** ([`concludeRun`](../../internal/engine/conclusion.go)) for an existing per-run directory. Used in the second job of [`agent-run.yml`](../../.github/workflows/agent-run.yml) so GitHub writes use a token with **issue/PR/content write** permissions.
+
+**Usage:** `gh wm process-outputs --run-dir <path>` with the same **`--repo-root`**, **`--event-name`**, and **`--payload`** as the prior **`gh wm run`** (defaults to `GITHUB_EVENT_NAME` / `GITHUB_EVENT_PATH` when unset).
+
+**Flags:**
+
+| Flag | Default | Description |
+| ---- | ------- | ----------- |
+| `--repo-root` | `.` | Repository root (must match the agent run) |
+| `--run-dir` | _(required)_ | Path to **`.wm/runs/<id>/`** from the agent-only run |
+| `--event-name` | `$GITHUB_EVENT_NAME` | Event name |
+| `--payload` | `$GITHUB_EVENT_PATH` | Event JSON path |
+
+See [architecture.md — GitHub Actions token sandbox](architecture.md#github-actions-token-sandbox).
 
 ---
 

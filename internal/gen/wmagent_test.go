@@ -132,6 +132,10 @@ func TestWriteWMAgent_PreStepsInline(t *testing.T) {
 		"gh extension install o/r",
 		"Install Claude Code",
 		"claude.ai/install.sh",
+		"--agent-only",
+		"run_agent:",
+		"run_outputs:",
+		"process-outputs",
 		"concurrency:",
 		"github-actions[bot]",
 	} {

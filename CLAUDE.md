@@ -11,6 +11,8 @@ go test ./internal/config/... -run TestSplitFrontmatter  # single test
 
 ./gh-wm resolve --repo-root . --event-name issues --payload event.json --json
 ./gh-wm run --repo-root . --task <name> --event-name workflow_dispatch
+./gh-wm run --repo-root . --task <name> --agent-only   # CI: agent phase only; then gh wm process-outputs
+./gh-wm process-outputs --repo-root . --run-dir .wm/runs/<id> --event-name issues --payload event.json
 ./gh-wm run --repo-root . --task <name> --remote   # dispatch on GitHub
 ```
 
@@ -30,10 +32,10 @@ Core pipeline: **event → resolve → run agent**.
 
 | Layer | Key files | Purpose |
 |-------|-----------|---------|
-| CLI | `cmd/*.go` | Cobra commands: `init`, `upgrade`, `update`, `add`, `assign`, `resolve`, `run`, `status`, `logs`, `version` |
+| CLI | `cmd/*.go` | Cobra commands: `init`, `upgrade`, `update`, `add`, `assign`, `resolve`, `run`, `process-outputs`, `emit`, `status`, `logs`, `version` |
 | Resolver | `internal/engine/resolver.go` | `ResolveMatchingTasks` — loads `.wm/tasks/*.md`, calls `trigger.MatchOnOR`, returns matches |
 | Trigger | `internal/trigger/match.go` | `MatchOnOR` — OR-semantics over `on:` frontmatter (`issues`, `issue_comment`, `pull_request`, `slash_command`, `schedule`, `workflow_dispatch`) |
-| Runner | `internal/engine/runner.go`, `agent.go`, `rundir.go` | `RunTask` → `runAgent`: builds prompt, writes `.wm/runs/<id>/prompt.md`, execs agent; **`timeout-minutes`** is enforced inside `RunTask` (default 45) |
+| Runner | `internal/engine/runner.go`, `agent.go`, `rundir.go`, `process_outputs.go` | `RunTask` → `runAgent`; optional **`RunOptions.AgentOnly`** stops before safe-outputs; **`ProcessRunOutputs`** completes safe-outputs + conclusion (CI write token). **`timeout-minutes`** enforced in `RunTask` (default 45) |
 | Config | `internal/config/` | `.wm/config.yml` (GlobalConfig), task frontmatter parsing (`map[string]any`; add typed accessors when fields become first-class) |
 | Output | `internal/output/` | Merges `WM_SAFE_OUTPUT_FILE` (NDJSON from `gh wm emit`) + legacy `output.json`; validates against `safe-outputs:` policy; executes items (noop, comment, label, issue, PR, missing_tool, missing_data) |
 | Checkpoint | `internal/checkpoint/` | When `WM_CHECKPOINT=1`: loads/posts checkpoint state via issue comments |
@@ -42,7 +44,7 @@ Core pipeline: **event → resolve → run agent**.
 | Generator | `internal/gen/wmagent.go` | Generates `wm-agent.yml` (single template: inline vs reusable `agent-run.yml`); also cron scheduling helpers |
 | Templates | `internal/templates/data/` | Embedded defaults written by `gh wm init` into user repos |
 
-Agent prompt flow: task body + `context.files` + safe-output instructions → `prompt.md` → stdin to agent. When `safe-outputs:` is set, the agent should record outputs via **`gh wm emit <subcommand>`** (append-only NDJSON to `WM_SAFE_OUTPUT_FILE` / `output.jsonl`); legacy structured `items` in `WM_OUTPUT_FILE` (`output.json`) is still merged. If both are empty, the run warns and succeeds (implicit noop).
+Agent prompt flow: task body + `context.files` + safe-output reference (user message) → `prompt.md` → stdin to agent. When `safe-outputs:` is set, the built-in **`claude`** engine also passes **`--append-system-prompt`** with enforcement text (use **`gh wm emit`**, not raw **`gh`** for those mutations). Legacy structured `items` in `WM_OUTPUT_FILE` (`output.json`) is still merged. If both NDJSON and legacy are empty, the run warns and succeeds (implicit noop).
 
 ## Non-obvious constraints
 
@@ -55,6 +57,7 @@ Agent prompt flow: task body + `context.files` + safe-output instructions → `p
 - **`WM_SAFE_OUTPUT_FILE`**: Per-run `output.jsonl` — `gh wm emit` appends validated lines; merged with `WM_OUTPUT_FILE` during safe-outputs. **`WM_REPO_ROOT`**, **`WM_ISSUE_NUMBER`**, **`WM_PR_NUMBER`** assist emit validation.
 - **`WM_LOG_FORMAT=json`**: Structured `slog` on stderr for pipeline phases.
 - **`install_claude_code`**: `agent-run.yml` input, default `true` from `workflow.install_claude_code` in `.wm/config.yml`.
+- **CI token sandbox**: `agent-run.yml` runs **`gh wm run --agent-only`** with read-only `GITHUB_TOKEN`, packs the workspace, then **`gh wm process-outputs`** with write permissions so **`gh wm emit`** is the enforced path for GitHub mutations.
 
 ## Before changing behavior
 

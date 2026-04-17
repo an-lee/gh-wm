@@ -49,7 +49,7 @@ Optional **checkpoints** ([`internal/checkpoint`](../../internal/checkpoint/chec
 
 | Concern | Location | Role |
 |---------|----------|------|
-| CLI entry | [`cmd/`](../../cmd/) | Cobra commands: `init`, `upgrade`, `update`, `assign`, `resolve`, `run`, `status`, `logs`, `add`. |
+| CLI entry | [`cmd/`](../../cmd/) | Cobra commands: `init`, `upgrade`, `update`, `assign`, `resolve`, `run`, `process-outputs`, `emit`, `status`, `logs`, `add`. |
 | Config + tasks | [`internal/config/`](../../internal/config/) | Load `.wm/config.yml`, parse `.wm/tasks/*.md` frontmatter ([`frontmatter.go`](../../internal/config/frontmatter.go)). |
 | Event → task names | [`internal/trigger/match.go`](../../internal/trigger/match.go) | `MatchOnOR`: implements `on:` OR-semantics against [`types.GitHubEvent`](../../internal/types/types.go). |
 | Orchestration | [`internal/engine/`](../../internal/engine/) | `ResolveMatchingTasks` and `ResolveForcedTask` ([`resolver.go`](../../internal/engine/resolver.go)) — forced resolve pins one task by filename without evaluating `on:` (matches local `gh wm run`); `RunTask` ([`runner.go`](../../internal/engine/runner.go)), per-run dirs ([`rundir.go`](../../internal/engine/rundir.go)), activation checks ([`activation.go`](../../internal/engine/activation.go)), output validation ([`validation.go`](../../internal/engine/validation.go)), conclusion/defer ([`conclusion.go`](../../internal/engine/conclusion.go)), `runAgent` ([`agent.go`](../../internal/engine/agent.go)), state labels ([`state.go`](../../internal/engine/state.go)). |
@@ -64,16 +64,18 @@ Optional **checkpoints** ([`internal/checkpoint`](../../internal/checkpoint/chec
 Business repos use an **auto-generated** `wm-agent.yml` (from `gh wm init` / `gh wm upgrade`). Runner labels come from **`workflow.runs_on`** in [`.wm/config.yml`](task-format.md); optional **`workflow.install_claude_code`** (default **true**) controls whether CI installs the **Claude Code** CLI before **`gh-wm run`**; optional **`workflow.pre_steps`** lists prerequisite Actions steps (toolchains, deps); `upgrade` rewrites `wm-agent.yml` when you change them.
 
 - **Resolve** always uses reusable **`agent-resolve.yml`**.
-- **Run** uses reusable **`agent-run.yml`** when **`workflow.pre_steps` is empty**. If **`workflow.pre_steps` is set**, the generator embeds the same checkout → pre-steps → **`gh extension install`** → (optional) Claude Code install → **`gh wm run`** sequence **inline** in `wm-agent.yml` (reusable workflows cannot take arbitrary step YAML as inputs).
+- **Run** uses reusable **`agent-run.yml`** when **`workflow.pre_steps` is empty**. If **`workflow.pre_steps` is set**, the generator embeds the same checkout → pre-steps → **`gh extension install`** → (optional) Claude Code install → **`gh wm run --agent-only`** → pack workspace → artifact → **`gh wm process-outputs`** sequence **inline** in `wm-agent.yml` (reusable workflows cannot take arbitrary step YAML as inputs).
 
 ```mermaid
 flowchart LR
   Caller[wm-agent.yml caller]
   ResolveJob[agent-resolve.yml]
-  RunJob[agent-run.yml or inline run job]
+  RunAgent[agent job read token]
+  RunOutputs[outputs job write token]
 
   Caller --> ResolveJob
-  ResolveJob -->|"outputs.tasks + has_tasks"| RunJob
+  ResolveJob -->|"outputs.tasks + has_tasks"| RunAgent
+  RunAgent --> RunOutputs
 ```
 
 1. **`agent-resolve.yml`** ([`.github/workflows/agent-resolve.yml`](../../.github/workflows/agent-resolve.yml))  
@@ -83,12 +85,16 @@ flowchart LR
    - Exposes the printed JSON array as job output `tasks`, and sets **`has_tasks`** to the string **`true`** or **`false`** so the caller can skip the **`run`** job when nothing matched (avoids matrix/`fromJSON` errors on empty input).
 
 2. **`agent-run.yml`** ([`.github/workflows/agent-run.yml`](../../.github/workflows/agent-run.yml)) — **when `workflow.pre_steps` is unset**  
-   - The generated caller runs this job only when **`needs.resolve.outputs.has_tasks == 'true'`**. Matrix over `fromJSON(needs.resolve.outputs.tasks)` with `fail-fast: false`.  
-   - Unless **`install_claude_code`** is **false**, runs the official Claude Code installer (`https://claude.ai/install.sh`) and appends **`$HOME/.local/bin`** to **`GITHUB_PATH`** so **`claude`** is on **`PATH`** on minimal self-hosted runners.  
-   - Writes the same **`.wm/runs/github-event.json`** payload and runs `gh wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json` with `ANTHROPIC_API_KEY` for the agent.
+   - The generated caller runs this workflow only when **`needs.resolve.outputs.has_tasks == 'true'`**. Matrix over `fromJSON(needs.resolve.outputs.tasks)` with `fail-fast: false`.  
+   - **Two jobs** (token sandbox): **`agent`** uses **`permissions: contents|issues|pull-requests: read`** so the **`GITHUB_TOKEN`** available to the agent subprocess cannot mutate GitHub state; it runs **`gh wm run … --agent-only`**, then **`tar`** the entire workspace (including **`.git`** and **`.wm/runs/<id>/`**) and uploads **`wm-workspace-<task>-<run_id>.tar.gz`** as an artifact. **`outputs`** (needs **`agent`**) uses **`permissions: write`**, downloads the artifact, extracts the tree, and runs **`gh wm process-outputs --run-dir …`** to apply **`safe-outputs:`** and conclusion with a write-capable token.  
+   - Unless **`install_claude_code`** is **false**, the **`agent`** job runs the official Claude Code installer (`https://claude.ai/install.sh`) and appends **`$HOME/.local/bin`** to **`GITHUB_PATH`** so **`claude`** is on **`PATH`** on minimal self-hosted runners.
 
-3. **Inline `run` job** — **when `workflow.pre_steps` is set**  
-   - Same matrix and **`gh wm run`** invocation (payload under **`.wm/runs/github-event.json`** as above); steps include **`workflow.pre_steps`** after checkout and before **`gh extension install`**; when **`workflow.install_claude_code`** is **true** (default), the same Claude Code install + **`GITHUB_PATH`** steps run before **`gh wm run`**.
+3. **Inline `run_agent` / `run_outputs` jobs** — **when `workflow.pre_steps` is set**  
+   - Same matrix and the same read/write split as **`agent-run.yml`** (payload under **`.wm/runs/github-event.json`**); steps include **`workflow.pre_steps`** after checkout and before **`gh extension install`**; when **`workflow.install_claude_code`** is **true** (default), the same Claude Code install + **`GITHUB_PATH`** steps run before **`gh wm run --agent-only`**.
+
+### GitHub Actions token sandbox
+
+[`agent-run.yml`](../../.github/workflows/agent-run.yml) enforces **safe-outputs** by denying the agent **direct** `gh` writes: the **`agent`** job runs with a **read-only** `GITHUB_TOKEN` (repository read on contents/issues/PRs). Intended GitHub mutations go through **`gh wm emit`** into **`output.jsonl`**, then the **`outputs`** job runs **`gh wm process-outputs --run-dir <path>`** ([`engine.ProcessRunOutputs`](../../internal/engine/process_outputs.go)) so only **policy-validated** actions execute. The workspace tarball preserves **`.git`** so **`create-pull-request`** (`git push` + **`gh pr create`**) still works in the **`outputs`** job. **Activation** side effects that require write (`wm.state_labels` working label, **`on.reaction`**) may **fail** in the **`agent`** job on a read-only token; they are logged and the run continues (see [`runner.go`](../../internal/engine/runner.go)).
 
 **Note:** In CI, the installed binary name is `gh-wm`. When installed as a `gh` extension, the same commands are available as `gh wm …`.
 
@@ -109,7 +115,7 @@ The generator adds **workflow-level** defenses so agent side effects (labels, co
 
 ## Run behavior details
 
-- [`engine.RunTask`](../../internal/engine/runner.go) returns a [`RunResult`](../../internal/types/types.go) with phase, accumulated errors, timing, and **`RunDir`**. It validates the event and engine, builds [`TaskContext`](../../internal/types/types.go), creates a **per-run directory** ([`NewRunDir`](../../internal/engine/rundir.go): `.wm/runs/<id>/` or `WM_RUN_DIR/<id>/`), optionally loads checkpoint text, applies **working** label if `wm.state_labels` is set, optionally creates a **feature branch** via [`internal/gitbranch`](../../internal/gitbranch/) when `safe-outputs` includes `create-pull-request` (see CLI reference), runs `runAgent` (writes **`prompt.md`**, appends **safe outputs** instructions when `safe-outputs:` is set, sets **`WM_OUTPUT_FILE`**, streams combined stdout/stderr to a per-run **agent log file** — default **`agent-stdout.log`**, or structured **`conversation.json`** / **`conversation.jsonl`** when print-mode JSON is enabled for the built-in **`claude`** CLI; **SIGTERM** then kill on Unix when the run context is canceled), validates agent output size (from log file stat when present) and success, then on success runs **`output.RunSuccessOutputs`** (requires non-empty **`output.json`** **`items`** when `safe-outputs:` has keys). A **deferred conclusion** always runs: on success, checkpoint comment if `WM_CHECKPOINT=1` and **done** labels; on failure, **failed** labels and **checkout** of the previous branch if a feature branch was created; finally **`result.json`** and **`meta.json`** (phase **conclusion**).
+- [`engine.RunTask`](../../internal/engine/runner.go) returns a [`RunResult`](../../internal/types/types.go) with phase, accumulated errors, timing, and **`RunDir`**. It validates the event and engine, builds [`TaskContext`](../../internal/types/types.go), creates a **per-run directory** ([`NewRunDir`](../../internal/engine/rundir.go): `.wm/runs/<id>/` or `WM_RUN_DIR/<id>/`), optionally loads checkpoint text, applies **working** label if `wm.state_labels` is set, optionally creates a **feature branch** via [`internal/gitbranch`](../../internal/gitbranch/) when `safe-outputs` includes `create-pull-request` (see CLI reference), runs `runAgent` (writes **`prompt.md`**, appends **safe outputs** instructions when `safe-outputs:` is set, sets **`WM_OUTPUT_FILE`**, streams combined stdout/stderr to a per-run **agent log file** — default **`agent-stdout.log`**, or structured **`conversation.json`** / **`conversation.jsonl`** when print-mode JSON is enabled for the built-in **`claude`** CLI; **SIGTERM** then kill on Unix when the run context is canceled), validates agent output size (from log file stat when present) and success, then on success runs **`output.RunSuccessOutputs`** unless **`RunOptions.AgentOnly`** is set (CI token sandbox: stop after validation; use [`ProcessRunOutputs`](../../internal/engine/process_outputs.go) later). Empty merged NDJSON + legacy output **warns** and succeeds (implicit noop). A **deferred conclusion** runs when **not** agent-only: on success, checkpoint comment if `WM_CHECKPOINT=1` and **done** labels; on failure, **failed** labels and **checkout** of the previous branch if a feature branch was created; finally **`result.json`** and **`meta.json`** (phase **conclusion**). With **`AgentOnly`**, the defer writes **`result.json`** / **`run.json`** without conclusion; **`ProcessRunOutputs`** performs outputs + conclusion.
 - [`runAgent`](../../internal/engine/agent.go) builds the prompt from the task body + `context.files` + optional checkpoint hint + **Available Outputs** (when `safe-outputs:` is non-empty); sets `WM_TASK_TOOLS` when `tools:` is present; selects CLI via `WM_AGENT_CMD` or `engine:` (`claude`, `codex`, `copilot` requires `WM_AGENT_CMD`). Default **`claude`** uses **stdin** for the prompt, **`--dangerously-skip-permissions`**, and optional **`--model`** / **`--max-turns`** from global config so the agent can run tools (including **`gh`**) non-interactively. When **`claude_output_format`** / **`WM_CLAUDE_OUTPUT_FORMAT`** request **`json`** or **`stream-json`**, the runner also passes **`--output-format`** and, for **`stream-json`**, **`--verbose`** (built-in **`claude`** only; **`WM_AGENT_CMD`**, **codex**, and **copilot** keep plain-text capture). When **`RunOptions.LogWriter`** is set (e.g. **`gh wm run`** streaming to stderr), built-in **`claude`** forces **`stream-json`** so subprocess output is newline-delimited as events occur instead of buffering **`text`** until exit; the raw JSONL is written unchanged to **`conversation.jsonl`**, while the log writer receives human-readable lines parsed from the same stream ([`logstream.go`](../../internal/engine/logstream.go)). In-memory **`Stdout`/`Summary`** hold a **64 KiB tail** of the transcript when a run dir is used (full text is on disk).
 - **Timeout**: [`cmd/run`](../../cmd/run.go) uses `timeout-minutes` from task frontmatter (default 45, max 480).
 
@@ -218,5 +224,6 @@ Checkpoint or label failures are appended to `RunResult.Errors` and do not alway
 
 ## Security posture (minimal)
 
-- Agent-driven **`output.jsonl`** / **`output.json`** is filtered by declared **`safe-outputs:`** keys, **`max:`**, and label allowlists; the agent still runs with repository write access in typical setups — workflow permissions and branch protection apply.
+- In **GitHub Actions** with the generated **`agent-run.yml`**, the **`agent`** job uses a **read-only** token so direct **`gh`** mutations from the subprocess fail; validated writes happen only in the **`outputs`** job via **`gh wm process-outputs`** ([`internal/output`](../../internal/output/)). **Local** `gh wm run` still uses your normal **`gh`** auth unless you enforce otherwise.
+- Agent-driven **`output.jsonl`** / **`output.json`** is filtered by declared **`safe-outputs:`** keys, **`max:`**, and label allowlists.
 - Draft PR defaults in `safe-outputs` / `.wm/config.yml` feed `gh pr create` when `create-pull-request` is listed (agent can override **`draft`** per item when requesting **`create_pull_request`**).

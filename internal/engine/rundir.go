@@ -26,6 +26,7 @@ const (
 	metaFileName              = "meta.json"
 	resultFileName            = "result.json"
 	runFileName               = "run.json"
+	activationFileName        = "activation.json"
 	// outputJSONFileName is the agent-written structured safe-outputs request (WM_OUTPUT_FILE).
 	outputJSONFileName = "output.json"
 	// safeOutputJSONLFileName is the NDJSON log from `gh-wm emit` (WM_SAFE_OUTPUT_FILE).
@@ -198,6 +199,46 @@ func (r *RunDir) SafeOutputJSONLPath() string {
 		return ""
 	}
 	return filepath.Join(r.Path, safeOutputJSONLFileName)
+}
+
+// ActivationMeta is persisted when a feature branch is created before the agent runs (for CI rollback).
+type ActivationMeta struct {
+	PrevBranch    string `json:"prev_branch"`
+	BranchCreated bool   `json:"branch_created"`
+}
+
+// WriteActivationMeta writes activation.json when a feature branch was created for create-pull-request.
+func (r *RunDir) WriteActivationMeta(prevBranch string, branchCreated bool) error {
+	if r == nil || !branchCreated {
+		return nil
+	}
+	m := ActivationMeta{PrevBranch: prevBranch, BranchCreated: true}
+	b, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode activation.json: %w", err)
+	}
+	path := filepath.Join(r.Path, activationFileName)
+	if err := os.WriteFile(path, b, 0o644); err != nil {
+		return fmt.Errorf("write activation.json: %w", err)
+	}
+	return nil
+}
+
+// ReadActivationMeta reads activation.json if present.
+func ReadActivationMeta(runDirPath string) (ActivationMeta, error) {
+	var out ActivationMeta
+	path := filepath.Join(runDirPath, activationFileName)
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return out, nil
+		}
+		return out, err
+	}
+	if err := json.Unmarshal(b, &out); err != nil {
+		return out, fmt.Errorf("parse activation.json: %w", err)
+	}
+	return out, nil
 }
 
 // OpenAgentOutput creates or truncates the agent output file for writing (see agentArtifactFilename).

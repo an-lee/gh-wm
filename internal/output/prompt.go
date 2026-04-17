@@ -43,7 +43,7 @@ func AvailableOutputsSection(glob *config.GlobalConfig, task *config.Task) strin
 	}
 	var b strings.Builder
 	b.WriteString("\n\n---\n## Safe outputs\n\n")
-	b.WriteString("Record each allowed GitHub follow-up by running **`gh-wm emit <subcommand>`** with flags. ")
+	b.WriteString("**GitHub writes via `gh` (for example `gh issue comment`) will fail with permission errors in read-only CI;** record each allowed follow-up by running **`gh-wm emit <subcommand>`** with flags instead. ")
 	b.WriteString("Each call appends one validated JSON line to **`WM_SAFE_OUTPUT_FILE`** (`output.jsonl`). ")
 	b.WriteString("The run sets **`WM_REPO_ROOT`**, **`WM_TASK`**, **`WM_SAFE_OUTPUT_FILE`**, and typically **`GITHUB_REPOSITORY`** plus **`WM_ISSUE_NUMBER`** / **`WM_PR_NUMBER`** when applicable.\n\n")
 	b.WriteString("If you have nothing to post, run **`gh-wm emit noop --message \"…\"`** (optional; missing output is treated as an implicit noop with a warning).\n\n")

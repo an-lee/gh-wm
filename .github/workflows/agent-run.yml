@@ -27,7 +27,11 @@ on:
         required: true
 
 jobs:
-  run:
+  agent:
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
     runs-on: ${{ fromJson(inputs.runs_on) }}
     steps:
       - uses: actions/checkout@v6
@@ -51,7 +55,7 @@ jobs:
         if: ${{ inputs.install_claude_code }}
         run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Run task
+      - name: Run task (agent only; token sandbox)
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           EVENT_NAME: ${{ inputs.event_name }}
@@ -60,4 +64,52 @@ jobs:
         run: |
           mkdir -p .wm/runs
           printf '%s' "$EVENT_JSON" > .wm/runs/github-event.json
-          gh wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json
+          gh wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json --agent-only
+
+      - name: Pack workspace for outputs job
+        run: tar -czf /tmp/wm-workspace.tar.gz -C "$GITHUB_WORKSPACE" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wm-workspace-${{ inputs.task_name }}-${{ github.run_id }}
+          path: /tmp/wm-workspace.tar.gz
+
+  outputs:
+    needs: agent
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    runs-on: ${{ fromJson(inputs.runs_on) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: an-lee/gh-wm/.github/actions/install-gh-cli@main
+
+      - name: Install gh-wm
+        run: gh extension install an-lee/gh-wm --force
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wm-workspace-${{ inputs.task_name }}-${{ github.run_id }}
+          path: .
+
+      - name: Extract workspace
+        run: tar -xzf wm-workspace.tar.gz -C "$GITHUB_WORKSPACE"
+
+      - name: Process safe outputs
+        env:
+          EVENT_NAME: ${{ inputs.event_name }}
+          EVENT_JSON: ${{ inputs.event_json }}
+          TASK_NAME: ${{ inputs.task_name }}
+        run: |
+          set -euo pipefail
+          RUN_DIR=$(ls -td .wm/runs/*/ 2>/dev/null | head -1 || true)
+          RUN_DIR=${RUN_DIR%/}
+          if [ -z "$RUN_DIR" ] || [ ! -d "$RUN_DIR" ]; then
+            echo "No per-run directory under .wm/runs" >&2
+            exit 1
+          fi
+          gh wm process-outputs --repo-root . --run-dir "$RUN_DIR" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json
