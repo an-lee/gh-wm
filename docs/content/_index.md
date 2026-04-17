@@ -1,6 +1,6 @@
 # gh-wm documentation
 
-**gh-wm** is a Go [`gh` CLI extension](https://docs.github.com/en/github-cli/github-cli/creating-github-cli-extensions) that runs **gh-aw–compatible** task files (Markdown + YAML frontmatter) from `.wm/tasks/` **without** compiling to lockfiles or AWF. When `safe-outputs:` is set, the agent writes structured **`output.json`** requests; gh-wm validates and applies them (`max:`, allowlists, etc.).
+**gh-wm** is a Go [`gh` CLI extension](https://docs.github.com/en/github-cli/github-cli/creating-github-cli-extensions) that runs **gh-aw–compatible** task files (Markdown + YAML frontmatter) from `.wm/tasks/` **without** compiling to lockfiles or AWF. When `safe-outputs:` is set, the agent normally records outputs via **`gh wm emit`** (NDJSON) or legacy **`output.json`**; gh-wm validates and applies them (`max:`, allowlists, etc.).
 
 This documentation is the **canonical reference** for how the project works and how to extend it.
 

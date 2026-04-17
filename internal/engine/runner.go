@@ -23,6 +23,9 @@ type RunOptions struct {
 	LogWriter io.Writer
 	// ProgressWriter receives human-readable phase lines (e.g. from gh wm run); not mixed with LogWriter.
 	ProgressWriter io.Writer
+	// AgentOnly stops after a successful agent validation phase: skips safe-outputs and defers conclusion.
+	// Used with CI token sandbox: a follow-up `gh wm process-outputs` run applies outputs with a write token.
+	AgentOnly bool
 }
 
 func progressf(opts *RunOptions, format string, args ...any) {
@@ -65,9 +68,18 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 	var prevBranch string
 	var rd *RunDir
 	runSucceeded := false
+	skipDeferConclusion := false
 
 	defer func() {
 		result.Duration = time.Since(start)
+		if skipDeferConclusion {
+			if rd != nil {
+				_ = rd.UpdateMeta(types.PhaseValidation, true)
+				_ = rd.WriteResult(result)
+				_ = rd.WriteRunJSON(result)
+			}
+			return
+		}
 		concludeRun(result, &concludeArgs{
 			runSucceeded:  runSucceeded,
 			tc:            tc,
@@ -164,6 +176,12 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 		}
 		prevBranch = prev
 		branchCreated = created
+		if rd != nil {
+			if werr := rd.WriteActivationMeta(prev, created); werr != nil {
+				addRunErr(result, werr)
+				return result, werr
+			}
+		}
 		if created {
 			progressf(opts, "activation: created feature branch %s (previous: %s)", newBranch, prev)
 		} else {
@@ -195,6 +213,13 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 		return result, err
 	}
 
+	if opts != nil && opts.AgentOnly {
+		result.Success = true
+		result.Phase = types.PhaseValidation
+		skipDeferConclusion = true
+		return result, nil
+	}
+
 	result.Phase = types.PhaseOutputs
 	if rd != nil {
 		_ = rd.UpdateMeta(types.PhaseOutputs, false)
@@ -202,7 +227,7 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 	logPhase(taskName, types.PhaseOutputs)
 	m := task.SafeOutputsMap()
 	if m != nil && len(m) > 0 {
-		progressf(opts, "safe-outputs: applying allowed GitHub actions from output.json")
+		progressf(opts, "safe-outputs: applying allowed GitHub actions from output.jsonl + output.json")
 	}
 	if outErr := output.RunSuccessOutputs(ctx, glob, task, tc, res); outErr != nil {
 		addRunErr(result, outErr)

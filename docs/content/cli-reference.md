@@ -120,7 +120,7 @@ Writes `<cwd>/.wm/tasks/<basename>.md`, then runs **`gh wm upgrade`** (same as t
 
 ## `run`
 
-**Purpose:** Execute **one** task: **activation** (validate event/engine, optional working label, branch prep for PR mode), **agent**, **validation** (exit + output size), **`safe-outputs:`** steps, then **conclusion** (done/failed labels, checkpoint, branch rollback on failure).
+**Purpose:** Execute **one** task: **activation** (validate event/engine, optional working label, branch prep for PR mode), **agent**, **validation** (exit + output size), **`safe-outputs:`** steps, then **conclusion** (done/failed labels, checkpoint, branch rollback on failure). With **`--agent-only`**, stops after a successful validation phase (skips safe-outputs and conclusion) so a follow-up **`gh wm process-outputs`** job can run with a write-capable `GITHUB_TOKEN` while the agent job used read-only permissions (see [architecture.md](architecture.md#github-actions-token-sandbox)).
 
 **Usage:** `gh wm run --task <name>` (local agent), or `gh wm run --task <name> --remote` to dispatch the **`wm-agent`** workflow on GitHub.
 
@@ -135,6 +135,7 @@ Writes `<cwd>/.wm/tasks/<basename>.md`, then runs **`gh wm upgrade`** (same as t
 | `--event-name`   | `$GITHUB_EVENT_NAME` | Event name (local run only)        |
 | `--payload`      | `$GITHUB_EVENT_PATH` | Path to event JSON; if `--payload` and `GITHUB_EVENT_PATH` are both unset, payload defaults to `{}` (local run only) |
 | `--allow-dirty`  | `false`              | Skip the git clean working tree check (local run only) |
+| `--agent-only`   | `false`              | Stop after agent **validation**; do not run **safe-outputs** or **conclusion**. Writes **`result.json`** / **`run.json`** for the partial run. Pair with **`gh wm process-outputs`** in a second CI job (see [architecture.md](architecture.md#github-actions-token-sandbox)). |
 | `--remote`       | `false`              | Run **`gh workflow run`** to trigger **`workflow_dispatch`** on the repo’s **`wm-agent.yml`** with **`-f task_name=<task>`**. Requires the **`gh`** CLI and auth. Repository defaults to **`gh repo view`**; override with **`--repo OWNER/NAME`**. Optional **`--workflow`** (default **`wm-agent.yml`**), **`--ref`** (git ref for the workflow run), and **`--issue`** (passed as **`-f issue_number=`** for the dispatch inputs). After upgrading **`gh-wm`**, run **`gh wm upgrade`** in the target repo so the generated workflow declares the **`task_name`** input; older **`wm-agent.yml`** files may reject unknown **`-f`** fields. **`--remote`** does not send a custom GitHub event payload (the run on Actions sees a normal **`workflow_dispatch`** event, optionally with **`issue_number`**). |
 
 **Timeout:** Uses `timeout-minutes` from task frontmatter (default **45**, max **480**). The deadline is applied inside **[`engine.RunTask`](../../internal/engine/runner.go)** (so direct library use gets the same behavior as the CLI). See [`cmd/run.go`](../../cmd/run.go) for the stderr banner.
@@ -151,14 +152,50 @@ Writes `<cwd>/.wm/tasks/<basename>.md`, then runs **`gh wm upgrade`** (same as t
 | --------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `WM_AGENT_CMD`        | If set: split on whitespace for argv; **prompt** is appended as the last argument unless the string contains **`{prompt}`**, in which case that placeholder is replaced by the prompt (single argument). Overrides `engine:`. |
 | `WM_ENGINE_CODEX_CMD` | When `engine: codex` and `WM_AGENT_CMD` unset: same `{prompt}` rule as above (otherwise prompt is appended). Default **`codex`** invocation mirrors **claude** (stdin prompt, `--dangerously-skip-permissions`, `--model` / `--max-turns` from config when set). |
-| _(default)_           | **`claude -p --dangerously-skip-permissions`** with the prompt on **stdin**; **`--model`** and **`--max-turns`** come from [`.wm/config.yml`](task-format.md) when set. Optional **`--output-format json`** or **`stream-json`** (with **`--verbose`**) when **`claude_output_format`** / **`WM_CLAUDE_OUTPUT_FORMAT`** is set (built-in **`claude`** only). |
+| _(default)_           | **`claude -p --dangerously-skip-permissions`** with the prompt on **stdin**; **`--model`** and **`--max-turns`** come from [`.wm/config.yml`](task-format.md) when set. Optional **`--output-format json`** or **`stream-json`** (with **`--verbose`**) when **`claude_output_format`** / **`WM_CLAUDE_OUTPUT_FORMAT`** is set (built-in **`claude`** only). When **`safe-outputs:`** is non-empty, also **`--append-system-prompt`** with enforcement text ([`output.SafeOutputsSystemPromptAppend`](../../internal/output/prompt.go)) so rules live in Claude Code’s **system** prompt, not only the user message. |
 | `copilot`             | **Deprecated** (see [v2.md](v2.md)): no stock CLI — use **`WM_AGENT_CMD`** or **`claude`** / **`codex`**. |
 
-The default **`claude`** invocation uses **`--dangerously-skip-permissions`** so non-interactive runs can use tools (file edits, **`gh`**, git). Subprocess **env** is the parent environment (`GITHUB_TOKEN` in Actions, `gh auth` locally) plus `GITHUB_REPOSITORY`, `WM_TASK`, **`WM_OUTPUT_FILE`** (path to per-run **`output.json`** when a run directory exists), and **`WM_TASK_TOOLS`** when `tools:` is set in the task frontmatter (JSON for structured values).
+The default **`claude`** invocation uses **`--dangerously-skip-permissions`** so non-interactive runs can use tools (file edits, **`gh`**, git). Subprocess **env** is the parent environment (`GITHUB_TOKEN` in Actions, `gh auth` locally) plus `GITHUB_REPOSITORY`, `WM_TASK`, **`WM_REPO_ROOT`**, **`WM_OUTPUT_FILE`** (legacy **`output.json`**), **`WM_SAFE_OUTPUT_FILE`** (**`output.jsonl`** for **`gh wm emit`**), **`WM_ISSUE_NUMBER`** / **`WM_PR_NUMBER`** when known, and **`WM_TASK_TOOLS`** when `tools:` is set in the task frontmatter (JSON for structured values).
 
-**Post-agent:** When **`safe-outputs:`** has at least one key, the agent **must** write non-empty **`items`** JSON to **`WM_OUTPUT_FILE`** ([`internal/output`](../../internal/output/)); missing or empty output fails that phase (use **`noop`** if no GitHub actions are needed). **`WM_CHECKPOINT=1`** enables loading/posting checkpoint comments ([`internal/engine/runner.go`](../../internal/engine/runner.go)).
+**Post-agent:** When **`safe-outputs:`** has at least one key, outputs are normally recorded via **`gh wm emit`** (see [Emit](#emit) below) into **`WM_SAFE_OUTPUT_FILE`** (`output.jsonl`). Legacy **`WM_OUTPUT_FILE`** (`output.json` **`items`**) is merged in after NDJSON. If both are empty, the phase **warns** and succeeds (implicit noop). **`WM_CHECKPOINT=1`** enables loading/posting checkpoint comments ([`internal/engine/runner.go`](../../internal/engine/runner.go)).
 
 **Secrets (CI):** `ANTHROPIC_API_KEY` is expected by reusable workflow for Claude Code; ensure the agent you invoke uses it as required.
+
+---
+
+## `process-outputs`
+
+**Purpose:** Resume the pipeline after **`gh wm run --agent-only`**: run **`safe-outputs:`** ([`output.RunSuccessOutputs`](../../internal/output/output.go)) and **conclusion** ([`concludeRun`](../../internal/engine/conclusion.go)) for an existing per-run directory. Used in the second job of [`agent-run.yml`](../../.github/workflows/agent-run.yml) so GitHub writes use a token with **issue/PR/content write** permissions.
+
+**Usage:** `gh wm process-outputs` with the same **`--repo-root`**, **`--event-name`**, and **`--payload`** as the prior **`gh wm run`** (defaults to `GITHUB_EVENT_NAME` / `GITHUB_EVENT_PATH` when unset). Supply either **`--run-dir`** or **`--task`** (CI generated workflows use **`--task`** so the extension resolves the run directory; no Python or **`jq`** required).
+
+The run directory must contain **`result.json`** from **`--agent-only`** with **`agent_result.success`** true (and optional top-level **`success`** must not be false). Otherwise the command errors and does not apply GitHub mutations.
+
+**Flags:**
+
+| Flag | Default | Description |
+| ---- | ------- | ----------- |
+| `--repo-root` | `.` | Repository root (must match the agent run) |
+| `--run-dir` | — | Path to **`.wm/runs/<id>/`** from the agent-only run (required if **`--task`** is not set) |
+| `--task` | — | Task name: use the newest **`.wm/runs/<id>/`** whose **`meta.json`** matches this task (required if **`--run-dir`** is not set) |
+| `--event-name` | `$GITHUB_EVENT_NAME` | Event name |
+| `--payload` | `$GITHUB_EVENT_PATH` | Event JSON path |
+
+See [architecture.md — GitHub Actions token sandbox](architecture.md#github-actions-token-sandbox).
+
+---
+
+## `emit`
+
+**Purpose:** Append **one** validated safe-output line (NDJSON) for the current task run. Intended to be invoked from the agent’s shell tool during **`gh wm run`** (environment is set by the runner).
+
+**Usage:** `gh wm emit <subcommand>` with flags, e.g. `gh wm emit noop --message "nothing to post"`, `gh wm emit add-comment --body "…"`.
+
+**Environment (required):** **`WM_REPO_ROOT`**, **`WM_TASK`**, **`WM_SAFE_OUTPUT_FILE`**. Typically also **`GITHUB_REPOSITORY`** and **`WM_ISSUE_NUMBER`** / **`WM_PR_NUMBER`** when commenting or labeling on the triggering thread.
+
+**Subcommands:** `noop`, `add-comment`, `add-labels`, `remove-labels`, `create-issue`, `create-pull-request`, `missing-tool`, `missing-data`. Use **`gh wm emit --help`** and **`gh wm emit <cmd> --help`** for flags.
+
+See [task-format.md — `safe-outputs:`](task-format.md).
 
 ---
 
@@ -198,7 +235,10 @@ If none match, prints recent runs with a note. See [`cmd/logs.go`](../../cmd/log
 | `WM_AGENT_CMD`                           | Override agent command ([`agent.go`](../../internal/engine/agent.go))             |
 | `WM_ENGINE_CODEX_CMD`                    | Codex CLI prefix when `engine: codex`                                             |
 | `WM_TASK_TOOLS`                          | Set automatically from `tools:` (read by agent)                                   |
-| `WM_OUTPUT_FILE`                         | Set by `run` when a per-run dir exists: path where the agent may write **`output.json`** (`items` → safe outputs). |
+| `WM_OUTPUT_FILE`                         | Set by `run` when a per-run dir exists: legacy path for agent-written **`output.json`** (`items` → safe outputs). |
+| `WM_SAFE_OUTPUT_FILE`                    | Set by `run` when a per-run dir exists: NDJSON log for **`gh wm emit`** (`output.jsonl`). |
+| `WM_REPO_ROOT`                           | Repository root (same as `--repo-root`); used by **`gh wm emit`** to load the task. |
+| `WM_ISSUE_NUMBER`, `WM_PR_NUMBER`        | Optional; set by `run` when the event provides issue/PR numbers (for **`emit`** validation / default `--target`). |
 | `WM_CHECKPOINT`                          | Set to `1` to enable checkpoint load/post                                         |
 | `WM_RUN_DIR`                             | If set, per-run artifacts are written under **`<WM_RUN_DIR>/<run-id>/`** instead of **`<repo>/.wm/runs/<run-id>/`** (useful for CI artifact upload paths). |
 | `WM_CLAUDE_OUTPUT_FORMAT`                | Overrides **`claude_output_format`** in [`.wm/config.yml`](task-format.md): **`text`** (default), **`json`**, or **`stream-json`** for built-in **`claude`** (run-dir filename, **`--output-format`**, and **`--verbose`** when **`stream-json`**). |
