@@ -78,7 +78,7 @@ flowchart LR
 
 1. **`agent-resolve.yml`** ([`.github/workflows/agent-resolve.yml`](../../.github/workflows/agent-resolve.yml))  
    - `runs-on` is driven by the **`runs_on` workflow input** (JSON array of labels), with default `["ubuntu-latest"]`; generated `wm-agent.yml` passes labels from `.wm/config.yml`.
-   - Checks out the repo, ensures **`gh`** via **`actions4gh/setup-gh`** (for self-hosted runners without a preinstalled CLI), installs **`gh-wm`** via **`gh extension install`**, writes the GitHub event JSON to **`.wm/runs/github-event.json`** (under the ignored `runs/` tree; see **`.wm/.gitignore`**) so `git status` stays clean for **`gh wm run`**’s working-tree check, then runs:
+   - Checks out the repo, ensures **`gh`** via the composite **`install-gh-cli`** action (official **`cli/cli`** Linux tarball when **`gh`** is missing on self-hosted runners), installs **`gh-wm`** via **`gh extension install`**, writes the GitHub event JSON to **`.wm/runs/github-event.json`** (under the ignored `runs/` tree; see **`.wm/.gitignore`**) so `git status` stays clean for **`gh wm run`**’s working-tree check, then runs:
    - `gh wm resolve --repo-root . --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json --json`  
    - Exposes the printed JSON array as job output `tasks`, and sets **`has_tasks`** to the string **`true`** or **`false`** so the caller can skip the **`run`** job when nothing matched (avoids matrix/`fromJSON` errors on empty input).
 

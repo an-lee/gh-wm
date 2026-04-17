@@ -1,0 +1,44 @@
+# Composite: no Node — works on self-hosted runners that fail to unpack JS actions.
+name: Install GitHub CLI
+description: Skip if gh is on PATH; else download official cli/cli Linux amd64/arm64 tarball.
+
+inputs:
+  version:
+    description: cli/cli release version without v prefix (e.g. 2.90.0)
+    required: false
+    default: "2.90.0"
+
+runs:
+  using: composite
+  steps:
+    - name: Install
+      shell: bash
+      env:
+        GH_CLI_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        if command -v gh >/dev/null 2>&1; then
+          gh version
+          exit 0
+        fi
+        case "$(uname -s)" in
+          Linux) ;;
+          *)
+            echo "::error::gh is not on PATH and this action only auto-installs on Linux. Install gh on the runner."
+            exit 1
+            ;;
+        esac
+        case "$(uname -m)" in
+          x86_64) gharch=amd64 ;;
+          aarch64) gharch=arm64 ;;
+          *)
+            echo "::error::unsupported uname -m: $(uname -m)"
+            exit 1
+            ;;
+        esac
+        v="${GH_CLI_VERSION}"
+        tgz="gh_${v}_linux_${gharch}.tar.gz"
+        curl -fsSL "https://github.com/cli/cli/releases/download/v${v}/${tgz}" -o "${RUNNER_TEMP}/${tgz}"
+        tar -xzf "${RUNNER_TEMP}/${tgz}" -C "${RUNNER_TEMP}"
+        echo "${RUNNER_TEMP}/gh_${v}_linux_${gharch}/bin" >> "$GITHUB_PATH"
+        gh version
