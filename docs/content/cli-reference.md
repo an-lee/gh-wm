@@ -183,6 +183,8 @@ The run directory must contain **`result.json`** from **`--agent-only`** with **
 
 See [architecture.md — GitHub Actions token sandbox](architecture.md#github-actions-token-sandbox).
 
+**Labels:** When applying **`create_pull_request`**, **`add_labels`**, or **`create_issue`** outputs that include label names, **`process-outputs`** creates missing repository labels (default neutral color) before **`gh pr create`** or issue APIs, so the repo does not need those labels defined ahead of time.
+
 ---
 
 ## `emit`

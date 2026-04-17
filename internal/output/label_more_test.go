@@ -20,8 +20,14 @@ func installFakeGHForLabels(t *testing.T) {
 	gh := filepath.Join(dir, "gh")
 	script := `#!/bin/sh
 set -e
-if [ "$1" = "api" ] && echo "$*" | grep -q -- '-X POST' && echo "$*" | grep -q '/labels'; then
-  exit 0
+if [ "$1" = "api" ]; then
+  if echo "$*" | grep -q 'POST' && echo "$*" | grep -q '/issues/'; then
+    exit 0
+  fi
+  if echo "$*" | grep -q '/repos/' && echo "$*" | grep -q '/labels/'; then
+    echo '{"name":"x"}'
+    exit 0
+  fi
 fi
 exit 1
 `

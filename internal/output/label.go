@@ -20,7 +20,7 @@ func resolveLabelTarget(tc *types.TaskContext, target int) int {
 }
 
 // runAddLabelsFromItem applies labels from structured output with policy checks.
-func runAddLabelsFromItem(_ context.Context, tc *types.TaskContext, p *Policy, item ItemLabels) error {
+func runAddLabelsFromItem(ctx context.Context, tc *types.TaskContext, p *Policy, item ItemLabels) error {
 	if len(item.Labels) == 0 {
 		return fmt.Errorf("add_labels: empty labels")
 	}
@@ -34,6 +34,9 @@ func runAddLabelsFromItem(_ context.Context, tc *types.TaskContext, p *Policy, i
 		}
 		if !p.LabelAllowed(KindAddLabels, label) {
 			return fmt.Errorf("add_labels: label %q not allowed by policy", label)
+		}
+		if err := ghclient.EnsureRepoLabel(ctx, tc.Repo, label); err != nil {
+			return err
 		}
 		if err := ghclient.AddIssueLabel(tc.Repo, n, label); err != nil {
 			return err

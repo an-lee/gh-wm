@@ -108,9 +108,9 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: wm-workspace-{{ "${{" }} matrix.task {{ "}}" }}-{{ "${{" }} github.run_id {{ "}}" }}
-          path: .
+          path: {{ "${{" }} runner.temp {{ "}}" }}
       - name: Extract workspace
-        run: tar -xzf wm-workspace.tar.gz -C "$GITHUB_WORKSPACE"
+        run: tar -xzf "{{ "${{" }} runner.temp {{ "}}" }}/wm-workspace.tar.gz" -C "$GITHUB_WORKSPACE"
       - name: Process safe outputs
         env:
           EVENT_NAME: {{ "${{" }} github.event_name {{ "}}" }}
