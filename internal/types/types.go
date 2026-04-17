@@ -60,4 +60,6 @@ type AgentResult struct {
 	AgentStdoutPath string
 	// OutputFilePath is the path where the agent may write structured safe-output JSON (output.json).
 	OutputFilePath string
+	// SafeOutputFilePath is the NDJSON log from `gh-wm emit` (output.jsonl), merged with OutputFilePath in RunSuccessOutputs.
+	SafeOutputFilePath string
 }

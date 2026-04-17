@@ -100,17 +100,17 @@ In frontmatter, `on.schedule` is a **string** (see [`Task.ScheduleString`](../..
 | `hourly` | `M */1 * * *` with scattered minute `M` in 5–54 |
 | other | If it is already a **5-field** cron string, whitespace-normalized and used as-is; otherwise passed through unchanged (must be valid for GitHub Actions if used as cron) |
 
-## `safe-outputs:` — policy + structured `output.json`
+## `safe-outputs:` — policy + `gh-wm emit` (or legacy `output.json`)
 
 If the task omits **`safe-outputs:`** or the block is **empty**, the post-agent safe-output phase does **nothing**.
 
-If **`safe-outputs:`** contains **at least one key**, the agent **must** write valid JSON to **`WM_OUTPUT_FILE`** (`output.json` in the [per-run directory](architecture.md#what-persists-where)) with a **non-empty** **`items`** array. Otherwise the run fails the safe-output phase with a clear error. Use **`noop`** when no GitHub follow-up is needed:
+If **`safe-outputs:`** contains **at least one key**, the **recommended** way to record outputs is to run **`gh wm emit <subcommand>`** with flags for each follow-up. Each call appends one validated JSON line to **`WM_SAFE_OUTPUT_FILE`** (`output.jsonl` in the [per-run directory](architecture.md#what-persists-where)). The run sets **`WM_REPO_ROOT`**, **`WM_TASK`**, **`WM_SAFE_OUTPUT_FILE`**, **`GITHUB_REPOSITORY`**, and **`WM_ISSUE_NUMBER`** / **`WM_PR_NUMBER`** when applicable. Built-in subcommands **`missing-tool`** and **`missing-data`** are always available.
 
-```json
-{ "items": [ { "type": "noop", "message": "No follow-up actions." } ] }
-```
+If there is **no** NDJSON and **no** legacy `output.json`, the safe-output phase **succeeds** with a **warning** (implicit noop). Prefer **`gh wm emit noop --message "…"`** when you want an explicit record.
 
-Keys under **`safe-outputs:`** declare what operations are **allowed**; each item has a **`type`** using **underscores** (gh-aw style): **`create_pull_request`**, **`add_comment`**, **`add_labels`**, **`remove_labels`**, **`create_issue`**, **`noop`**. Dash forms in **`type`** (e.g. `create-pull-request`) are accepted too.
+**Legacy:** writing a single JSON document to **`WM_OUTPUT_FILE`** (`output.json` with **`items`**) is still supported and **merged** after NDJSON lines (`output.jsonl` first, then legacy `items`).
+
+Keys under **`safe-outputs:`** declare what operations are **allowed**; each item has a **`type`** using **underscores** (gh-aw style): **`create_pull_request`**, **`add_comment`**, **`add_labels`**, **`remove_labels`**, **`create_issue`**, **`noop`**, **`missing_tool`**, **`missing_data`**. Dash forms in **`type`** (e.g. `create-pull-request`) are accepted too.
 
 ```json
 {

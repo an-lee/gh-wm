@@ -11,6 +11,27 @@ import (
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
+func TestRunSuccessOutputs_MergesNDJSONBeforeLegacyJSON(t *testing.T) {
+	t.Parallel()
+	nd := filepath.Join(t.TempDir(), "out.jsonl")
+	if err := os.WriteFile(nd, []byte("{\"type\":\"noop\",\"message\":\"from ndjson\"}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	legacy := filepath.Join(t.TempDir(), "output.json")
+	if err := os.WriteFile(legacy, []byte(`{"items":[{"type":"noop","message":"legacy"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	g := &config.GlobalConfig{}
+	task := &config.Task{Frontmatter: map[string]any{"safe-outputs": map[string]any{
+		"noop": map[string]any{},
+	}}}
+	tc := &types.TaskContext{RepoPath: t.TempDir(), Repo: "o/r", IssueNumber: 1}
+	res := &types.AgentResult{SafeOutputFilePath: nd, OutputFilePath: legacy}
+	if err := RunSuccessOutputs(context.Background(), g, task, tc, res); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRunSuccessOutputs_AgentDrivenNoop(t *testing.T) {
 	t.Parallel()
 	p := filepath.Join(t.TempDir(), "output.json")
@@ -28,7 +49,7 @@ func TestRunSuccessOutputs_AgentDrivenNoop(t *testing.T) {
 	}
 }
 
-func TestRunSuccessOutputs_RequiresStructuredOutput(t *testing.T) {
+func TestRunSuccessOutputs_ImplicitNoopWhenEmpty(t *testing.T) {
 	t.Parallel()
 	g := &config.GlobalConfig{}
 	task := &config.Task{Frontmatter: map[string]any{"safe-outputs": map[string]any{
@@ -36,10 +57,8 @@ func TestRunSuccessOutputs_RequiresStructuredOutput(t *testing.T) {
 	}}}
 	tc := &types.TaskContext{RepoPath: t.TempDir()}
 	res := &types.AgentResult{OutputFilePath: filepath.Join(t.TempDir(), "missing.json")}
-	if err := RunSuccessOutputs(context.Background(), g, task, tc, res); err == nil {
-		t.Fatal("expected error when output.json missing")
-	} else if !strings.Contains(err.Error(), "safe-outputs:") {
-		t.Fatalf("unexpected: %v", err)
+	if err := RunSuccessOutputs(context.Background(), g, task, tc, res); err != nil {
+		t.Fatalf("expected success (implicit noop), got: %v", err)
 	}
 }
 

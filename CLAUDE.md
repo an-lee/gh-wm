@@ -35,14 +35,14 @@ Core pipeline: **event → resolve → run agent**.
 | Trigger | `internal/trigger/match.go` | `MatchOnOR` — OR-semantics over `on:` frontmatter (`issues`, `issue_comment`, `pull_request`, `slash_command`, `schedule`, `workflow_dispatch`) |
 | Runner | `internal/engine/runner.go`, `agent.go`, `rundir.go` | `RunTask` → `runAgent`: builds prompt, writes `.wm/runs/<id>/prompt.md`, execs agent; **`timeout-minutes`** is enforced inside `RunTask` (default 45) |
 | Config | `internal/config/` | `.wm/config.yml` (GlobalConfig), task frontmatter parsing (`map[string]any`; add typed accessors when fields become first-class) |
-| Output | `internal/output/` | Parses agent `output.json`, validates against `safe-outputs:` policy, executes items (noop, comment, label, issue, PR) |
+| Output | `internal/output/` | Merges `WM_SAFE_OUTPUT_FILE` (NDJSON from `gh wm emit`) + legacy `output.json`; validates against `safe-outputs:` policy; executes items (noop, comment, label, issue, PR, missing_tool, missing_data) |
 | Checkpoint | `internal/checkpoint/` | When `WM_CHECKPOINT=1`: loads/posts checkpoint state via issue comments |
 | Git helpers | `internal/gitstatus/`, `internal/gitbranch/` | Clean-tree check (`run` requires clean unless `--allow-dirty`); feature-branch prep for PR outputs |
 | GitHub | `internal/ghclient/`, `internal/gh/` | Default: `gh api` subprocess; set **`GH_WM_REST=1`** for `go-gh` REST ([`internal/gh`](internal/gh/)). `CurrentRepo` still shells out to `gh repo view`. |
 | Generator | `internal/gen/wmagent.go` | Generates `wm-agent.yml` (single template: inline vs reusable `agent-run.yml`); also cron scheduling helpers |
 | Templates | `internal/templates/data/` | Embedded defaults written by `gh wm init` into user repos |
 
-Agent prompt flow: task body + `context.files` + safe-output instructions → `prompt.md` → stdin to agent. Agent writes structured `items` to `WM_OUTPUT_FILE` (`output.json`) when `safe-outputs:` is set (use `noop` if no GitHub actions needed).
+Agent prompt flow: task body + `context.files` + safe-output instructions → `prompt.md` → stdin to agent. When `safe-outputs:` is set, the agent should record outputs via **`gh wm emit <subcommand>`** (append-only NDJSON to `WM_SAFE_OUTPUT_FILE` / `output.jsonl`); legacy structured `items` in `WM_OUTPUT_FILE` (`output.json`) is still merged. If both are empty, the run warns and succeeds (implicit noop).
 
 ## Non-obvious constraints
 
@@ -52,6 +52,7 @@ Agent prompt flow: task body + `context.files` + safe-output instructions → `p
 - **Schedule cron filtering**: All `on.schedule` tasks match at resolve time; `WM_SCHEDULE_CRON` env var further filters to the correct task.
 - **`engine:` frontmatter**: Selects default agent CLI (`claude`, `codex`). The `copilot` name is deprecated — use `WM_AGENT_CMD` or see `docs/content/v2.md`.
 - **Per-run `run.json`**: Written alongside `meta.json` / `result.json` (merged snapshot for tooling).
+- **`WM_SAFE_OUTPUT_FILE`**: Per-run `output.jsonl` — `gh wm emit` appends validated lines; merged with `WM_OUTPUT_FILE` during safe-outputs. **`WM_REPO_ROOT`**, **`WM_ISSUE_NUMBER`**, **`WM_PR_NUMBER`** assist emit validation.
 - **`WM_LOG_FORMAT=json`**: Structured `slog` on stderr for pipeline phases.
 - **`install_claude_code`**: `agent-run.yml` input, default `true` from `workflow.install_claude_code` in `.wm/config.yml`.
 

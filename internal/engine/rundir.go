@@ -28,6 +28,8 @@ const (
 	runFileName               = "run.json"
 	// outputJSONFileName is the agent-written structured safe-outputs request (WM_OUTPUT_FILE).
 	outputJSONFileName = "output.json"
+	// safeOutputJSONLFileName is the NDJSON log from `gh-wm emit` (WM_SAFE_OUTPUT_FILE).
+	safeOutputJSONLFileName = "output.jsonl"
 
 	defaultPruneAge = 7 * 24 * time.Hour
 )
@@ -190,6 +192,14 @@ func (r *RunDir) OutputJSONPath() string {
 	return filepath.Join(r.Path, outputJSONFileName)
 }
 
+// SafeOutputJSONLPath returns the path for NDJSON safe-output lines from `gh-wm emit` (WM_SAFE_OUTPUT_FILE).
+func (r *RunDir) SafeOutputJSONLPath() string {
+	if r == nil {
+		return ""
+	}
+	return filepath.Join(r.Path, safeOutputJSONLFileName)
+}
+
 // OpenAgentOutput creates or truncates the agent output file for writing (see agentArtifactFilename).
 func (r *RunDir) OpenAgentOutput(format string) (*os.File, error) {
 	if r == nil {
@@ -222,14 +232,15 @@ func (r *RunDir) WriteResult(res *types.RunResult) error {
 		Errors      []string `json:"errors,omitempty"`
 		RunDir      string   `json:"run_dir"`
 		AgentResult *struct {
-			Success         bool   `json:"success"`
-			ExitCode        int    `json:"exit_code"`
-			Stdout          string `json:"stdout,omitempty"`
-			Stderr          string `json:"stderr,omitempty"`
-			Summary         string `json:"summary,omitempty"`
-			TimedOut        bool   `json:"timed_out,omitempty"`
-			AgentStdoutPath string `json:"agent_stdout_path,omitempty"`
-			OutputFilePath  string `json:"output_file_path,omitempty"`
+			Success            bool   `json:"success"`
+			ExitCode           int    `json:"exit_code"`
+			Stdout             string `json:"stdout,omitempty"`
+			Stderr             string `json:"stderr,omitempty"`
+			Summary            string `json:"summary,omitempty"`
+			TimedOut           bool   `json:"timed_out,omitempty"`
+			AgentStdoutPath    string `json:"agent_stdout_path,omitempty"`
+			OutputFilePath     string `json:"output_file_path,omitempty"`
+			SafeOutputFilePath string `json:"safe_output_file_path,omitempty"`
 		} `json:"agent_result,omitempty"`
 	}{
 		Phase:      string(res.Phase),
@@ -242,23 +253,25 @@ func (r *RunDir) WriteResult(res *types.RunResult) error {
 	if res.AgentResult != nil {
 		ar := res.AgentResult
 		out.AgentResult = &struct {
-			Success         bool   `json:"success"`
-			ExitCode        int    `json:"exit_code"`
-			Stdout          string `json:"stdout,omitempty"`
-			Stderr          string `json:"stderr,omitempty"`
-			Summary         string `json:"summary,omitempty"`
-			TimedOut        bool   `json:"timed_out,omitempty"`
-			AgentStdoutPath string `json:"agent_stdout_path,omitempty"`
-			OutputFilePath  string `json:"output_file_path,omitempty"`
+			Success            bool   `json:"success"`
+			ExitCode           int    `json:"exit_code"`
+			Stdout             string `json:"stdout,omitempty"`
+			Stderr             string `json:"stderr,omitempty"`
+			Summary            string `json:"summary,omitempty"`
+			TimedOut           bool   `json:"timed_out,omitempty"`
+			AgentStdoutPath    string `json:"agent_stdout_path,omitempty"`
+			OutputFilePath     string `json:"output_file_path,omitempty"`
+			SafeOutputFilePath string `json:"safe_output_file_path,omitempty"`
 		}{
-			Success:         ar.Success,
-			ExitCode:        ar.ExitCode,
-			Stdout:          ar.Stdout,
-			Stderr:          ar.Stderr,
-			Summary:         ar.Summary,
-			TimedOut:        ar.TimedOut,
-			AgentStdoutPath: ar.AgentStdoutPath,
-			OutputFilePath:  ar.OutputFilePath,
+			Success:            ar.Success,
+			ExitCode:           ar.ExitCode,
+			Stdout:             ar.Stdout,
+			Stderr:             ar.Stderr,
+			Summary:            ar.Summary,
+			TimedOut:           ar.TimedOut,
+			AgentStdoutPath:    ar.AgentStdoutPath,
+			OutputFilePath:     ar.OutputFilePath,
+			SafeOutputFilePath: ar.SafeOutputFilePath,
 		}
 	}
 	b, err := json.MarshalIndent(out, "", "  ")
@@ -299,14 +312,15 @@ func (r *RunDir) WriteRunJSON(res *types.RunResult) error {
 		Errors      []string `json:"errors,omitempty"`
 		RunDir      string   `json:"run_dir"`
 		AgentResult *struct {
-			Success         bool   `json:"success"`
-			ExitCode        int    `json:"exit_code"`
-			Stdout          string `json:"stdout,omitempty"`
-			Stderr          string `json:"stderr,omitempty"`
-			Summary         string `json:"summary,omitempty"`
-			TimedOut        bool   `json:"timed_out,omitempty"`
-			AgentStdoutPath string `json:"agent_stdout_path,omitempty"`
-			OutputFilePath  string `json:"output_file_path,omitempty"`
+			Success            bool   `json:"success"`
+			ExitCode           int    `json:"exit_code"`
+			Stdout             string `json:"stdout,omitempty"`
+			Stderr             string `json:"stderr,omitempty"`
+			Summary            string `json:"summary,omitempty"`
+			TimedOut           bool   `json:"timed_out,omitempty"`
+			AgentStdoutPath    string `json:"agent_stdout_path,omitempty"`
+			OutputFilePath     string `json:"output_file_path,omitempty"`
+			SafeOutputFilePath string `json:"safe_output_file_path,omitempty"`
 		} `json:"agent_result,omitempty"`
 	}{
 		runMeta:    m,
@@ -318,23 +332,25 @@ func (r *RunDir) WriteRunJSON(res *types.RunResult) error {
 	if res.AgentResult != nil {
 		ar := res.AgentResult
 		out.AgentResult = &struct {
-			Success         bool   `json:"success"`
-			ExitCode        int    `json:"exit_code"`
-			Stdout          string `json:"stdout,omitempty"`
-			Stderr          string `json:"stderr,omitempty"`
-			Summary         string `json:"summary,omitempty"`
-			TimedOut        bool   `json:"timed_out,omitempty"`
-			AgentStdoutPath string `json:"agent_stdout_path,omitempty"`
-			OutputFilePath  string `json:"output_file_path,omitempty"`
+			Success            bool   `json:"success"`
+			ExitCode           int    `json:"exit_code"`
+			Stdout             string `json:"stdout,omitempty"`
+			Stderr             string `json:"stderr,omitempty"`
+			Summary            string `json:"summary,omitempty"`
+			TimedOut           bool   `json:"timed_out,omitempty"`
+			AgentStdoutPath    string `json:"agent_stdout_path,omitempty"`
+			OutputFilePath     string `json:"output_file_path,omitempty"`
+			SafeOutputFilePath string `json:"safe_output_file_path,omitempty"`
 		}{
-			Success:         ar.Success,
-			ExitCode:        ar.ExitCode,
-			Stdout:          ar.Stdout,
-			Stderr:          ar.Stderr,
-			Summary:         ar.Summary,
-			TimedOut:        ar.TimedOut,
-			AgentStdoutPath: ar.AgentStdoutPath,
-			OutputFilePath:  ar.OutputFilePath,
+			Success:            ar.Success,
+			ExitCode:           ar.ExitCode,
+			Stdout:             ar.Stdout,
+			Stderr:             ar.Stderr,
+			Summary:            ar.Summary,
+			TimedOut:           ar.TimedOut,
+			AgentStdoutPath:    ar.AgentStdoutPath,
+			OutputFilePath:     ar.OutputFilePath,
+			SafeOutputFilePath: ar.SafeOutputFilePath,
 		}
 	}
 	b, err := json.MarshalIndent(out, "", "  ")
