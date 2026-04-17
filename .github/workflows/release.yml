@@ -27,11 +27,12 @@ jobs:
           COMMIT=$(git rev-parse --short HEAD)
           LDFLAGS="-s -w -X github.com/an-lee/gh-wm/cmd.Version=${VERSION} -X github.com/an-lee/gh-wm/cmd.Commit=${COMMIT}"
           mkdir -p dist
-          GOOS=linux GOARCH=amd64 go build -ldflags "$LDFLAGS" -o dist/gh-wm_linux_amd64 .
-          GOOS=linux GOARCH=arm64 go build -ldflags "$LDFLAGS" -o dist/gh-wm_linux_arm64 .
-          GOOS=darwin GOARCH=amd64 go build -ldflags "$LDFLAGS" -o dist/gh-wm_darwin_amd64 .
-          GOOS=darwin GOARCH=arm64 go build -ldflags "$LDFLAGS" -o dist/gh-wm_darwin_arm64 .
-          (cd dist && sha256sum gh-wm_* > SHA256SUMS)
+          GOOS=linux GOARCH=amd64 go build -ldflags "$LDFLAGS" -o dist/gh-wm-linux-amd64 .
+          GOOS=linux GOARCH=arm64 go build -ldflags "$LDFLAGS" -o dist/gh-wm-linux-arm64 .
+          GOOS=darwin GOARCH=amd64 go build -ldflags "$LDFLAGS" -o dist/gh-wm-darwin-amd64 .
+          GOOS=darwin GOARCH=arm64 go build -ldflags "$LDFLAGS" -o dist/gh-wm-darwin-arm64 .
+          GOOS=windows GOARCH=amd64 go build -ldflags "$LDFLAGS" -o dist/gh-wm-windows-amd64.exe .
+          (cd dist && sha256sum gh-wm-* > SHA256SUMS)
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v3
