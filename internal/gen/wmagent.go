@@ -20,26 +20,7 @@ concurrency:
   group: wm-{{ "${{" }} github.event.issue.number || github.event.pull_request.number || github.run_id {{ "}}" }}
   cancel-in-progress: false
 
-on:
-  issues:
-    types: [labeled, opened]
-  issue_comment:
-    types: [created]
-  pull_request:
-    types: [opened, synchronize, reopened, review_requested]
-  schedule:
-{{- range .Schedules }}
-    - cron: "{{ . }}"
-{{- end }}
-  workflow_dispatch:
-    inputs:
-      issue_number:
-        description: Issue or PR number (optional)
-        required: false
-      task_name:
-        description: Run only this task (optional; skips event matching when set)
-        required: false
-
+{{ .OnBlock }}
 permissions:
   contents: write
   issues: write
@@ -82,26 +63,7 @@ concurrency:
   group: wm-{{ "${{" }} github.event.issue.number || github.event.pull_request.number || github.run_id {{ "}}" }}
   cancel-in-progress: false
 
-on:
-  issues:
-    types: [labeled, opened]
-  issue_comment:
-    types: [created]
-  pull_request:
-    types: [opened, synchronize, reopened, review_requested]
-  schedule:
-{{- range .Schedules }}
-    - cron: "{{ . }}"
-{{- end }}
-  workflow_dispatch:
-    inputs:
-      issue_number:
-        description: Issue or PR number (optional)
-        required: false
-      task_name:
-        description: Run only this task (optional; skips event matching when set)
-        required: false
-
+{{ .OnBlock }}
 permissions:
   contents: write
   issues: write
@@ -164,7 +126,7 @@ jobs:
 type wmAgentData struct {
 	OwnerRepo         string
 	Ref               string
-	Schedules         []string
+	OnBlock           string
 	RunsOnJSON        string
 	PreStepsYAML      string
 	InstallClaudeCode bool
@@ -173,7 +135,8 @@ type wmAgentData struct {
 // WriteWMAgent writes .github/workflows/wm-agent.yml. runsOn is passed to reusable workflows as JSON (see workflow.runs_on in .wm/config.yml); if empty, ["ubuntu-latest"] is used.
 // When preSteps is non-empty, the run job is generated inline so prerequisite steps (e.g. mise, bundle install) run before gh-wm.
 // installClaudeCode controls the agent-run input and inline install steps (see workflow.install_claude_code in .wm/config.yml; default true).
-func WriteWMAgent(ghWorkflowsDir string, ownerRepo string, schedules []string, runsOn []string, preSteps []config.StepDef, installClaudeCode bool) error {
+// triggers is typically from CollectTriggersFromTasksDir; it controls the generated workflow on: block.
+func WriteWMAgent(ghWorkflowsDir string, ownerRepo string, triggers WorkflowTriggers, runsOn []string, preSteps []config.StepDef, installClaudeCode bool) error {
 	labels := runsOn
 	if len(labels) == 0 {
 		labels = []string{"ubuntu-latest"}
@@ -182,15 +145,18 @@ func WriteWMAgent(ghWorkflowsDir string, ownerRepo string, schedules []string, r
 	if err != nil {
 		return err
 	}
+	wt := triggers
+	if len(wt.Schedules) == 0 {
+		wt.Schedules = []string{"0 22 * * 1-5"}
+	} else {
+		wt.Schedules = dedupe(wt.Schedules)
+	}
 	data := wmAgentData{
 		OwnerRepo:         ownerRepo,
 		Ref:               "main",
-		Schedules:         dedupe(schedules),
+		OnBlock:           renderOnBlock(wt),
 		RunsOnJSON:        string(runsOnJSON),
 		InstallClaudeCode: installClaudeCode,
-	}
-	if len(data.Schedules) == 0 {
-		data.Schedules = []string{"0 22 * * 1-5"}
 	}
 
 	var tplStr string

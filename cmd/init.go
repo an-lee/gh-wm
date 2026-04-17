@@ -37,7 +37,7 @@ func runInit(_ *cobra.Command, _ []string) error {
 	if err := os.MkdirAll(ghDir, 0o755); err != nil {
 		return err
 	}
-	schedules, err := gen.CollectSchedulesFromTasksDir(filepath.Join(wm, "tasks"))
+	triggers, err := gen.CollectTriggersFromTasksDir(filepath.Join(wm, "tasks"))
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func runInit(_ *cobra.Command, _ []string) error {
 	}
 	runsOn := config.WorkflowRunsOnLabels(glob)
 	preSteps := glob.Workflow.PreSteps
-	if err := gen.WriteWMAgent(ghDir, repo, schedules, runsOn, preSteps, config.WorkflowInstallClaudeCode(glob)); err != nil {
+	if err := gen.WriteWMAgent(ghDir, repo, triggers, runsOn, preSteps, config.WorkflowInstallClaudeCode(glob)); err != nil {
 		return err
 	}
 	if err := ensureWmGitignoreRuns(wm); err != nil {

@@ -36,7 +36,7 @@ func runUpgrade(_ *cobra.Command, _ []string) error {
 		return err
 	}
 	tasksDir := filepath.Join(cwd, ".wm", "tasks")
-	schedules, err := gen.CollectSchedulesFromTasksDir(tasksDir)
+	triggers, err := gen.CollectTriggersFromTasksDir(tasksDir)
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func runUpgrade(_ *cobra.Command, _ []string) error {
 	if glob != nil {
 		preSteps = glob.Workflow.PreSteps
 	}
-	if err := gen.WriteWMAgent(ghDir, repo, schedules, runsOn, preSteps, config.WorkflowInstallClaudeCode(glob)); err != nil {
+	if err := gen.WriteWMAgent(ghDir, repo, triggers, runsOn, preSteps, config.WorkflowInstallClaudeCode(glob)); err != nil {
 		return err
 	}
 	if err := ensureWmGitignoreRuns(filepath.Join(cwd, ".wm")); err != nil {

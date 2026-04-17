@@ -12,7 +12,8 @@ import (
 func TestWriteWMAgent(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	if err := WriteWMAgent(dir, "owner/name", []string{"0 1 * * *", "0 1 * * *", ""}, []string{"ubuntu-latest"}, nil, true); err != nil {
+	tr := WorkflowTriggers{Schedules: []string{"0 1 * * *", "0 1 * * *", ""}}
+	if err := WriteWMAgent(dir, "owner/name", tr, []string{"ubuntu-latest"}, nil, true); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(dir, "wm-agent.yml"))
@@ -21,7 +22,7 @@ func TestWriteWMAgent(t *testing.T) {
 	}
 	s := string(b)
 	for _, p := range []string{
-		"owner/name", "0 1 * * *", "agent-resolve.yml", "cron:", `runs_on: '["ubuntu-latest"]'`,
+		"owner/name", "0 1 * * *", "agent-resolve.yml", `runs_on: '["ubuntu-latest"]'`,
 		"install_claude_code: true", "task_name:", "force_task:", "has_tasks == 'true'",
 		"concurrency:", "cancel-in-progress: false", "github-actions[bot]",
 	} {
@@ -34,7 +35,7 @@ func TestWriteWMAgent(t *testing.T) {
 func TestWriteWMAgent_DefaultSchedule(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	if err := WriteWMAgent(dir, "o/r", nil, nil, nil, true); err != nil {
+	if err := WriteWMAgent(dir, "o/r", WorkflowTriggers{}, nil, nil, true); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(dir, "wm-agent.yml"))
@@ -53,7 +54,8 @@ func TestWriteWMAgent_SelfHostedLabels(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	labels := []string{"self-hosted", "linux"}
-	if err := WriteWMAgent(dir, "o/r", []string{"0 1 * * *"}, labels, nil, true); err != nil {
+	tr := WorkflowTriggers{Schedules: []string{"0 1 * * *"}}
+	if err := WriteWMAgent(dir, "o/r", tr, labels, nil, true); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(dir, "wm-agent.yml"))
@@ -69,7 +71,8 @@ func TestWriteWMAgent_SelfHostedLabels(t *testing.T) {
 func TestWriteWMAgent_InstallClaudeCodeFalse(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	if err := WriteWMAgent(dir, "o/r", []string{"0 1 * * *"}, []string{"ubuntu-latest"}, nil, false); err != nil {
+	tr := WorkflowTriggers{Schedules: []string{"0 1 * * *"}}
+	if err := WriteWMAgent(dir, "o/r", tr, []string{"ubuntu-latest"}, nil, false); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(dir, "wm-agent.yml"))
@@ -89,7 +92,8 @@ func TestWriteWMAgent_PreStepsInline(t *testing.T) {
 		{Uses: "jdx/mise-action@v4", With: map[string]any{"cache": true}},
 		{Name: "Bundle install", Run: "bundle install"},
 	}
-	if err := WriteWMAgent(dir, "o/r", []string{"0 1 * * *"}, []string{"ubuntu-latest"}, preSteps, true); err != nil {
+	tr := WorkflowTriggers{Schedules: []string{"0 1 * * *"}}
+	if err := WriteWMAgent(dir, "o/r", tr, []string{"ubuntu-latest"}, preSteps, true); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(dir, "wm-agent.yml"))
@@ -105,7 +109,7 @@ func TestWriteWMAgent_PreStepsInline(t *testing.T) {
 		"Bundle install",
 		"bundle install",
 		"has_tasks == 'true'",
-		"runs-on: ${{ fromJson('[\"ubuntu-latest\"]') }}",
+		`runs-on: ${{ fromJson('["ubuntu-latest"]') }}`,
 		"actions/setup-go@v5",
 		"Install Claude Code",
 		"claude.ai/install.sh",
@@ -124,7 +128,8 @@ func TestWriteWMAgent_PreStepsInline_NoClaudeInstall(t *testing.T) {
 	preSteps := []config.StepDef{
 		{Uses: "jdx/mise-action@v4"},
 	}
-	if err := WriteWMAgent(dir, "o/r", []string{"0 1 * * *"}, []string{"ubuntu-latest"}, preSteps, false); err != nil {
+	tr := WorkflowTriggers{Schedules: []string{"0 1 * * *"}}
+	if err := WriteWMAgent(dir, "o/r", tr, []string{"ubuntu-latest"}, preSteps, false); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(dir, "wm-agent.yml"))

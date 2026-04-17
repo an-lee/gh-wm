@@ -71,6 +71,10 @@ GitHub’s `GITHUB_EVENT_NAME` must align with the keys below (e.g. `issues`, no
 | `schedule` | `schedule` | At resolve, any task with `on.schedule` matches a schedule event; use `WM_SCHEDULE_CRON` to narrow (see [architecture](architecture.md)). |
 | `workflow_dispatch` | `workflow_dispatch` | Presence of key is enough; inputs are not matched per-field yet. |
 
+### Generated `wm-agent.yml` triggers
+
+`gh wm init` and `gh wm upgrade` build the workflow **`on:`** block from a **union** over all tasks ([`gen.CollectTriggersFromTasksDir`](../../internal/gen/triggers.go)): **`issues`**, **`issue_comment`**, and **`pull_request`** each get a merged **`types:`** list (task-only filters such as **`labels:`** are not copied into the workflow—resolve still enforces them). **`slash_command`** implies **`issue_comment`** with **`types: [created]`**; **`schedule`** unions normalized crons; **`workflow_dispatch`** is always included for manual runs. Keys with no GitHub Actions workflow equivalent (e.g. **`reaction:`**) are ignored for generation.
+
 ### Schedule strings
 
 In frontmatter, `on.schedule` is a **string** (see [`Task.ScheduleString`](../../internal/config/types.go)). Aliases are expanded with [`gen.FuzzyNormalizeSchedule`](../../internal/gen/schedules.go) (github/gh-aw–compatible: FNV-1a hash of the task file path + weighted time pool) so each task gets a **stable, distinct** cron instead of everyone at midnight:

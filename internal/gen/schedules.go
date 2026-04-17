@@ -5,8 +5,6 @@ import (
 	"hash/fnv"
 	"regexp"
 	"strings"
-
-	"github.com/an-lee/gh-wm/internal/config"
 )
 
 // cronFieldPattern matches valid single cron field tokens (GitHub Actions / POSIX cron).
@@ -98,20 +96,4 @@ func FuzzyNormalizeSchedule(scheduleStr, identifier string) string {
 	default:
 		return scheduleStr
 	}
-}
-
-// CollectSchedulesFromTasksDir reads all tasks and unions on.schedule strings (fuzzy-normalized per task path).
-func CollectSchedulesFromTasksDir(tasksDir string) ([]string, error) {
-	tasks, err := config.LoadTasksDir(tasksDir)
-	if err != nil {
-		return nil, err
-	}
-	var out []string
-	for _, t := range tasks {
-		s := t.ScheduleString()
-		if s != "" {
-			out = append(out, FuzzyNormalizeSchedule(s, t.Path))
-		}
-	}
-	return dedupe(out), nil
 }
