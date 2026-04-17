@@ -64,7 +64,7 @@ Optional **checkpoints** ([`internal/checkpoint`](../../internal/checkpoint/chec
 Business repos use an **auto-generated** `wm-agent.yml` (from `gh wm init` / `gh wm upgrade`). Runner labels come from **`workflow.runs_on`** in [`.wm/config.yml`](task-format.md); optional **`workflow.install_claude_code`** (default **true**) controls whether CI installs the **Claude Code** CLI before **`gh-wm run`**; optional **`workflow.pre_steps`** lists prerequisite Actions steps (toolchains, deps); `upgrade` rewrites `wm-agent.yml` when you change them.
 
 - **Resolve** always uses reusable **`agent-resolve.yml`**.
-- **Run** uses reusable **`agent-run.yml`** when **`workflow.pre_steps` is empty**. If **`workflow.pre_steps` is set**, the generator embeds the same checkout → pre-steps → `gh-wm` install → (optional) Claude Code install → `gh-wm run` sequence **inline** in `wm-agent.yml` (reusable workflows cannot take arbitrary step YAML as inputs).
+- **Run** uses reusable **`agent-run.yml`** when **`workflow.pre_steps` is empty**. If **`workflow.pre_steps` is set**, the generator embeds the same checkout → pre-steps → **`gh extension install`** → (optional) Claude Code install → **`gh wm run`** sequence **inline** in `wm-agent.yml` (reusable workflows cannot take arbitrary step YAML as inputs).
 
 ```mermaid
 flowchart LR
@@ -78,17 +78,17 @@ flowchart LR
 
 1. **`agent-resolve.yml`** ([`.github/workflows/agent-resolve.yml`](../../.github/workflows/agent-resolve.yml))  
    - `runs-on` is driven by the **`runs_on` workflow input** (JSON array of labels), with default `["ubuntu-latest"]`; generated `wm-agent.yml` passes labels from `.wm/config.yml`.
-   - Checks out the repo, installs `gh-wm` (`go install`), writes the GitHub event JSON to **`.wm/runs/github-event.json`** (under the ignored `runs/` tree; see **`.wm/.gitignore`**) so `git status` stays clean for `gh-wm run`’s working-tree check, then runs:
-   - `gh-wm resolve --repo-root . --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json --json`  
+   - Checks out the repo, installs **`gh-wm`** via **`gh extension install`**, writes the GitHub event JSON to **`.wm/runs/github-event.json`** (under the ignored `runs/` tree; see **`.wm/.gitignore`**) so `git status` stays clean for **`gh wm run`**’s working-tree check, then runs:
+   - `gh wm resolve --repo-root . --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json --json`  
    - Exposes the printed JSON array as job output `tasks`, and sets **`has_tasks`** to the string **`true`** or **`false`** so the caller can skip the **`run`** job when nothing matched (avoids matrix/`fromJSON` errors on empty input).
 
 2. **`agent-run.yml`** ([`.github/workflows/agent-run.yml`](../../.github/workflows/agent-run.yml)) — **when `workflow.pre_steps` is unset**  
    - The generated caller runs this job only when **`needs.resolve.outputs.has_tasks == 'true'`**. Matrix over `fromJSON(needs.resolve.outputs.tasks)` with `fail-fast: false`.  
    - Unless **`install_claude_code`** is **false**, runs the official Claude Code installer (`https://claude.ai/install.sh`) and appends **`$HOME/.local/bin`** to **`GITHUB_PATH`** so **`claude`** is on **`PATH`** on minimal self-hosted runners.  
-   - Writes the same **`.wm/runs/github-event.json`** payload and runs `gh-wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json` with `ANTHROPIC_API_KEY` for the agent.
+   - Writes the same **`.wm/runs/github-event.json`** payload and runs `gh wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json` with `ANTHROPIC_API_KEY` for the agent.
 
 3. **Inline `run` job** — **when `workflow.pre_steps` is set**  
-   - Same matrix and `gh-wm run` invocation (payload under **`.wm/runs/github-event.json`** as above); steps include **`workflow.pre_steps`** after checkout and before installing `gh-wm`; when **`workflow.install_claude_code`** is **true** (default), the same Claude Code install + **`GITHUB_PATH`** steps run before **`gh-wm run`**.
+   - Same matrix and **`gh wm run`** invocation (payload under **`.wm/runs/github-event.json`** as above); steps include **`workflow.pre_steps`** after checkout and before **`gh extension install`**; when **`workflow.install_claude_code`** is **true** (default), the same Claude Code install + **`GITHUB_PATH`** steps run before **`gh wm run`**.
 
 **Note:** In CI, the installed binary name is `gh-wm`. When installed as a `gh` extension, the same commands are available as `gh wm …`.
 

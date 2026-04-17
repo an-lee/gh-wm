@@ -28,7 +28,7 @@ type GlobalConfig struct {
 		RunsOn            []string  `yaml:"runs_on"`
 		PreSteps          []StepDef `yaml:"pre_steps"`
 		InstallClaudeCode *bool     `yaml:"install_claude_code,omitempty"`
-		SetupGoCache      *bool     `yaml:"setup_go_cache,omitempty"`
+		SetupGoCache      *bool     `yaml:"setup_go_cache,omitempty"` // legacy; ignored by wm-agent generation (CI uses gh extension install)
 	} `yaml:"workflow"`
 	Context struct {
 		Files []string `yaml:"files"`

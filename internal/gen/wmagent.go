@@ -36,7 +36,6 @@ jobs:
       event_json: {{ "${{" }} toJSON(github.event) {{ "}}" }}
       runs_on: '{{ .RunsOnJSON }}'
       force_task: {{ "${{" }} github.event.inputs.task_name || '' {{ "}}" }}
-      setup_go_cache: {{ if .SetupGoCache }}true{{ else }}false{{ end }}
 
   run:
     needs: resolve
@@ -48,23 +47,13 @@ jobs:
 {{ if .Inline }}
     runs-on: {{ "${{" }} fromJson('{{ .RunsOnJSON }}') {{ "}}" }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
 {{ .PreStepsYAML }}
-      - uses: actions/setup-go@v5
-        with:
-          go-version: stable
-{{ if not .SetupGoCache }}
-          cache: false
-{{ end }}
-
       - name: Install gh-wm
-        run: go install github.com/an-lee/gh-wm@latest
+        run: gh extension install {{ .OwnerRepo }} --force
         env:
-          GOBIN: {{ "${{" }} runner.temp {{ "}}" }}/bin
-
-      - name: Add gh-wm to PATH
-        run: echo "{{ "${{" }} runner.temp {{ "}}" }}/bin" >> "$GITHUB_PATH"
+          GH_TOKEN: {{ "${{" }} github.token {{ "}}" }}
 {{ if .InstallClaudeCode }}
       - name: Install Claude Code
         run: curl -fsSL https://claude.ai/install.sh | bash
@@ -83,7 +72,7 @@ jobs:
         run: |
           mkdir -p .wm/runs
           printf '%s' "$EVENT_JSON" > .wm/runs/github-event.json
-          gh-wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json
+          gh wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json
 {{ else }}
     uses: {{ .OwnerRepo }}/.github/workflows/agent-run.yml@{{ .Ref }}
     with:
@@ -92,7 +81,6 @@ jobs:
       event_json: {{ "${{" }} toJSON(github.event) {{ "}}" }}
       runs_on: '{{ .RunsOnJSON }}'
       install_claude_code: {{ if .InstallClaudeCode }}true{{ else }}false{{ end }}
-      setup_go_cache: {{ if .SetupGoCache }}true{{ else }}false{{ end }}
     secrets:
       ANTHROPIC_API_KEY: {{ "${{" }} secrets.ANTHROPIC_API_KEY {{ "}}" }}
 {{ end }}
@@ -105,16 +93,14 @@ type wmAgentData struct {
 	RunsOnJSON        string
 	PreStepsYAML      string
 	InstallClaudeCode bool
-	SetupGoCache      bool
 	Inline            bool
 }
 
 // WriteWMAgent writes .github/workflows/wm-agent.yml. runsOn is passed to reusable workflows as JSON (see workflow.runs_on in .wm/config.yml); if empty, ["ubuntu-latest"] is used.
-// When preSteps is non-empty, the run job is generated inline so prerequisite steps (e.g. mise, bundle install) run before gh-wm.
+// When preSteps is non-empty, the run job is generated inline so prerequisite steps (e.g. mise, bundle install) run before installing gh-wm.
 // installClaudeCode controls the agent-run input and inline install steps (see workflow.install_claude_code in .wm/config.yml; default true).
-// setupGoCache controls actions/setup-go cache in agent-resolve, agent-run, and inline run (see workflow.setup_go_cache in .wm/config.yml; default true).
 // triggers is typically from CollectTriggersFromTasksDir; it controls the generated workflow on: block.
-func WriteWMAgent(ghWorkflowsDir string, ownerRepo string, triggers WorkflowTriggers, runsOn []string, preSteps []config.StepDef, installClaudeCode bool, setupGoCache bool) error {
+func WriteWMAgent(ghWorkflowsDir string, ownerRepo string, triggers WorkflowTriggers, runsOn []string, preSteps []config.StepDef, installClaudeCode bool) error {
 	labels := runsOn
 	if len(labels) == 0 {
 		labels = []string{"ubuntu-latest"}
@@ -135,7 +121,6 @@ func WriteWMAgent(ghWorkflowsDir string, ownerRepo string, triggers WorkflowTrig
 		OnBlock:           renderOnBlock(wt),
 		RunsOnJSON:        string(runsOnJSON),
 		InstallClaudeCode: installClaudeCode,
-		SetupGoCache:      setupGoCache,
 		Inline:            len(preSteps) > 0,
 	}
 	if data.Inline {

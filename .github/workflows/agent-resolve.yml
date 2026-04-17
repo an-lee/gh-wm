@@ -19,11 +19,6 @@ on:
         required: false
         type: string
         default: ""
-      setup_go_cache:
-        description: Pass through to actions/setup-go cache (set false on persistent self-hosted runners)
-        required: false
-        type: boolean
-        default: true
     outputs:
       tasks:
         description: JSON array of matching task names
@@ -41,18 +36,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v6
-        with:
-          go-version: stable
-          cache: ${{ inputs.setup_go_cache }}
-
       - name: Install gh-wm
-        run: go install github.com/an-lee/gh-wm@latest
+        run: gh extension install an-lee/gh-wm --force
         env:
-          GOBIN: ${{ runner.temp }}/bin
-
-      - name: Add gh-wm to PATH
-        run: echo "${{ runner.temp }}/bin" >> "$GITHUB_PATH"
+          GH_TOKEN: ${{ github.token }}
 
       - name: Match tasks
         id: match
@@ -62,11 +49,11 @@ jobs:
           FORCE_TASK: ${{ inputs.force_task }}
         run: |
           if [ -n "${FORCE_TASK:-}" ]; then
-            TASKS=$(gh-wm resolve --repo-root . --force-task "$FORCE_TASK" --json)
+            TASKS=$(gh wm resolve --repo-root . --force-task "$FORCE_TASK" --json)
           else
             mkdir -p .wm/runs
             printf '%s' "$EVENT_JSON" > .wm/runs/github-event.json
-            TASKS=$(gh-wm resolve --repo-root . --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json --json)
+            TASKS=$(gh wm resolve --repo-root . --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json --json)
           fi
           TASKS=$(printf '%s' "$TASKS")
           if [ -z "$TASKS" ]; then

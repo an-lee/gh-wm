@@ -18,12 +18,7 @@ on:
         type: string
         default: '["ubuntu-latest"]'
       install_claude_code:
-        description: Install Claude Code CLI via the official installer before gh-wm run (set false for codex-only tasks or when claude is pre-installed on the runner)
-        required: false
-        type: boolean
-        default: true
-      setup_go_cache:
-        description: Pass through to actions/setup-go cache (set false on persistent self-hosted runners)
+        description: Install Claude Code CLI via the official installer before gh wm run (set false for codex-only tasks or when claude is pre-installed on the runner)
         required: false
         type: boolean
         default: true
@@ -37,18 +32,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v6
-        with:
-          go-version: stable
-          cache: ${{ inputs.setup_go_cache }}
-
       - name: Install gh-wm
-        run: go install github.com/an-lee/gh-wm@latest
+        run: gh extension install an-lee/gh-wm --force
         env:
-          GOBIN: ${{ runner.temp }}/bin
-
-      - name: Add gh-wm to PATH
-        run: echo "${{ runner.temp }}/bin" >> "$GITHUB_PATH"
+          GH_TOKEN: ${{ github.token }}
 
       - name: Install Claude Code
         if: ${{ inputs.install_claude_code }}
@@ -69,4 +56,4 @@ jobs:
         run: |
           mkdir -p .wm/runs
           printf '%s' "$EVENT_JSON" > .wm/runs/github-event.json
-          gh-wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json
+          gh wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json

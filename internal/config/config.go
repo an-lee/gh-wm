@@ -86,8 +86,8 @@ func WorkflowInstallClaudeCode(g *GlobalConfig) bool {
 	return *g.Workflow.InstallClaudeCode
 }
 
-// WorkflowSetupGoCache reports whether generated wm-agent.yml should pass setup_go_cache: true to
-// agent-resolve and agent-run (actions/setup-go cache). When unset in config, defaults to true.
+// WorkflowSetupGoCache is legacy: older configs set workflow.setup_go_cache; wm-agent generation
+// no longer passes it (CI installs gh-wm via `gh extension install`). Kept for tests and parsing old YAML.
 func WorkflowSetupGoCache(g *GlobalConfig) bool {
 	if g == nil || g.Workflow.SetupGoCache == nil {
 		return true

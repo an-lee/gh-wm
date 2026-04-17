@@ -82,7 +82,7 @@ See [`runAgent`](../../internal/engine/agent.go): `WM_AGENT_CMD` overrides every
 ## Workflows and releases
 
 - **Caller** `wm-agent.yml` is **generated**—use `gh wm upgrade` (runs best-effort `gh extension upgrade an-lee/gh-wm`, then regenerates the file).
-- Reusable workflows live in this repo. CI installs **`gh-wm`** with `go install` and invokes **`gh-wm resolve` / `gh-wm run`**. The reusable [`agent-run.yml`](../../.github/workflows/agent-run.yml) optionally installs **Claude Code** (official `install.sh`) and appends **`$HOME/.local/bin`** to **`GITHUB_PATH`** so **`claude`** is on **`PATH`** on self-hosted runners with a minimal environment. Disable via **`workflow.install_claude_code: false`** in `.wm/config.yml` when using **codex** only or a pre-installed CLI.
+- Reusable workflows live in this repo. Runners must have the **`gh`** CLI available (GitHub-hosted runners include it). CI installs **`gh-wm`** with **`gh extension install`** and invokes **`gh wm resolve` / `gh wm run`**. The reusable [`agent-run.yml`](../../.github/workflows/agent-run.yml) optionally installs **Claude Code** (official `install.sh`) and appends **`$HOME/.local/bin`** to **`GITHUB_PATH`** so **`claude`** is on **`PATH`** on self-hosted runners with a minimal environment. Disable via **`workflow.install_claude_code: false`** in `.wm/config.yml` when using **codex** only or a pre-installed CLI.
 
 When changing reusable workflow inputs/outputs, update [`internal/gen/wmagent.go`](../../internal/gen/wmagent.go).
 

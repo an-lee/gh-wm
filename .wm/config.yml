@@ -5,7 +5,6 @@ workflow:
     - self-hosted
     - linux
 
-  setup_go_cache: false
   install_claude_code: true
 
   # Optional: prerequisite steps before gh-wm runs (toolchains, deps, engine CLI).
