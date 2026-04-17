@@ -116,3 +116,116 @@ func TestTruncateRunes(t *testing.T) {
 		t.Fatalf("got %q want %q", out, want)
 	}
 }
+
+func TestFormatUserEvent(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		ev   map[string]any
+		want string
+	}{
+		{
+			name: "nil_map",
+			ev:   nil,
+			want: "",
+		},
+		{
+			name: "missing_message",
+			ev:   map[string]any{"type": "user"},
+			want: "",
+		},
+		{
+			name: "message_not_map",
+			ev:   map[string]any{"message": "not a map"},
+			want: "",
+		},
+		{
+			name: "missing_content",
+			ev:   map[string]any{"message": map[string]any{}},
+			want: "",
+		},
+		{
+			name: "content_not_slice",
+			ev: map[string]any{
+				"message": map[string]any{"content": "not a slice"},
+			},
+			want: "",
+		},
+		{
+			name: "valid_tool_result_with_id",
+			ev: map[string]any{
+				"message": map[string]any{
+					"content": []any{
+						map[string]any{"type": "tool_result", "tool_use_id": "tool_12345678"},
+					},
+				},
+			},
+			want: "[tool_result] id=tool_12345678",
+		},
+		{
+			name: "valid_tool_result_no_id",
+			ev: map[string]any{
+				"message": map[string]any{
+					"content": []any{
+						map[string]any{"type": "tool_result"},
+					},
+				},
+			},
+			want: "[tool_result]",
+		},
+		{
+			name: "multiple_tool_results",
+			ev: map[string]any{
+				"message": map[string]any{
+					"content": []any{
+						map[string]any{"type": "tool_result", "tool_use_id": "tool_a"},
+						map[string]any{"type": "text", "text": "hello"},
+						map[string]any{"type": "tool_result", "tool_use_id": "tool_b"},
+					},
+				},
+			},
+			want: "[tool_result] id=tool_a\n[tool_result] id=tool_b",
+		},
+		{
+			name: "empty_content_slice",
+			ev: map[string]any{
+				"message": map[string]any{
+					"content": []any{},
+				},
+			},
+			want: "",
+		},
+		{
+			name: "non_tool_result_blocks_skipped",
+			ev: map[string]any{
+				"message": map[string]any{
+					"content": []any{
+						map[string]any{"type": "text", "text": "hello"},
+						map[string]any{"type": "input_message", "content": "world"},
+					},
+				},
+			},
+			want: "",
+		},
+		{
+			name: "tool_use_id_preserved_full",
+			ev: map[string]any{
+				"message": map[string]any{
+					"content": []any{
+						map[string]any{"type": "tool_result", "tool_use_id": "tool_12345678901234567890123456789012345"},
+					},
+				},
+			},
+			want: "[tool_result] id=tool_12345678901234567890123456789012345",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := formatUserEvent(tc.ev)
+			if got != tc.want {
+				t.Fatalf("formatUserEvent(%v): got %q, want %q", tc.ev, got, tc.want)
+			}
+		})
+	}
+}
