@@ -1,14 +1,12 @@
 name: Performance Monitoring
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
 permissions:
   contents: read
-  pull-requests: write  # for commenting on PRs
+  pull-requests: write # for commenting on PRs
 
 jobs:
   performance:
