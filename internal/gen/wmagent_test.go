@@ -127,6 +127,7 @@ func TestWriteWMAgent_PreStepsInline(t *testing.T) {
 		"Bundle install",
 		"bundle install",
 		"has_tasks == 'true'",
+		"always() && !cancelled()",
 		`runs-on: ${{ fromJson('["ubuntu-latest"]') }}`,
 		".github/actions/install-gh-cli@main",
 		"gh extension install o/r",

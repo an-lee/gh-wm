@@ -88,7 +88,7 @@ jobs:
 
   run_outputs:
     needs: [resolve, run_agent]
-    if: {{ "${{" }} needs.resolve.outputs.has_tasks == 'true' {{ "}}" }}
+    if: {{ "${{" }} always() && !cancelled() && needs.resolve.outputs.has_tasks == 'true' && needs.resolve.result == 'success' {{ "}}" }}
     strategy:
       fail-fast: false
       matrix:
@@ -118,13 +118,7 @@ jobs:
           TASK_NAME: {{ "${{" }} matrix.task {{ "}}" }}
         run: |
           set -euo pipefail
-          RUN_DIR=$(ls -td .wm/runs/*/ 2>/dev/null | head -1 || true)
-          RUN_DIR=${RUN_DIR%/}
-          if [ -z "$RUN_DIR" ] || [ ! -d "$RUN_DIR" ]; then
-            echo "No per-run directory under .wm/runs" >&2
-            exit 1
-          fi
-          gh wm process-outputs --repo-root . --run-dir "$RUN_DIR" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json
+          gh wm process-outputs --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json
 {{ else }}
   run:
     needs: resolve

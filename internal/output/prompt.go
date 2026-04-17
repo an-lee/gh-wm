@@ -32,6 +32,24 @@ func emitSubcommand(kind OutputKind) string {
 	}
 }
 
+// SafeOutputsSystemPromptAppend returns text for Claude Code's `--append-system-prompt` when the task declares
+// `safe-outputs:`. Empty when there is no policy to enforce. Used only for the built-in `claude` engine (not codex/custom).
+func SafeOutputsSystemPromptAppend(task *config.Task) string {
+	if task == nil {
+		return ""
+	}
+	so := task.SafeOutputsMap()
+	if so == nil || len(so) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("gh-wm safe-outputs (system):\n\n")
+	b.WriteString("In read-only CI, direct GitHub writes via `gh` (for example `gh issue comment`, `gh pr create`, `gh label`) typically fail with permission errors. ")
+	b.WriteString("You MUST record each allowed follow-up by running `gh-wm emit <subcommand>` with the correct flags (or `gh wm emit` when gh-wm is installed as a gh extension). ")
+	b.WriteString("Each call appends one validated JSON line to WM_SAFE_OUTPUT_FILE (output.jsonl). Do not use raw `gh` for mutations that belong in the safe-outputs pipeline.\n")
+	return b.String()
+}
+
 // AvailableOutputsSection builds markdown appended to the agent prompt describing `gh-wm emit`.
 func AvailableOutputsSection(glob *config.GlobalConfig, task *config.Task) string {
 	if task == nil {
@@ -43,7 +61,6 @@ func AvailableOutputsSection(glob *config.GlobalConfig, task *config.Task) strin
 	}
 	var b strings.Builder
 	b.WriteString("\n\n---\n## Safe outputs\n\n")
-	b.WriteString("**GitHub writes via `gh` (for example `gh issue comment`) will fail with permission errors in read-only CI;** record each allowed follow-up by running **`gh-wm emit <subcommand>`** with flags instead. ")
 	b.WriteString("Each call appends one validated JSON line to **`WM_SAFE_OUTPUT_FILE`** (`output.jsonl`). ")
 	b.WriteString("The run sets **`WM_REPO_ROOT`**, **`WM_TASK`**, **`WM_SAFE_OUTPUT_FILE`**, and typically **`GITHUB_REPOSITORY`** plus **`WM_ISSUE_NUMBER`** / **`WM_PR_NUMBER`** when applicable.\n\n")
 	b.WriteString("If you have nothing to post, run **`gh-wm emit noop --message \"…\"`** (optional; missing output is treated as an implicit noop with a warning).\n\n")

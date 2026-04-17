@@ -139,11 +139,12 @@ func loadPersistedAgentResult(runDirPath string) (*types.AgentResult, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return synthesizeAgentResult(runDirPath), nil
+			return nil, fmt.Errorf("process-outputs: missing %s (expected after gh wm run --agent-only)", resultFileName)
 		}
 		return nil, fmt.Errorf("process-outputs: read result.json: %w", err)
 	}
 	var file struct {
+		Success     *bool `json:"success"`
 		AgentResult *struct {
 			Success            bool   `json:"success"`
 			ExitCode           int    `json:"exit_code"`
@@ -160,7 +161,13 @@ func loadPersistedAgentResult(runDirPath string) (*types.AgentResult, error) {
 		return nil, fmt.Errorf("process-outputs: parse result.json: %w", err)
 	}
 	if file.AgentResult == nil {
-		return synthesizeAgentResult(runDirPath), nil
+		return nil, fmt.Errorf("process-outputs: result.json has no agent_result snapshot")
+	}
+	if file.Success != nil && !*file.Success {
+		return nil, fmt.Errorf("process-outputs: refusing to apply outputs: result.json success is false")
+	}
+	if !file.AgentResult.Success {
+		return nil, fmt.Errorf("process-outputs: refusing to apply outputs: agent_result.success is false")
 	}
 	ar := &types.AgentResult{
 		Success:            file.AgentResult.Success,
@@ -181,13 +188,4 @@ func loadPersistedAgentResult(runDirPath string) (*types.AgentResult, error) {
 		ar.SafeOutputFilePath = rd.SafeOutputJSONLPath()
 	}
 	return ar, nil
-}
-
-func synthesizeAgentResult(runDirPath string) *types.AgentResult {
-	rd := &RunDir{Path: runDirPath}
-	return &types.AgentResult{
-		Success:            true,
-		OutputFilePath:     rd.OutputJSONPath(),
-		SafeOutputFilePath: rd.SafeOutputJSONLPath(),
-	}
 }

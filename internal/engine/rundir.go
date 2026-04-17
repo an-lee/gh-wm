@@ -138,6 +138,62 @@ func (r *RunDir) writeMeta(m *runMeta) error {
 	return nil
 }
 
+// FindLatestRunDirForTask returns the absolute path to the newest `.wm/runs/<id>/` directory
+// whose meta.json task_name matches taskName (newest is determined by meta.json file modtime).
+// Used by `gh wm process-outputs --task` in CI when the exact run id is not passed as a flag.
+// Only repoRoot/.wm/runs is searched (not WM_RUN_DIR), matching the default CI layout after checkout.
+func FindLatestRunDirForTask(repoRoot, taskName string) (string, error) {
+	taskName = strings.TrimSpace(taskName)
+	if taskName == "" {
+		return "", fmt.Errorf("find run dir: empty task name")
+	}
+	absRoot, err := filepath.Abs(repoRoot)
+	if err != nil {
+		return "", fmt.Errorf("find run dir: %w", err)
+	}
+	base := filepath.Join(absRoot, ".wm", "runs")
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("find run dir: missing %s", base)
+		}
+		return "", fmt.Errorf("find run dir: %w", err)
+	}
+	var bestPath string
+	var bestMtime time.Time
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		dir := filepath.Join(base, e.Name())
+		metaPath := filepath.Join(dir, metaFileName)
+		st, err := os.Stat(metaPath)
+		if err != nil {
+			continue
+		}
+		b, err := os.ReadFile(metaPath)
+		if err != nil {
+			continue
+		}
+		var meta runMeta
+		if err := json.Unmarshal(b, &meta); err != nil {
+			continue
+		}
+		if meta.TaskName != taskName {
+			continue
+		}
+		mt := st.ModTime()
+		if bestPath == "" || mt.After(bestMtime) {
+			bestMtime = mt
+			bestPath = dir
+		}
+	}
+	if bestPath == "" {
+		return "", fmt.Errorf("find run dir: no run for task %q under %s", taskName, base)
+	}
+	return bestPath, nil
+}
+
 // UpdateMeta writes phase and optional success flag to meta.json.
 func (r *RunDir) UpdateMeta(phase types.Phase, success bool) error {
 	if r == nil {

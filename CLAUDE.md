@@ -12,7 +12,8 @@ go test ./internal/config/... -run TestSplitFrontmatter  # single test
 ./gh-wm resolve --repo-root . --event-name issues --payload event.json --json
 ./gh-wm run --repo-root . --task <name> --event-name workflow_dispatch
 ./gh-wm run --repo-root . --task <name> --agent-only   # CI: agent phase only; then gh wm process-outputs
-./gh-wm process-outputs --repo-root . --run-dir .wm/runs/<id> --event-name issues --payload event.json
+./gh-wm process-outputs --repo-root . --task <name> --event-name issues --payload event.json
+# or: --run-dir .wm/runs/<id>
 ./gh-wm run --repo-root . --task <name> --remote   # dispatch on GitHub
 ```
 

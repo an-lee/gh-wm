@@ -51,7 +51,11 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 
 	cmdLine := os.Getenv("WM_AGENT_CMD")
 	forceStream := opts != nil && opts.LogWriter != nil && engines.IsBuiltinClaude(cmdLine, engineName)
-	cmd, stdin, artifactFormat, errBuild := engines.BuildAgentCommand(ctx, glob, engineName, cmdLine, prompt, forceStream)
+	appendSys := ""
+	if engines.IsBuiltinClaude(cmdLine, engineName) {
+		appendSys = output.SafeOutputsSystemPromptAppend(task)
+	}
+	cmd, stdin, artifactFormat, errBuild := engines.BuildAgentCommand(ctx, glob, engineName, cmdLine, prompt, forceStream, appendSys)
 	if errBuild != nil {
 		return &types.AgentResult{Success: false, ExitCode: -1, Stderr: errBuild.Error()}, errBuild
 	}

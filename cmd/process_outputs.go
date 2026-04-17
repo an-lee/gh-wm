@@ -15,6 +15,7 @@ import (
 var (
 	processRepoRoot string
 	processRunDir   string
+	processTask     string
 	processEvent    string
 	processPayload  string
 )
@@ -24,16 +25,18 @@ var processOutputsCmd = &cobra.Command{
 	Short: "Apply safe-outputs and conclusion for a run directory (after --agent-only)",
 	Long: `Loads the run directory from a prior gh wm run --agent-only invocation and executes
 the safe-outputs phase plus conclusion (checkpoint, state labels). Use in a follow-up CI job
-with write permissions while the agent job used a read-only token.`,
+with write permissions while the agent job used a read-only token.
+
+Pass either --run-dir or --task (CI: --task "$TASK_NAME" resolves the newest .wm/runs/<id> for that task).`,
 	RunE: runProcessOutputs,
 }
 
 func init() {
 	processOutputsCmd.Flags().StringVar(&processRepoRoot, "repo-root", ".", "repository root")
-	processOutputsCmd.Flags().StringVar(&processRunDir, "run-dir", "", "path to per-run directory (.wm/runs/<id>)")
+	processOutputsCmd.Flags().StringVar(&processRunDir, "run-dir", "", "path to per-run directory (.wm/runs/<id>); mutually exclusive with --task")
+	processOutputsCmd.Flags().StringVar(&processTask, "task", "", "task name: use newest run dir under .wm/runs for this task (mutually exclusive with --run-dir)")
 	processOutputsCmd.Flags().StringVar(&processEvent, "event-name", "", "event name (default: GITHUB_EVENT_NAME)")
 	processOutputsCmd.Flags().StringVar(&processPayload, "payload", "", "event JSON path (default: GITHUB_EVENT_PATH; if unset, `{}`)")
-	_ = processOutputsCmd.MarkFlagRequired("run-dir")
 	rootCmd.AddCommand(processOutputsCmd)
 }
 
@@ -51,7 +54,21 @@ func runProcessOutputs(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	runDir := filepath.Clean(processRunDir)
+	if processRunDir != "" && processTask != "" {
+		return fmt.Errorf("wm process-outputs: specify either --run-dir or --task, not both")
+	}
+	if processRunDir == "" && processTask == "" {
+		return fmt.Errorf("wm process-outputs: required flag: --run-dir or --task")
+	}
+	var runDir string
+	if processTask != "" {
+		runDir, err = engine.FindLatestRunDirForTask(processRepoRoot, processTask)
+		if err != nil {
+			return err
+		}
+	} else {
+		runDir = filepath.Clean(processRunDir)
+	}
 	repoDisplay := processRepoRoot
 	if abs, err := filepath.Abs(processRepoRoot); err == nil {
 		repoDisplay = abs

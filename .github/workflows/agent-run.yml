@@ -106,10 +106,4 @@ jobs:
           TASK_NAME: ${{ inputs.task_name }}
         run: |
           set -euo pipefail
-          RUN_DIR=$(ls -td .wm/runs/*/ 2>/dev/null | head -1 || true)
-          RUN_DIR=${RUN_DIR%/}
-          if [ -z "$RUN_DIR" ] || [ ! -d "$RUN_DIR" ]; then
-            echo "No per-run directory under .wm/runs" >&2
-            exit 1
-          fi
-          gh wm process-outputs --repo-root . --run-dir "$RUN_DIR" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json
+          gh wm process-outputs --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json
