@@ -54,6 +54,37 @@ func TestRunSuccessOutputs_NoSafeOutputsSkips(t *testing.T) {
 	}
 }
 
+func TestRunSuccessOutputs_MissingExecutorFails(t *testing.T) {
+	original, hadOriginal := kindRegistry[KindAddComment]
+	delete(kindRegistry, KindAddComment)
+	t.Cleanup(func() {
+		if hadOriginal {
+			kindRegistry[KindAddComment] = original
+			return
+		}
+		delete(kindRegistry, KindAddComment)
+	})
+
+	p := filepath.Join(t.TempDir(), "output.json")
+	if err := os.WriteFile(p, []byte(`{"items":[{"type":"add_comment","body":"hello"}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	g := &config.GlobalConfig{}
+	task := &config.Task{Frontmatter: map[string]any{"safe-outputs": map[string]any{
+		"add-comment": map[string]any{},
+	}}}
+	tc := &types.TaskContext{RepoPath: t.TempDir(), Repo: "o/r", IssueNumber: 1}
+	res := &types.AgentResult{OutputFilePath: p}
+
+	err := RunSuccessOutputs(context.Background(), g, task, tc, res)
+	if err == nil {
+		t.Fatal("expected error when executor is missing")
+	}
+	if !strings.Contains(err.Error(), "no executor registered") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestRunSuccessOutputs_NilShortCircuit(t *testing.T) {
 	t.Parallel()
 	if err := RunSuccessOutputs(context.Background(), nil, nil, nil, nil); err != nil {

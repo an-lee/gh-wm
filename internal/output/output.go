@@ -64,7 +64,7 @@ func runAgentDrivenOutputs(ctx context.Context, glob *config.GlobalConfig, task 
 
 		fn, ok := executorFor(kind)
 		if !ok {
-			continue
+			return fmt.Errorf("safe-outputs: no executor registered for kind %q", kind)
 		}
 		execErr := fn(ctx, glob, task, tc, p, raw)
 		if execErr != nil {
