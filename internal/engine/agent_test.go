@@ -33,7 +33,7 @@ func TestAgentCLIArgs(t *testing.T) {
 func TestAgentCLIArgs_OutputFormat(t *testing.T) {
 	t.Parallel()
 	args := engines.AgentCLIArgs(&config.GlobalConfig{Model: "m", MaxTurns: 7}, config.ClaudeOutputFormatStreamJSON)
-	want := []string{"-p", "--dangerously-skip-permissions", "--model", "m", "--max-turns", "7", "--output-format", "stream-json"}
+	want := []string{"-p", "--dangerously-skip-permissions", "--model", "m", "--max-turns", "7", "--verbose", "--output-format", "stream-json"}
 	if len(args) != len(want) {
 		t.Fatalf("got %v", args)
 	}

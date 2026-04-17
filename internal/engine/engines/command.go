@@ -46,6 +46,9 @@ func AgentCLIArgs(glob *config.GlobalConfig, claudeOutputFormat string) []string
 	args := []string{"-p", "--dangerously-skip-permissions"}
 	if glob == nil {
 		if claudeOutputFormat == config.ClaudeOutputFormatJSON || claudeOutputFormat == config.ClaudeOutputFormatStreamJSON {
+			if claudeOutputFormat == config.ClaudeOutputFormatStreamJSON {
+				args = append(args, "--verbose")
+			}
 			args = append(args, "--output-format", claudeOutputFormat)
 		}
 		return args
@@ -57,6 +60,9 @@ func AgentCLIArgs(glob *config.GlobalConfig, claudeOutputFormat string) []string
 		args = append(args, "--max-turns", strconv.Itoa(glob.MaxTurns))
 	}
 	if claudeOutputFormat == config.ClaudeOutputFormatJSON || claudeOutputFormat == config.ClaudeOutputFormatStreamJSON {
+		if claudeOutputFormat == config.ClaudeOutputFormatStreamJSON {
+			args = append(args, "--verbose")
+		}
 		args = append(args, "--output-format", claudeOutputFormat)
 	}
 	return args
