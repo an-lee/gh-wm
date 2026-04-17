@@ -22,6 +22,11 @@ on:
         required: false
         type: boolean
         default: true
+      setup_go_cache:
+        description: Pass through to actions/setup-go cache (set false on persistent self-hosted runners)
+        required: false
+        type: boolean
+        default: true
     secrets:
       ANTHROPIC_API_KEY:
         required: true
@@ -35,6 +40,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: stable
+          cache: ${{ inputs.setup_go_cache }}
 
       - name: Install gh-wm
         run: go install github.com/an-lee/gh-wm@latest

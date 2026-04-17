@@ -86,6 +86,15 @@ func WorkflowInstallClaudeCode(g *GlobalConfig) bool {
 	return *g.Workflow.InstallClaudeCode
 }
 
+// WorkflowSetupGoCache reports whether generated wm-agent.yml should pass setup_go_cache: true to
+// agent-resolve and agent-run (actions/setup-go cache). When unset in config, defaults to true.
+func WorkflowSetupGoCache(g *GlobalConfig) bool {
+	if g == nil || g.Workflow.SetupGoCache == nil {
+		return true
+	}
+	return *g.Workflow.SetupGoCache
+}
+
 // DefaultGlobal returns minimal defaults when config.yml missing pieces
 // ParseGlobal unmarshals config.yml bytes
 func ParseGlobal(data []byte) (*GlobalConfig, error) {

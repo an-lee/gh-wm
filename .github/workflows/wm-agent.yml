@@ -41,6 +41,7 @@ jobs:
       event_json: ${{ toJSON(github.event) }}
       runs_on: '["self-hosted","linux"]'
       force_task: ${{ github.event.inputs.task_name || '' }}
+      setup_go_cache: true
 
   run:
     needs: resolve
@@ -57,5 +58,6 @@ jobs:
       event_json: ${{ toJSON(github.event) }}
       runs_on: '["self-hosted","linux"]'
       install_claude_code: true
+      setup_go_cache: true
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
