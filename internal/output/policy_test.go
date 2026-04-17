@@ -798,3 +798,318 @@ func TestRemoveLabelAllowed_BlockedWinsOverAllowed(t *testing.T) {
 		t.Fatal("blocked should win over allowed")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Policy.fmBlock (internal helper) — tested indirectly via Allowed/CheckMax
+// ---------------------------------------------------------------------------
+
+// fmBlock helper: constructs a policy and calls fmBlock directly.
+func makePolicyWithSafeOutputs(so map[string]any) *Policy {
+	return newPolicy(&config.Task{
+		Frontmatter: map[string]any{
+			"safe-outputs": so,
+		},
+	})
+}
+
+func TestFmBlock_SafeOutputsExistsButKeyMissing(t *testing.T) {
+	t.Parallel()
+	// safe-outputs has add-comment, but we ask for add-labels
+	p := makePolicyWithSafeOutputs(map[string]any{
+		"add-comment": map[string]any{"max": 1},
+	})
+	block := p.fmBlock(KindAddLabels)
+	if block != nil {
+		t.Fatalf("expected nil for missing key, got %v", block)
+	}
+}
+
+func TestFmBlock_KeyExistsButWrongType(t *testing.T) {
+	t.Parallel()
+	// safe-outputs has add-comment as a string, not a map
+	p := makePolicyWithSafeOutputs(map[string]any{
+		"add-comment": "not-a-map",
+	})
+	block := p.fmBlock(KindAddComment)
+	if block != nil {
+		t.Fatalf("expected nil for wrong type, got %v", block)
+	}
+}
+
+func TestFmBlock_KeyExistsWithValidMap(t *testing.T) {
+	t.Parallel()
+	p := makePolicyWithSafeOutputs(map[string]any{
+		"add-comment": map[string]any{"max": 5, "title-prefix": "PR: "},
+	})
+	block := p.fmBlock(KindAddComment)
+	if block == nil {
+		t.Fatal("expected non-nil block for valid key")
+	}
+	if got := scalar.IntFromMap(block, "max"); got != 5 {
+		t.Fatalf("max: got %d, want 5", got)
+	}
+	// scalar.StringFromMap trims whitespace, so "PR: " becomes "PR:"
+	if got := scalar.StringFromMap(block, "title-prefix"); got != "PR:" {
+		t.Fatalf("title-prefix: got %q, want %q", got, "PR:")
+	}
+}
+
+func TestFmBlock_NilPolicy(t *testing.T) {
+	t.Parallel()
+	var p *Policy
+	block := p.fmBlock(KindAddComment)
+	if block != nil {
+		t.Fatal("expected nil for nil policy")
+	}
+}
+
+func TestFmBlock_NilTask(t *testing.T) {
+	t.Parallel()
+	p := newPolicy(nil)
+	block := p.fmBlock(KindAddComment)
+	if block != nil {
+		t.Fatal("expected nil for nil task")
+	}
+}
+
+func TestFmBlock_UnknownKind(t *testing.T) {
+	t.Parallel()
+	p := makePolicyWithSafeOutputs(map[string]any{
+		"add-comment": map[string]any{},
+	})
+	block := p.fmBlock("unknown_kind")
+	if block != nil {
+		t.Fatal("expected nil for unknown kind")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Policy.LabelAllowed — additional edge cases
+// ---------------------------------------------------------------------------
+
+func TestLabelAllowed_NotInAllowedList(t *testing.T) {
+	t.Parallel()
+	task := &config.Task{Frontmatter: map[string]any{
+		"safe-outputs": map[string]any{
+			"add-labels": map[string]any{"allowed": []any{"bug", "enhancement"}},
+		},
+	}}
+	p := newPolicy(task)
+	if p.LabelAllowed(KindAddLabels, "wontfix") {
+		t.Fatal("wontfix should not be allowed (not in allowed list)")
+	}
+}
+
+func TestLabelAllowed_BlockedWinsOverAllowed(t *testing.T) {
+	t.Parallel()
+	task := &config.Task{Frontmatter: map[string]any{
+		"safe-outputs": map[string]any{
+			"add-labels": map[string]any{
+				"allowed": []any{"bug-wip"},
+				"blocked": []any{"*-wip"},
+			},
+		},
+	}}
+	p := newPolicy(task)
+	// bug-wip matches allowed but also matches blocked; blocked should win
+	if p.LabelAllowed(KindAddLabels, "bug-wip") {
+		t.Fatal("blocked pattern *-wip should win over allowed bug-wip")
+	}
+}
+
+func TestLabelAllowed_ExplicitEmptyAllowed(t *testing.T) {
+	t.Parallel()
+	// Explicitly set allowed: [] (empty list) — scalar.StringSliceFromMap returns
+	// nil for empty []any{}, so len(nil)==0 → "allow all non-blocked" (same as missing key).
+	// To restrict to nothing, omit the allowed key rather than setting it to [].
+	task := &config.Task{Frontmatter: map[string]any{
+		"safe-outputs": map[string]any{
+			"add-labels": map[string]any{"allowed": []any{}},
+		},
+	}}
+	p := newPolicy(task)
+	if !p.LabelAllowed(KindAddLabels, "any-label") {
+		t.Fatal("empty []any{} maps to nil slice → len==0 → allow all non-blocked")
+	}
+}
+
+func TestLabelAllowed_BlockedWithGlob(t *testing.T) {
+	t.Parallel()
+	task := &config.Task{Frontmatter: map[string]any{
+		"safe-outputs": map[string]any{
+			"add-labels": map[string]any{"blocked": []any{"team-*"}},
+		},
+	}}
+	p := newPolicy(task)
+	// "team-security" matches "team-*" → blocked
+	if p.LabelAllowed(KindAddLabels, "team-security") {
+		t.Fatal("team-security should be blocked by team-*")
+	}
+	// "needs-review" does NOT match "team-*" and no allowed list → allowed
+	if !p.LabelAllowed(KindAddLabels, "needs-review") {
+		t.Fatal("needs-review should be allowed (not blocked)")
+	}
+}
+
+func TestLabelAllowed_EmptyAllowedPatternFiltered(t *testing.T) {
+	t.Parallel()
+	task := &config.Task{Frontmatter: map[string]any{
+		"safe-outputs": map[string]any{
+			"add-labels": map[string]any{"allowed": []any{"", "valid-label"}},
+		},
+	}}
+	p := newPolicy(task)
+	// valid-label is in the non-empty allowed list → allowed
+	if !p.LabelAllowed(KindAddLabels, "valid-label") {
+		t.Fatal("valid-label should be allowed")
+	}
+	// "other" is not in allowed list → not allowed (empty string filtered but list not empty)
+	if p.LabelAllowed(KindAddLabels, "other") {
+		t.Fatal("other should not be allowed (not in allowed list)")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Policy.RemoveLabelAllowed — additional edge cases
+// ---------------------------------------------------------------------------
+
+func TestRemoveLabelAllowed_NotInAllowedList(t *testing.T) {
+	t.Parallel()
+	task := &config.Task{Frontmatter: map[string]any{
+		"safe-outputs": map[string]any{
+			"remove-labels": map[string]any{"allowed": []any{"wip", "stale"}},
+		},
+	}}
+	p := newPolicy(task)
+	if p.RemoveLabelAllowed("bug") {
+		t.Fatal("bug not in allowed list, should not be removable")
+	}
+}
+
+func TestRemoveLabelAllowed_BlockedWithGlob(t *testing.T) {
+	t.Parallel()
+	task := &config.Task{Frontmatter: map[string]any{
+		"safe-outputs": map[string]any{
+			"remove-labels": map[string]any{"blocked": []any{"team-*"}},
+		},
+	}}
+	p := newPolicy(task)
+	if p.RemoveLabelAllowed("team-ops") {
+		t.Fatal("team-ops should be blocked by team-*")
+	}
+	if !p.RemoveLabelAllowed("bug") {
+		t.Fatal("bug should be removable (not blocked)")
+	}
+}
+
+func TestRemoveLabelAllowed_ExplicitEmptyAllowed(t *testing.T) {
+	t.Parallel()
+	// allowed: []any{} → StringSliceFromMap returns nil → len==0 → allow all non-blocked.
+	task := &config.Task{Frontmatter: map[string]any{
+		"safe-outputs": map[string]any{
+			"remove-labels": map[string]any{"allowed": []any{}},
+		},
+	}}
+	p := newPolicy(task)
+	if !p.RemoveLabelAllowed("any-label") {
+		t.Fatal("empty []any{} maps to nil → len==0 → allow all non-blocked")
+	}
+}
+
+func TestRemoveLabelAllowed_EmptyBlockedPatternFiltered(t *testing.T) {
+	t.Parallel()
+	task := &config.Task{Frontmatter: map[string]any{
+		"safe-outputs": map[string]any{
+			"remove-labels": map[string]any{
+				"blocked": []any{"", "pinned"},
+			},
+		},
+	}}
+	p := newPolicy(task)
+	if !p.RemoveLabelAllowed("bug") {
+		t.Fatal("bug should be removable (empty blocked pattern filtered)")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Policy.MergeLabels — additional edge cases
+// ---------------------------------------------------------------------------
+
+func TestMergeLabels_EmptyStringsInDef(t *testing.T) {
+	t.Parallel()
+	task := &config.Task{Frontmatter: map[string]any{
+		"safe-outputs": map[string]any{
+			"add-labels": map[string]any{"labels": []any{"", "policy", ""}},
+		},
+	}}
+	p := newPolicy(task)
+	got := p.MergeLabels(KindAddLabels, nil)
+	if len(got) != 1 || got[0] != "policy" {
+		t.Fatalf("expected [policy], got %v", got)
+	}
+}
+
+func TestMergeLabels_EmptyStringsInAgent(t *testing.T) {
+	t.Parallel()
+	task := &config.Task{Frontmatter: map[string]any{
+		"safe-outputs": map[string]any{
+			"add-labels": map[string]any{"labels": []any{}},
+		},
+	}}
+	p := newPolicy(task)
+	got := p.MergeLabels(KindAddLabels, []string{"", "agent", ""})
+	if len(got) != 1 || got[0] != "agent" {
+		t.Fatalf("expected [agent], got %v", got)
+	}
+}
+
+func TestMergeLabels_DedupAcrossDefAndAgent(t *testing.T) {
+	t.Parallel()
+	task := &config.Task{Frontmatter: map[string]any{
+		"safe-outputs": map[string]any{
+			"add-labels": map[string]any{"labels": []any{"shared", "def-only"}},
+		},
+	}}
+	p := newPolicy(task)
+	got := p.MergeLabels(KindAddLabels, []string{"shared", "agent-only"})
+	// shared appears in both; def comes first, agent's shared is skipped
+	if len(got) != 3 {
+		t.Fatalf("expected 3 labels, got %v", got)
+	}
+	if got[0] != "shared" || got[1] != "def-only" || got[2] != "agent-only" {
+		t.Fatalf("unexpected order: %v", got)
+	}
+}
+
+func TestMergeLabels_AgentDedupAfterDef(t *testing.T) {
+	t.Parallel()
+	task := &config.Task{Frontmatter: map[string]any{
+		"safe-outputs": map[string]any{
+			"add-labels": map[string]any{"labels": []any{"a"}},
+		},
+	}}
+	p := newPolicy(task)
+	// agent has duplicate "b" entries; second "b" should be skipped
+	got := p.MergeLabels(KindAddLabels, []string{"b", "b"})
+	if len(got) != 2 {
+		t.Fatalf("expected 2 labels, got %v", got)
+	}
+	if got[0] != "a" || got[1] != "b" {
+		t.Fatalf("unexpected order: %v", got)
+	}
+}
+
+func TestMergeLabels_SecondDefDedup(t *testing.T) {
+	t.Parallel()
+	task := &config.Task{Frontmatter: map[string]any{
+		"safe-outputs": map[string]any{
+			"add-labels": map[string]any{"labels": []any{"a", "a"}},
+		},
+	}}
+	p := newPolicy(task)
+	// def has duplicate "a"; second "a" should be skipped
+	got := p.MergeLabels(KindAddLabels, nil)
+	if len(got) != 1 || got[0] != "a" {
+		t.Fatalf("expected [a], got %v", got)
+	}
+}
