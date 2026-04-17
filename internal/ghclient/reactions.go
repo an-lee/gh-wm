@@ -56,5 +56,7 @@ func postReactionExec(apiPath, content string) error {
 }
 
 func reactionAlreadyExists(msg string) bool {
-	return strings.Contains(msg, "already_exists") || strings.Contains(msg, `"code":"already_exists"`)
+	return strings.Contains(msg, "already_exists") ||
+		strings.Contains(msg, `"code":"already_exists"`) ||
+		strings.Contains(msg, "Resource already exists")
 }

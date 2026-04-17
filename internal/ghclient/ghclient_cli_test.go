@@ -203,6 +203,7 @@ func TestReactionAlreadyExists(t *testing.T) {
 	}{
 		{"already_exists", true},
 		{`"code":"already_exists"`, true},
+		{`{"message":"Resource already exists"}`, true},
 		{"already_exists: true", true},
 		{"other error", false},
 		{"", false},

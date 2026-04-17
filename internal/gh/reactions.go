@@ -35,7 +35,9 @@ func reactionAlreadyExists(err error) bool {
 		return false
 	}
 	s := err.Error()
-	return strings.Contains(s, "already_exists") || strings.Contains(s, `"code":"already_exists"`)
+	return strings.Contains(s, "already_exists") ||
+		strings.Contains(s, `"code":"already_exists"`) ||
+		strings.Contains(s, "Resource already exists")
 }
 
 // AddIssueReaction adds a reaction to an issue or PR.

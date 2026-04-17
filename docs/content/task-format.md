@@ -83,7 +83,7 @@ When **`gh wm run`** executes the task, during **activation** (after context is 
 - Other events with an issue or PR number (e.g. **`issues`**, **`pull_request`**): reaction on that issue/PR.
 - No **`GITHUB_REPOSITORY`**, or no applicable issue/comment (e.g. some **`schedule`** runs): skipped silently.
 
-If **`gh api`** fails (including permissions), the error is recorded but the run **continues** (best-effort). Duplicate reactions from the same user are treated as success when the API reports **`already_exists`**.
+If **`gh api`** fails (including permissions), the error is recorded but the run **continues** (best-effort). Duplicate reactions from the same user are treated as success when the API reports **`already_exists`** or **`Resource already exists`** (GitHub may return either form).
 
 ### Generated `wm-agent.yml` triggers
 
