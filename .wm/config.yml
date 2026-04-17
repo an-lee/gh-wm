@@ -6,6 +6,7 @@ workflow:
     - linux
 
   install_claude_code: true
+  gh_wm_extension_ref: main
 
   # Optional: prerequisite steps before gh-wm runs (toolchains, deps, engine CLI).
   # When set, `gh wm upgrade` generates an inline run job (not reusable agent-run.yml).

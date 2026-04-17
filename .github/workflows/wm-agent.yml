@@ -41,7 +41,7 @@ jobs:
       event_json: ${{ toJSON(github.event) }}
       runs_on: '["self-hosted","linux"]'
       force_task: ${{ github.event.inputs.task_name || '' }}
-      gh_wm_extension_ref: ""
+      gh_wm_extension_ref: "main"
 
 
   run:
@@ -58,7 +58,7 @@ jobs:
       event_json: ${{ toJSON(github.event) }}
       runs_on: '["self-hosted","linux"]'
       install_claude_code: true
-      gh_wm_extension_ref: ""
+      gh_wm_extension_ref: "main"
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
