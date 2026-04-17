@@ -99,7 +99,7 @@ func ProcessRunOutputs(ctx context.Context, repoRoot, runDirPath string, event *
 
 	m := task.SafeOutputsMap()
 	if m != nil && len(m) > 0 {
-		progressf(opts, "safe-outputs: applying allowed GitHub actions from output.json")
+		progressf(opts, "safe-outputs: applying allowed GitHub actions from output.jsonl + output.json")
 	}
 	if outErr := output.RunSuccessOutputs(ctx, glob, task, tc, ar); outErr != nil {
 		addRunErr(result, outErr)

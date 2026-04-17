@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -114,14 +115,17 @@ func readNDJSONLinesUnlocked(path string) ([]map[string]any, error) {
 	sc := bufio.NewScanner(strings.NewReader(string(b)))
 	// Lines can be long (comment bodies); allow large tokens.
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	lineNum := 0
 	for sc.Scan() {
+		lineNum++
 		line := strings.TrimSpace(sc.Text())
 		if line == "" {
 			continue
 		}
 		var m map[string]any
 		if err := json.Unmarshal([]byte(line), &m); err != nil {
-			return nil, fmt.Errorf("emit: corrupt line in %s: %w", path, err)
+			slog.Info("wm: emit: skip malformed jsonl line", "path", path, "line", lineNum, "err", err)
+			continue
 		}
 		out = append(out, m)
 	}
