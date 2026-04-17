@@ -72,6 +72,68 @@ func TestPrepareFeatureForPR_AlreadyOnFeatureSkips(t *testing.T) {
 	}
 }
 
+func TestCheckout(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "t@t")
+	runGit(t, dir, "config", "user.name", "t")
+	if err := os.WriteFile(filepath.Join(dir, "f.txt"), []byte("a"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, dir, "add", "f.txt")
+	runGit(t, dir, "commit", "-m", "init")
+	runGit(t, dir, "branch", "-M", "main")
+	runGit(t, dir, "checkout", "-b", "feature")
+
+	if err := Checkout(dir, "main"); err != nil {
+		t.Fatal(err)
+	}
+	cur, err := CurrentBranch(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cur != "main" {
+		t.Fatalf("got %q, want main", cur)
+	}
+}
+
+func TestCheckout_EmptyBranchNoOp(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "t@t")
+	runGit(t, dir, "config", "user.name", "t")
+	if err := Checkout(dir, ""); err != nil {
+		t.Fatal("empty branch should be a no-op")
+	}
+	if err := Checkout(dir, "   "); err != nil {
+		t.Fatal("whitespace-only branch should be a no-op")
+	}
+}
+
+func TestCheckout_HEADNoOp(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "t@t")
+	runGit(t, dir, "config", "user.name", "t")
+	if err := Checkout(dir, "HEAD"); err != nil {
+		t.Fatal("HEAD should be a no-op")
+	}
+}
+
+func TestCheckout_NonexistentBranch(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	runGit(t, dir, "init")
+	runGit(t, dir, "config", "user.email", "t@t")
+	runGit(t, dir, "config", "user.name", "t")
+	if err := Checkout(dir, "nonexistent-branch"); err == nil {
+		t.Fatal("expected error for nonexistent branch")
+	}
+}
+
 func runGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
