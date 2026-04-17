@@ -50,6 +50,10 @@ jobs:
       - uses: actions/checkout@v6
 
 {{ .PreStepsYAML }}
+      - uses: actions4gh/setup-gh@v1
+        with:
+          gh-version: latest
+
       - name: Install gh-wm
         run: gh extension install {{ .OwnerRepo }} --force
         env:

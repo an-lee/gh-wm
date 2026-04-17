@@ -98,8 +98,8 @@ func TestWriteWMAgent_PreStepsInline_GhExtensionInstall(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(b)
-	if !strings.Contains(s, "gh extension install o/r") || strings.Contains(s, "actions/setup-go") {
-		t.Fatalf("expected inline gh extension install without setup-go, got:\n%s", s)
+	if !strings.Contains(s, "actions4gh/setup-gh@v1") || !strings.Contains(s, "gh extension install o/r") || strings.Contains(s, "actions/setup-go") {
+		t.Fatalf("expected setup-gh and inline gh extension install without setup-go, got:\n%s", s)
 	}
 }
 
@@ -128,6 +128,7 @@ func TestWriteWMAgent_PreStepsInline(t *testing.T) {
 		"bundle install",
 		"has_tasks == 'true'",
 		`runs-on: ${{ fromJson('["ubuntu-latest"]') }}`,
+		"actions4gh/setup-gh@v1",
 		"gh extension install o/r",
 		"Install Claude Code",
 		"claude.ai/install.sh",
