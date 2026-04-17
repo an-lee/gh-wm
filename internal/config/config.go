@@ -86,15 +86,6 @@ func WorkflowInstallClaudeCode(g *GlobalConfig) bool {
 	return *g.Workflow.InstallClaudeCode
 }
 
-// WorkflowSetupGoCache is legacy: older configs set workflow.setup_go_cache; wm-agent generation
-// no longer passes it (CI installs gh-wm via `gh extension install`). Kept for tests and parsing old YAML.
-func WorkflowSetupGoCache(g *GlobalConfig) bool {
-	if g == nil || g.Workflow.SetupGoCache == nil {
-		return true
-	}
-	return *g.Workflow.SetupGoCache
-}
-
 // DefaultGlobal returns minimal defaults when config.yml missing pieces
 // ParseGlobal unmarshals config.yml bytes
 func ParseGlobal(data []byte) (*GlobalConfig, error) {

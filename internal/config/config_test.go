@@ -103,27 +103,6 @@ func TestWorkflowInstallClaudeCode(t *testing.T) {
 	}
 }
 
-func TestWorkflowSetupGoCache(t *testing.T) {
-	t.Parallel()
-	if !WorkflowSetupGoCache(nil) {
-		t.Fatal("nil config should default to true")
-	}
-	g := &GlobalConfig{Version: 1}
-	if !WorkflowSetupGoCache(g) {
-		t.Fatal("unset should default to true")
-	}
-	f := false
-	g.Workflow.SetupGoCache = &f
-	if WorkflowSetupGoCache(g) {
-		t.Fatal("explicit false")
-	}
-	tr := true
-	g.Workflow.SetupGoCache = &tr
-	if !WorkflowSetupGoCache(g) {
-		t.Fatal("explicit true")
-	}
-}
-
 func TestLoadGlobalOnly(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
