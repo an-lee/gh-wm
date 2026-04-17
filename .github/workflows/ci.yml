@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
 
       - name: Verify formatting
         run: test -z "$(gofmt -l .)"
