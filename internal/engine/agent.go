@@ -51,7 +51,11 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 
 	cmdLine := os.Getenv("WM_AGENT_CMD")
 	forceStream := opts != nil && opts.LogWriter != nil && engines.IsBuiltinClaude(cmdLine, engineName)
-	cmd, stdin, artifactFormat, errBuild := engines.BuildAgentCommand(ctx, glob, engineName, cmdLine, prompt, forceStream)
+	appendSys := ""
+	if engines.IsBuiltinClaude(cmdLine, engineName) {
+		appendSys = output.SafeOutputsSystemPromptAppend(task)
+	}
+	cmd, stdin, artifactFormat, errBuild := engines.BuildAgentCommand(ctx, glob, engineName, cmdLine, prompt, forceStream, appendSys)
 	if errBuild != nil {
 		return &types.AgentResult{Success: false, ExitCode: -1, Stderr: errBuild.Error()}, errBuild
 	}
@@ -63,15 +67,27 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 	}
 	cmd.Dir = tc.RepoPath
 	outputPath := ""
+	safeOutPath := ""
 	if rd != nil {
 		outputPath = rd.OutputJSONPath()
+		safeOutPath = rd.SafeOutputJSONLPath()
 	}
 	env := append(os.Environ(),
 		"GITHUB_REPOSITORY="+tc.Repo,
 		fmt.Sprintf("WM_TASK=%s", tc.TaskName),
+		fmt.Sprintf("WM_REPO_ROOT=%s", tc.RepoPath),
 	)
 	if outputPath != "" {
 		env = append(env, "WM_OUTPUT_FILE="+outputPath)
+	}
+	if safeOutPath != "" {
+		env = append(env, "WM_SAFE_OUTPUT_FILE="+safeOutPath)
+	}
+	if tc.IssueNumber > 0 {
+		env = append(env, fmt.Sprintf("WM_ISSUE_NUMBER=%d", tc.IssueNumber))
+	}
+	if tc.PRNumber > 0 {
+		env = append(env, fmt.Sprintf("WM_PR_NUMBER=%d", tc.PRNumber))
 	}
 	if tools := task.ToolsYAML(); tools != "" {
 		env = append(env, "WM_TASK_TOOLS="+tools)
@@ -129,12 +145,13 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 	}
 
 	res := &types.AgentResult{
-		Stdout:          combined,
-		Summary:         combined,
-		Success:         err == nil,
-		ExitCode:        0,
-		AgentStdoutPath: agentPath,
-		OutputFilePath:  outputPath,
+		Stdout:             combined,
+		Summary:            combined,
+		Success:            err == nil,
+		ExitCode:           0,
+		AgentStdoutPath:    agentPath,
+		OutputFilePath:     outputPath,
+		SafeOutputFilePath: safeOutPath,
 	}
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {

@@ -24,6 +24,7 @@ var (
 	runEvent      string
 	runPayload    string
 	runAllowDirty bool
+	runAgentOnly  bool
 	runRemote     bool
 	runGhRepo     string
 	runWorkflow   string
@@ -43,6 +44,7 @@ func init() {
 	runCmd.Flags().StringVar(&runEvent, "event-name", "", "event name (default: GITHUB_EVENT_NAME)")
 	runCmd.Flags().StringVar(&runPayload, "payload", "", "event JSON path (default: GITHUB_EVENT_PATH; if unset, `{}`)")
 	runCmd.Flags().BoolVar(&runAllowDirty, "allow-dirty", false, "skip git clean working tree check (git status --porcelain must be empty otherwise)")
+	runCmd.Flags().BoolVar(&runAgentOnly, "agent-only", false, "stop after agent validation; skip safe-outputs and conclusion (use gh wm process-outputs in a follow-up CI job with write permissions)")
 	runCmd.Flags().BoolVar(&runRemote, "remote", false, "dispatch wm-agent.yml on GitHub via gh workflow run (requires gh CLI; run gh wm upgrade so workflow has task_name input)")
 	runCmd.Flags().StringVar(&runGhRepo, "repo", "", "GitHub repository OWNER/NAME for --remote (default: gh repo view)")
 	runCmd.Flags().StringVar(&runWorkflow, "workflow", "wm-agent.yml", "workflow file for --remote")
@@ -110,6 +112,7 @@ func runRun(_ *cobra.Command, _ []string) error {
 	runResult, err := engine.RunTask(context.Background(), runRepoRoot, runTask, ev, &engine.RunOptions{
 		LogWriter:      os.Stderr,
 		ProgressWriter: os.Stderr,
+		AgentOnly:      runAgentOnly,
 	})
 	dur := time.Since(start)
 

@@ -43,4 +43,23 @@ func TestParseOutputKind_Dashes(t *testing.T) {
 	if ParseOutputKind("add_comment") != KindAddComment {
 		t.Fatal()
 	}
+	if ParseOutputKind("missing_tool") != KindMissingTool {
+		t.Fatal()
+	}
+}
+
+func TestParseAgentOutputJSONLFile_SkipsBadLine(t *testing.T) {
+	t.Parallel()
+	p := filepath.Join(t.TempDir(), "out.jsonl")
+	content := "{\"type\":\"noop\",\"message\":\"ok\"}\nnot json\n{\"type\":\"noop\",\"message\":\"two\"}\n"
+	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	items, err := ParseAgentOutputJSONLFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("got %d items", len(items))
+	}
 }

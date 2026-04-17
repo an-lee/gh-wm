@@ -37,14 +37,18 @@ jobs:
       runs_on: '{{ .RunsOnJSON }}'
       force_task: {{ "${{" }} github.event.inputs.task_name || '' {{ "}}" }}
 
-  run:
+{{ if .Inline }}
+  run_agent:
     needs: resolve
     if: {{ "${{" }} needs.resolve.outputs.has_tasks == 'true' {{ "}}" }}
     strategy:
       fail-fast: false
       matrix:
         task: {{ "${{" }} fromJSON(needs.resolve.outputs.tasks) {{ "}}" }}
-{{ if .Inline }}
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
     runs-on: {{ "${{" }} fromJson('{{ .RunsOnJSON }}') {{ "}}" }}
     steps:
       - uses: actions/checkout@v6
@@ -65,7 +69,7 @@ jobs:
       - name: Add Claude Code to PATH
         run: echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 {{ end }}
-      - name: Run task
+      - name: Run task (agent only; token sandbox)
         env:
           ANTHROPIC_API_KEY: {{ "${{" }} secrets.ANTHROPIC_API_KEY {{ "}}" }}
           EVENT_NAME: {{ "${{" }} github.event_name {{ "}}" }}
@@ -74,8 +78,55 @@ jobs:
         run: |
           mkdir -p .wm/runs
           printf '%s' "$EVENT_JSON" > .wm/runs/github-event.json
-          gh wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json
+          gh wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json --agent-only
+      - name: Pack workspace for outputs job
+        run: tar -czf /tmp/wm-workspace.tar.gz -C "$GITHUB_WORKSPACE" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wm-workspace-{{ "${{" }} matrix.task {{ "}}" }}-{{ "${{" }} github.run_id {{ "}}" }}
+          path: /tmp/wm-workspace.tar.gz
+
+  run_outputs:
+    needs: [resolve, run_agent]
+    if: {{ "${{" }} always() && !cancelled() && needs.resolve.outputs.has_tasks == 'true' && needs.resolve.result == 'success' {{ "}}" }}
+    strategy:
+      fail-fast: false
+      matrix:
+        task: {{ "${{" }} fromJSON(needs.resolve.outputs.tasks) {{ "}}" }}
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    runs-on: {{ "${{" }} fromJson('{{ .RunsOnJSON }}') {{ "}}" }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: {{ .OwnerRepo }}/.github/actions/install-gh-cli@{{ .Ref }}
+      - name: Install gh-wm
+        run: gh extension install {{ .OwnerRepo }} --force
+        env:
+          GH_TOKEN: {{ "${{" }} github.token {{ "}}" }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: wm-workspace-{{ "${{" }} matrix.task {{ "}}" }}-{{ "${{" }} github.run_id {{ "}}" }}
+          path: .
+      - name: Extract workspace
+        run: tar -xzf wm-workspace.tar.gz -C "$GITHUB_WORKSPACE"
+      - name: Process safe outputs
+        env:
+          EVENT_NAME: {{ "${{" }} github.event_name {{ "}}" }}
+          EVENT_JSON: {{ "${{" }} toJSON(github.event) {{ "}}" }}
+          TASK_NAME: {{ "${{" }} matrix.task {{ "}}" }}
+        run: |
+          set -euo pipefail
+          gh wm process-outputs --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json
 {{ else }}
+  run:
+    needs: resolve
+    if: {{ "${{" }} needs.resolve.outputs.has_tasks == 'true' {{ "}}" }}
+    strategy:
+      fail-fast: false
+      matrix:
+        task: {{ "${{" }} fromJSON(needs.resolve.outputs.tasks) {{ "}}" }}
     uses: {{ .OwnerRepo }}/.github/workflows/agent-run.yml@{{ .Ref }}
     with:
       task_name: {{ "${{" }} matrix.task {{ "}}" }}
@@ -145,7 +196,7 @@ func WriteWMAgent(ghWorkflowsDir string, ownerRepo string, triggers WorkflowTrig
 	return os.WriteFile(path, buf.Bytes(), 0o644)
 }
 
-// renderPreStepsYAML marshals pre_steps to indented YAML list items for embedding under jobs.run.steps.
+// renderPreStepsYAML marshals pre_steps to indented YAML list items for embedding under jobs.run_agent.steps.
 func renderPreStepsYAML(steps []config.StepDef) (string, error) {
 	if len(steps) == 0 {
 		return "", nil

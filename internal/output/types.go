@@ -11,6 +11,8 @@ const (
 	KindRemoveLabels      OutputKind = "remove_labels"
 	KindCreateIssue       OutputKind = "create_issue"
 	KindNoop              OutputKind = "noop"
+	KindMissingTool       OutputKind = "missing_tool"
+	KindMissingData       OutputKind = "missing_data"
 )
 
 // AgentOutputFile is the root JSON shape written to WM_OUTPUT_FILE (output.json).
@@ -49,4 +51,16 @@ type ItemCreateIssue struct {
 // ItemNoop records completion without GitHub writes.
 type ItemNoop struct {
 	Message string `json:"message"`
+}
+
+// ItemMissingTool reports unavailable functionality (log-only; no GitHub API).
+type ItemMissingTool struct {
+	Tool   string `json:"tool"`
+	Reason string `json:"reason"`
+}
+
+// ItemMissingData reports unavailable information (log-only).
+type ItemMissingData struct {
+	What   string `json:"what"`
+	Reason string `json:"reason"`
 }

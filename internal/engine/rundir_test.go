@@ -10,6 +10,42 @@ import (
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
+func TestFindLatestRunDirForTask_NewestWins(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	rd1, err := NewRunDir(root, "my-task", "issues")
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	if err := os.Chtimes(filepath.Join(rd1.Path, metaFileName), old, old); err != nil {
+		t.Fatal(err)
+	}
+	rd2, err := NewRunDir(root, "my-task", "issues")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := FindLatestRunDirForTask(root, "my-task")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != rd2.Path {
+		t.Fatalf("want newest run dir %q, got %q", rd2.Path, got)
+	}
+}
+
+func TestFindLatestRunDirForTask_WrongTask(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	if _, err := NewRunDir(root, "a", "issues"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := FindLatestRunDirForTask(root, "b")
+	if err == nil {
+		t.Fatal("expected error for missing task")
+	}
+}
+
 func TestNewRunDir_CreatesLayout(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()

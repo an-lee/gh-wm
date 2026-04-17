@@ -1,8 +1,10 @@
 package output
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -29,6 +31,48 @@ func ParseAgentOutputFile(path string) (*AgentOutputFile, error) {
 		return nil, fmt.Errorf("parse output.json: %w", err)
 	}
 	return &root, nil
+}
+
+// ParseAgentOutputJSONLFile reads one JSON object per line (NDJSON). Malformed lines are skipped.
+// Returns nil, nil if the path is empty, the file is missing, or there are no valid lines.
+func ParseAgentOutputJSONLFile(path string) ([]map[string]any, error) {
+	if strings.TrimSpace(path) == "" {
+		return nil, nil
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read output jsonl: %w", err)
+	}
+	if len(strings.TrimSpace(string(b))) == 0 {
+		return nil, nil
+	}
+	var out []map[string]any
+	sc := bufio.NewScanner(strings.NewReader(string(b)))
+	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	lineNum := 0
+	for sc.Scan() {
+		lineNum++
+		line := strings.TrimSpace(sc.Text())
+		if line == "" {
+			continue
+		}
+		var m map[string]any
+		if err := json.Unmarshal([]byte(line), &m); err != nil {
+			slog.Info("wm: safe-output jsonl: skip malformed line", "path", path, "line", lineNum, "err", err)
+			continue
+		}
+		out = append(out, m)
+	}
+	if err := sc.Err(); err != nil {
+		return nil, fmt.Errorf("scan output jsonl: %w", err)
+	}
+	if len(out) == 0 {
+		return nil, nil
+	}
+	return out, nil
 }
 
 // ItemType returns the normalized type string from an item map (underscore form).
@@ -66,6 +110,10 @@ func ParseOutputKind(s string) OutputKind {
 		return KindCreateIssue
 	case "noop":
 		return KindNoop
+	case "missing_tool":
+		return KindMissingTool
+	case "missing_data":
+		return KindMissingData
 	default:
 		return ""
 	}
@@ -105,4 +153,18 @@ func mapToCreateIssue(m map[string]any) ItemCreateIssue {
 
 func mapToNoop(m map[string]any) ItemNoop {
 	return ItemNoop{Message: scalar.StringField(m, "message")}
+}
+
+func mapToMissingTool(m map[string]any) ItemMissingTool {
+	return ItemMissingTool{
+		Tool:   scalar.StringField(m, "tool"),
+		Reason: scalar.StringField(m, "reason"),
+	}
+}
+
+func mapToMissingData(m map[string]any) ItemMissingData {
+	return ItemMissingData{
+		What:   scalar.StringField(m, "what"),
+		Reason: scalar.StringField(m, "reason"),
+	}
 }

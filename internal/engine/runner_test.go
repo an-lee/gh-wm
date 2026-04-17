@@ -82,6 +82,82 @@ func TestRunTask_Minimal(t *testing.T) {
 	}
 }
 
+func writeRepoWithSafeOutputs(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	wm := filepath.Join(root, ".wm")
+	if err := os.MkdirAll(filepath.Join(wm, "tasks"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wm, "config.yml"), []byte(`version: 1
+engine: claude
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	task := `---
+on:
+  issues:
+    types: [opened]
+safe-outputs:
+  noop:
+---
+
+prompt
+`
+	if err := os.WriteFile(filepath.Join(wm, "tasks", "a.md"), []byte(task), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+// Agent-only run paired with ProcessRunOutputs completes the same pipeline as a full RunTask.
+func TestRunTask_AgentOnly_ThenProcessOutputs(t *testing.T) {
+	t.Setenv("WM_AGENT_CMD", "true")
+	t.Setenv("GITHUB_REPOSITORY", "o/r")
+	t.Cleanup(func() {
+		_ = os.Unsetenv("WM_AGENT_CMD")
+		_ = os.Unsetenv("GITHUB_REPOSITORY")
+	})
+	root := writeRepoWithSafeOutputs(t)
+	ev := &types.GitHubEvent{Name: "issues", Payload: map[string]any{"action": "opened", "issue": map[string]any{"number": 1.0}}}
+	out, err := RunTask(context.Background(), root, "a", ev, &RunOptions{AgentOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out == nil || !out.Success || out.RunDir == "" {
+		t.Fatalf("agent-only run: %+v", out)
+	}
+	if out.Phase != types.PhaseValidation {
+		t.Fatalf("phase: want %s got %s", types.PhaseValidation, out.Phase)
+	}
+	out2, err2 := ProcessRunOutputs(context.Background(), root, out.RunDir, ev, nil)
+	if err2 != nil {
+		t.Fatal(err2)
+	}
+	if out2 == nil || !out2.Success {
+		t.Fatalf("process-outputs: %+v", out2)
+	}
+}
+
+// Regression: agent exits 0 but writes no output.json / output.jsonl — run must still succeed (implicit noop).
+func TestRunTask_SafeOutputsImplicitNoop(t *testing.T) {
+	t.Setenv("WM_AGENT_CMD", "true")
+	t.Setenv("GITHUB_REPOSITORY", "o/r")
+	t.Cleanup(func() {
+		_ = os.Unsetenv("WM_AGENT_CMD")
+		_ = os.Unsetenv("GITHUB_REPOSITORY")
+	})
+	root := writeRepoWithSafeOutputs(t)
+	ev := &types.GitHubEvent{Name: "issues", Payload: map[string]any{"action": "opened", "issue": map[string]any{"number": 1.0}}}
+	out, err := RunTask(context.Background(), root, "a", ev, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out == nil || !out.Success {
+		t.Fatalf("expected success, got %+v", out)
+	}
+}
+
 func TestRunTask_ProgressWriter(t *testing.T) {
 	t.Setenv("WM_AGENT_CMD", "true")
 	t.Cleanup(func() { _ = os.Unsetenv("WM_AGENT_CMD") })

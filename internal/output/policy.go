@@ -92,7 +92,7 @@ func (p *Policy) fmBlock(kind OutputKind) map[string]any {
 
 // Allowed reports whether the kind is declared in safe-outputs (noop is always allowed).
 func (p *Policy) Allowed(kind OutputKind) bool {
-	if kind == KindNoop {
+	if kind == KindNoop || kind == KindMissingTool || kind == KindMissingData {
 		return true
 	}
 	if p == nil || p.task == nil {
@@ -103,7 +103,7 @@ func (p *Policy) Allowed(kind OutputKind) bool {
 
 // CheckMax returns an error if another execution of kind would exceed policy max.
 func (p *Policy) CheckMax(kind OutputKind) error {
-	if kind == KindNoop {
+	if kind == KindNoop || kind == KindMissingTool || kind == KindMissingData {
 		return nil
 	}
 	block := p.fmBlock(kind)
@@ -119,7 +119,7 @@ func (p *Policy) CheckMax(kind OutputKind) error {
 
 // RecordSuccess increments the per-kind counter after a successful GitHub operation.
 func (p *Policy) RecordSuccess(kind OutputKind) {
-	if p == nil || kind == KindNoop {
+	if p == nil || kind == KindNoop || kind == KindMissingTool || kind == KindMissingData {
 		return
 	}
 	p.counts[kind]++
