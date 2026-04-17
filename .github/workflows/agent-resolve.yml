@@ -19,6 +19,11 @@ on:
         required: false
         type: string
         default: ""
+      gh_wm_extension_ref:
+        description: Optional branch or tag for gh extension install (e.g. main for debugging)
+        required: false
+        type: string
+        default: ""
     outputs:
       tasks:
         description: JSON array of matching task names
@@ -41,9 +46,15 @@ jobs:
       - uses: an-lee/gh-wm/.github/actions/install-gh-cli@main
 
       - name: Install gh-wm
-        run: gh extension install an-lee/gh-wm --force
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_WM_EXTENSION_REF: ${{ inputs.gh_wm_extension_ref }}
+        run: |
+          if [ -n "${GH_WM_EXTENSION_REF}" ]; then
+            gh extension install "an-lee/gh-wm@${GH_WM_EXTENSION_REF}" --force
+          else
+            gh extension install an-lee/gh-wm --force
+          fi
 
       - name: Match tasks
         id: match

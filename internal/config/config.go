@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"gopkg.in/yaml.v3"
@@ -84,6 +85,14 @@ func WorkflowInstallClaudeCode(g *GlobalConfig) bool {
 		return true
 	}
 	return *g.Workflow.InstallClaudeCode
+}
+
+// WorkflowGhWMExtensionRef returns workflow.gh_wm_extension_ref trimmed for gh extension install @ref; empty means no ref suffix.
+func WorkflowGhWMExtensionRef(g *GlobalConfig) string {
+	if g == nil {
+		return ""
+	}
+	return strings.TrimSpace(g.Workflow.GhWMExtensionRef)
 }
 
 // DefaultGlobal returns minimal defaults when config.yml missing pieces

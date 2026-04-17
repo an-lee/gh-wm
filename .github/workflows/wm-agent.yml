@@ -41,6 +41,8 @@ jobs:
       event_json: ${{ toJSON(github.event) }}
       runs_on: '["self-hosted","linux"]'
       force_task: ${{ github.event.inputs.task_name || '' }}
+      gh_wm_extension_ref: ""
+
 
   run:
     needs: resolve
@@ -49,7 +51,6 @@ jobs:
       fail-fast: false
       matrix:
         task: ${{ fromJSON(needs.resolve.outputs.tasks) }}
-
     uses: an-lee/gh-wm/.github/workflows/agent-run.yml@main
     with:
       task_name: ${{ matrix.task }}
@@ -57,5 +58,7 @@ jobs:
       event_json: ${{ toJSON(github.event) }}
       runs_on: '["self-hosted","linux"]'
       install_claude_code: true
+      gh_wm_extension_ref: ""
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+

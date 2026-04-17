@@ -58,6 +58,7 @@ Agent prompt flow: task body + `context.files` + safe-output reference (user mes
 - **`WM_SAFE_OUTPUT_FILE`**: Per-run `output.jsonl` — `gh wm emit` appends validated lines; merged with `WM_OUTPUT_FILE` during safe-outputs. **`WM_REPO_ROOT`**, **`WM_ISSUE_NUMBER`**, **`WM_PR_NUMBER`** assist emit validation.
 - **`WM_LOG_FORMAT=json`**: Structured `slog` on stderr for pipeline phases.
 - **`install_claude_code`**: `agent-run.yml` input, default `true` from `workflow.install_claude_code` in `.wm/config.yml`.
+- **`gh_wm_extension_ref`**: Optional `workflow.gh_wm_extension_ref` in `.wm/config.yml`; passed to reusable workflows so CI can run `gh extension install owner/repo@ref` (e.g. debug a branch).
 - **CI token sandbox**: `agent-run.yml` runs **`gh wm run --agent-only`** with read-only `GITHUB_TOKEN`, packs the workspace, then **`gh wm process-outputs`** with write permissions so **`gh wm emit`** is the enforced path for GitHub mutations.
 
 ## Before changing behavior

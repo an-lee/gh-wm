@@ -28,6 +28,7 @@ type GlobalConfig struct {
 		RunsOn            []string  `yaml:"runs_on"`
 		PreSteps          []StepDef `yaml:"pre_steps"`
 		InstallClaudeCode *bool     `yaml:"install_claude_code,omitempty"`
+		GhWMExtensionRef  string    `yaml:"gh_wm_extension_ref,omitempty"`
 	} `yaml:"workflow"`
 	Context struct {
 		Files []string `yaml:"files"`
@@ -44,15 +45,16 @@ func (g *GlobalConfig) TypedSpec() *spec.GlobalSpec {
 		return nil
 	}
 	return &spec.GlobalSpec{
-		Version:            g.Version,
-		Engine:             g.Engine,
-		Model:              g.Model,
-		MaxTurns:           g.MaxTurns,
-		ClaudeOutputFormat: g.ClaudeOutputFormat,
-		WorkflowRunsOn:     append([]string(nil), g.Workflow.RunsOn...),
-		ContextFiles:       append([]string(nil), g.Context.Files...),
-		PRDraft:            g.PR.Draft,
-		PRReviewers:        append([]string(nil), g.PR.Reviewers...),
+		Version:                  g.Version,
+		Engine:                   g.Engine,
+		Model:                    g.Model,
+		MaxTurns:                 g.MaxTurns,
+		ClaudeOutputFormat:       g.ClaudeOutputFormat,
+		WorkflowRunsOn:           append([]string(nil), g.Workflow.RunsOn...),
+		WorkflowGhWMExtensionRef: WorkflowGhWMExtensionRef(g),
+		ContextFiles:             append([]string(nil), g.Context.Files...),
+		PRDraft:                  g.PR.Draft,
+		PRReviewers:              append([]string(nil), g.PR.Reviewers...),
 	}
 }
 

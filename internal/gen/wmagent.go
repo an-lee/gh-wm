@@ -36,6 +36,7 @@ jobs:
       event_json: {{ "${{" }} toJSON(github.event) {{ "}}" }}
       runs_on: '{{ .RunsOnJSON }}'
       force_task: {{ "${{" }} github.event.inputs.task_name || '' {{ "}}" }}
+      gh_wm_extension_ref: {{ printf "%q" .ExtensionRef }}
 
 {{ if .Inline }}
   run_agent:
@@ -57,7 +58,7 @@ jobs:
       - uses: {{ .OwnerRepo }}/.github/actions/install-gh-cli@{{ .Ref }}
 
       - name: Install gh-wm
-        run: gh extension install {{ .OwnerRepo }} --force
+        run: gh extension install {{ .OwnerRepo }}{{ if .ExtensionRef }}@{{ .ExtensionRef }}{{ end }} --force
         env:
           GH_TOKEN: {{ "${{" }} github.token {{ "}}" }}
 {{ if .InstallClaudeCode }}
@@ -102,7 +103,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: {{ .OwnerRepo }}/.github/actions/install-gh-cli@{{ .Ref }}
       - name: Install gh-wm
-        run: gh extension install {{ .OwnerRepo }} --force
+        run: gh extension install {{ .OwnerRepo }}{{ if .ExtensionRef }}@{{ .ExtensionRef }}{{ end }} --force
         env:
           GH_TOKEN: {{ "${{" }} github.token {{ "}}" }}
       - uses: actions/download-artifact@v4
@@ -134,6 +135,7 @@ jobs:
       event_json: {{ "${{" }} toJSON(github.event) {{ "}}" }}
       runs_on: '{{ .RunsOnJSON }}'
       install_claude_code: {{ if .InstallClaudeCode }}true{{ else }}false{{ end }}
+      gh_wm_extension_ref: {{ printf "%q" .ExtensionRef }}
     secrets:
       ANTHROPIC_API_KEY: {{ "${{" }} secrets.ANTHROPIC_API_KEY {{ "}}" }}
 {{ end }}
@@ -147,13 +149,15 @@ type wmAgentData struct {
 	PreStepsYAML      string
 	InstallClaudeCode bool
 	Inline            bool
+	ExtensionRef      string
 }
 
 // WriteWMAgent writes .github/workflows/wm-agent.yml. runsOn is passed to reusable workflows as JSON (see workflow.runs_on in .wm/config.yml); if empty, ["ubuntu-latest"] is used.
 // When preSteps is non-empty, the run job is generated inline so prerequisite steps (e.g. mise, bundle install) run before installing gh-wm.
 // installClaudeCode controls the agent-run input and inline install steps (see workflow.install_claude_code in .wm/config.yml; default true).
+// extensionRef is workflow.gh_wm_extension_ref (trimmed); when empty, gh extension install uses the default ref; otherwise owner/repo@ref.
 // triggers is typically from CollectTriggersFromTasksDir; it controls the generated workflow on: block.
-func WriteWMAgent(ghWorkflowsDir string, ownerRepo string, triggers WorkflowTriggers, runsOn []string, preSteps []config.StepDef, installClaudeCode bool) error {
+func WriteWMAgent(ghWorkflowsDir string, ownerRepo string, triggers WorkflowTriggers, runsOn []string, preSteps []config.StepDef, installClaudeCode bool, extensionRef string) error {
 	labels := runsOn
 	if len(labels) == 0 {
 		labels = []string{"ubuntu-latest"}
@@ -175,6 +179,7 @@ func WriteWMAgent(ghWorkflowsDir string, ownerRepo string, triggers WorkflowTrig
 		RunsOnJSON:        string(runsOnJSON),
 		InstallClaudeCode: installClaudeCode,
 		Inline:            len(preSteps) > 0,
+		ExtensionRef:      extensionRef,
 	}
 	if data.Inline {
 		ps, err := renderPreStepsYAML(preSteps)

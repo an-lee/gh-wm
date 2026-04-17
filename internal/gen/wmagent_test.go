@@ -13,7 +13,7 @@ func TestWriteWMAgent(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	tr := WorkflowTriggers{Schedules: []string{"0 1 * * *", "0 1 * * *", ""}}
-	if err := WriteWMAgent(dir, "owner/name", tr, []string{"ubuntu-latest"}, nil, true); err != nil {
+	if err := WriteWMAgent(dir, "owner/name", tr, []string{"ubuntu-latest"}, nil, true, ""); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(dir, "wm-agent.yml"))
@@ -23,7 +23,7 @@ func TestWriteWMAgent(t *testing.T) {
 	s := string(b)
 	for _, p := range []string{
 		"owner/name", "0 1 * * *", "agent-resolve.yml", `runs_on: '["ubuntu-latest"]'`,
-		"install_claude_code: true", "task_name:", "force_task:", "has_tasks == 'true'",
+		"install_claude_code: true", `gh_wm_extension_ref: ""`, "task_name:", "force_task:", "has_tasks == 'true'",
 		"concurrency:", "cancel-in-progress: false", "github-actions[bot]",
 	} {
 		if !strings.Contains(s, p) {
@@ -35,7 +35,7 @@ func TestWriteWMAgent(t *testing.T) {
 func TestWriteWMAgent_DefaultSchedule(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	if err := WriteWMAgent(dir, "o/r", WorkflowTriggers{}, nil, nil, true); err != nil {
+	if err := WriteWMAgent(dir, "o/r", WorkflowTriggers{}, nil, nil, true, ""); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(dir, "wm-agent.yml"))
@@ -55,7 +55,7 @@ func TestWriteWMAgent_SelfHostedLabels(t *testing.T) {
 	dir := t.TempDir()
 	labels := []string{"self-hosted", "linux"}
 	tr := WorkflowTriggers{Schedules: []string{"0 1 * * *"}}
-	if err := WriteWMAgent(dir, "o/r", tr, labels, nil, true); err != nil {
+	if err := WriteWMAgent(dir, "o/r", tr, labels, nil, true, ""); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(dir, "wm-agent.yml"))
@@ -72,7 +72,7 @@ func TestWriteWMAgent_InstallClaudeCodeFalse(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	tr := WorkflowTriggers{Schedules: []string{"0 1 * * *"}}
-	if err := WriteWMAgent(dir, "o/r", tr, []string{"ubuntu-latest"}, nil, false); err != nil {
+	if err := WriteWMAgent(dir, "o/r", tr, []string{"ubuntu-latest"}, nil, false, ""); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(dir, "wm-agent.yml"))
@@ -90,7 +90,7 @@ func TestWriteWMAgent_PreStepsInline_GhExtensionInstall(t *testing.T) {
 	dir := t.TempDir()
 	preSteps := []config.StepDef{{Uses: "jdx/mise-action@v4"}}
 	tr := WorkflowTriggers{Schedules: []string{"0 1 * * *"}}
-	if err := WriteWMAgent(dir, "o/r", tr, []string{"ubuntu-latest"}, preSteps, true); err != nil {
+	if err := WriteWMAgent(dir, "o/r", tr, []string{"ubuntu-latest"}, preSteps, true, ""); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(dir, "wm-agent.yml"))
@@ -111,7 +111,7 @@ func TestWriteWMAgent_PreStepsInline(t *testing.T) {
 		{Name: "Bundle install", Run: "bundle install"},
 	}
 	tr := WorkflowTriggers{Schedules: []string{"0 1 * * *"}}
-	if err := WriteWMAgent(dir, "o/r", tr, []string{"ubuntu-latest"}, preSteps, true); err != nil {
+	if err := WriteWMAgent(dir, "o/r", tr, []string{"ubuntu-latest"}, preSteps, true, ""); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(dir, "wm-agent.yml"))
@@ -153,7 +153,7 @@ func TestWriteWMAgent_PreStepsInline_NoClaudeInstall(t *testing.T) {
 		{Uses: "jdx/mise-action@v4"},
 	}
 	tr := WorkflowTriggers{Schedules: []string{"0 1 * * *"}}
-	if err := WriteWMAgent(dir, "o/r", tr, []string{"ubuntu-latest"}, preSteps, false); err != nil {
+	if err := WriteWMAgent(dir, "o/r", tr, []string{"ubuntu-latest"}, preSteps, false, ""); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(dir, "wm-agent.yml"))
@@ -163,5 +163,43 @@ func TestWriteWMAgent_PreStepsInline_NoClaudeInstall(t *testing.T) {
 	s := string(b)
 	if strings.Contains(s, "Install Claude Code") || strings.Contains(s, "claude.ai/install.sh") {
 		t.Fatal("did not expect Claude install steps when installClaudeCode is false")
+	}
+}
+
+func TestWriteWMAgent_GhWMExtensionRef_Reusable(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	tr := WorkflowTriggers{Schedules: []string{"0 1 * * *"}}
+	if err := WriteWMAgent(dir, "owner/name", tr, []string{"ubuntu-latest"}, nil, true, "main"); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "wm-agent.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	if !strings.Contains(s, `gh_wm_extension_ref: "main"`) {
+		t.Fatalf("expected gh_wm_extension_ref in resolve and run with, got:\n%s", s)
+	}
+}
+
+func TestWriteWMAgent_GhWMExtensionRef_Inline(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	preSteps := []config.StepDef{{Uses: "jdx/mise-action@v4"}}
+	tr := WorkflowTriggers{Schedules: []string{"0 1 * * *"}}
+	if err := WriteWMAgent(dir, "o/r", tr, []string{"ubuntu-latest"}, preSteps, true, "debug-branch"); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "wm-agent.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	if !strings.Contains(s, "gh extension install o/r@debug-branch") {
+		t.Fatalf("expected inline install with @ref, got:\n%s", s)
+	}
+	if !strings.Contains(s, `gh_wm_extension_ref: "debug-branch"`) {
+		t.Fatalf("expected resolve with gh_wm_extension_ref, got:\n%s", s)
 	}
 }

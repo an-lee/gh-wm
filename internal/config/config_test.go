@@ -103,6 +103,21 @@ func TestWorkflowInstallClaudeCode(t *testing.T) {
 	}
 }
 
+func TestWorkflowGhWMExtensionRef(t *testing.T) {
+	t.Parallel()
+	if WorkflowGhWMExtensionRef(nil) != "" {
+		t.Fatal("nil")
+	}
+	g := &GlobalConfig{Version: 1}
+	if WorkflowGhWMExtensionRef(g) != "" {
+		t.Fatal("unset")
+	}
+	g.Workflow.GhWMExtensionRef = "  main  "
+	if WorkflowGhWMExtensionRef(g) != "main" {
+		t.Fatalf("got %q", WorkflowGhWMExtensionRef(g))
+	}
+}
+
 func TestLoadGlobalOnly(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
