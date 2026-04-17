@@ -14,7 +14,7 @@
       "properties": {
         "runs_on": { "type": "array", "items": { "type": "string" } },
         "install_claude_code": { "type": "boolean" },
-        "gh_wm_extension_ref": { "type": "string" }
+        "gh_wm_extension_version": { "type": "string" }
       }
     },
     "context": {

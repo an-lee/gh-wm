@@ -23,7 +23,7 @@ func TestWriteWMAgent(t *testing.T) {
 	s := string(b)
 	for _, p := range []string{
 		"owner/name", "0 1 * * *", "agent-resolve.yml", `runs_on: '["ubuntu-latest"]'`,
-		"install_claude_code: true", `gh_wm_extension_ref: ""`, "task_name:", "force_task:", "has_tasks == 'true'",
+		"install_claude_code: true", `gh_wm_extension_version: ""`, "task_name:", "force_task:", "has_tasks == 'true'",
 		"concurrency:", "cancel-in-progress: false", "github-actions[bot]",
 	} {
 		if !strings.Contains(s, p) {
@@ -166,7 +166,7 @@ func TestWriteWMAgent_PreStepsInline_NoClaudeInstall(t *testing.T) {
 	}
 }
 
-func TestWriteWMAgent_GhWMExtensionRef_Reusable(t *testing.T) {
+func TestWriteWMAgent_GhWMExtensionVersion_Reusable(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	tr := WorkflowTriggers{Schedules: []string{"0 1 * * *"}}
@@ -178,12 +178,12 @@ func TestWriteWMAgent_GhWMExtensionRef_Reusable(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(b)
-	if !strings.Contains(s, `gh_wm_extension_ref: "main"`) {
-		t.Fatalf("expected gh_wm_extension_ref in resolve and run with, got:\n%s", s)
+	if !strings.Contains(s, `gh_wm_extension_version: "main"`) {
+		t.Fatalf("expected gh_wm_extension_version in resolve and run with, got:\n%s", s)
 	}
 }
 
-func TestWriteWMAgent_GhWMExtensionRef_Inline(t *testing.T) {
+func TestWriteWMAgent_GhWMExtensionVersion_Inline(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	preSteps := []config.StepDef{{Uses: "jdx/mise-action@v4"}}
@@ -196,10 +196,10 @@ func TestWriteWMAgent_GhWMExtensionRef_Inline(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(b)
-	if !strings.Contains(s, "gh extension install o/r@debug-branch") {
-		t.Fatalf("expected inline install with @ref, got:\n%s", s)
+	if !strings.Contains(s, `gh extension install o/r --pin "debug-branch"`) {
+		t.Fatalf("expected inline install with --pin, got:\n%s", s)
 	}
-	if !strings.Contains(s, `gh_wm_extension_ref: "debug-branch"`) {
-		t.Fatalf("expected resolve with gh_wm_extension_ref, got:\n%s", s)
+	if !strings.Contains(s, `gh_wm_extension_version: "debug-branch"`) {
+		t.Fatalf("expected resolve with gh_wm_extension_version, got:\n%s", s)
 	}
 }

@@ -5,8 +5,8 @@ workflow:
     - ubuntu-latest
   # Optional: set false for codex-only or when claude is pre-installed on the runner (default true).
   # install_claude_code: false
-  # Optional: branch or tag for gh extension install in CI (e.g. main for debugging). When unset, install uses the default ref.
-  # gh_wm_extension_ref: main
+  # Optional: gh extension install --pin value (release tag or commit). When unset, latest. See gh help extension install.
+  # gh_wm_extension_version: v1.2.3
   # Optional: prerequisite steps before gh-wm runs (toolchains, deps, engine CLI).
   # When set, `gh wm upgrade` generates an inline run job (not reusable agent-run.yml).
   # pre_steps:

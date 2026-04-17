@@ -87,12 +87,12 @@ func WorkflowInstallClaudeCode(g *GlobalConfig) bool {
 	return *g.Workflow.InstallClaudeCode
 }
 
-// WorkflowGhWMExtensionRef returns workflow.gh_wm_extension_ref trimmed for gh extension install @ref; empty means no ref suffix.
-func WorkflowGhWMExtensionRef(g *GlobalConfig) string {
+// WorkflowGhWMExtensionVersion returns workflow.gh_wm_extension_version trimmed for gh extension install --pin; empty means no pin.
+func WorkflowGhWMExtensionVersion(g *GlobalConfig) string {
 	if g == nil {
 		return ""
 	}
-	return strings.TrimSpace(g.Workflow.GhWMExtensionRef)
+	return strings.TrimSpace(g.Workflow.GhWMExtensionVersion)
 }
 
 // DefaultGlobal returns minimal defaults when config.yml missing pieces

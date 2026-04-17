@@ -103,18 +103,18 @@ func TestWorkflowInstallClaudeCode(t *testing.T) {
 	}
 }
 
-func TestWorkflowGhWMExtensionRef(t *testing.T) {
+func TestWorkflowGhWMExtensionVersion(t *testing.T) {
 	t.Parallel()
-	if WorkflowGhWMExtensionRef(nil) != "" {
+	if WorkflowGhWMExtensionVersion(nil) != "" {
 		t.Fatal("nil")
 	}
 	g := &GlobalConfig{Version: 1}
-	if WorkflowGhWMExtensionRef(g) != "" {
+	if WorkflowGhWMExtensionVersion(g) != "" {
 		t.Fatal("unset")
 	}
-	g.Workflow.GhWMExtensionRef = "  main  "
-	if WorkflowGhWMExtensionRef(g) != "main" {
-		t.Fatalf("got %q", WorkflowGhWMExtensionRef(g))
+	g.Workflow.GhWMExtensionVersion = "  main  "
+	if WorkflowGhWMExtensionVersion(g) != "main" {
+		t.Fatalf("got %q", WorkflowGhWMExtensionVersion(g))
 	}
 }
 

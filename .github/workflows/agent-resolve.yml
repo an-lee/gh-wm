@@ -19,8 +19,8 @@ on:
         required: false
         type: string
         default: ""
-      gh_wm_extension_ref:
-        description: Optional branch or tag for gh extension install (e.g. main for debugging)
+      gh_wm_extension_version:
+        description: Optional pin for gh extension install (gh extension install --pin); release tag or commit ref
         required: false
         type: string
         default: ""
@@ -48,10 +48,10 @@ jobs:
       - name: Install gh-wm
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_WM_EXTENSION_REF: ${{ inputs.gh_wm_extension_ref }}
+          GH_WM_EXTENSION_VERSION: ${{ inputs.gh_wm_extension_version }}
         run: |
-          if [ -n "${GH_WM_EXTENSION_REF}" ]; then
-            gh extension install "an-lee/gh-wm@${GH_WM_EXTENSION_REF}" --force
+          if [ -n "${GH_WM_EXTENSION_VERSION}" ]; then
+            gh extension install an-lee/gh-wm --pin "${GH_WM_EXTENSION_VERSION}" --force
           else
             gh extension install an-lee/gh-wm --force
           fi
