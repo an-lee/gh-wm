@@ -1,7 +1,7 @@
 package output
 
 import (
-	"log"
+	"log/slog"
 	"strings"
 )
 
@@ -11,5 +11,5 @@ func runNoop(item ItemNoop) {
 	if msg == "" {
 		msg = "(noop: no message)"
 	}
-	log.Printf("wm: safe-output noop: %s", msg)
+	slog.Info("wm: safe-output noop", "message", msg)
 }

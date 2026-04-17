@@ -35,6 +35,31 @@ func TestAppendClaudeGitHubStepSummary_WritesFile(t *testing.T) {
 	}
 }
 
+// Regression: concludeArgs must pass glob from RunTask so the Models row is not always "—".
+func TestAppendClaudeGitHubStepSummary_IncludesGlobModelWhenNoModelUsage(t *testing.T) {
+	dir := t.TempDir()
+	summaryFile := filepath.Join(t.TempDir(), "step-summary.md")
+	t.Setenv("GITHUB_STEP_SUMMARY", summaryFile)
+	t.Setenv("WM_AGENT_CMD", "")
+	if err := os.WriteFile(filepath.Join(dir, conversationJSONLFileName), []byte(`{"type":"result","subtype":"success","total_cost_usd":0.01}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result := &types.RunResult{Success: true, Duration: time.Second}
+	a := &concludeArgs{
+		task: &config.Task{Name: "t"},
+		glob: &config.GlobalConfig{Model: "haiku-from-config"},
+		rd:   &RunDir{Path: dir},
+	}
+	appendClaudeGitHubStepSummary(result, a)
+	b, err := os.ReadFile(summaryFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "haiku-from-config") {
+		t.Fatalf("expected glob.Model in step summary; got:\n%s", b)
+	}
+}
+
 func TestParseClaudeConversationJSONL_ResultUsageModelUsage(t *testing.T) {
 	t.Parallel()
 	lines := []string{

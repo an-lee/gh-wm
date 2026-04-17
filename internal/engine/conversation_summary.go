@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/an-lee/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/engine/engines"
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
@@ -270,7 +271,7 @@ func appendClaudeGitHubStepSummary(result *types.RunResult, a *concludeArgs) {
 	if engineName == "" && a.glob != nil {
 		engineName = a.glob.Engine
 	}
-	if !isBuiltinClaude("", engineName) {
+	if !engines.IsBuiltinClaude("", engineName) {
 		return
 	}
 	stats, err := parseClaudeConversationArtifacts(a.rd.Path)

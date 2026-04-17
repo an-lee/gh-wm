@@ -2,33 +2,42 @@ package ghclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"github.com/an-lee/gh-wm/internal/gh"
 )
 
 // AddIssueReaction adds an emoji reaction to an issue or pull request (issue number).
 func AddIssueReaction(repo string, issue int, content string) error {
+	if useREST() {
+		return gh.AddIssueReaction(context.Background(), repo, issue, content)
+	}
 	owner, name, err := splitRepo(repo)
 	if err != nil {
 		return err
 	}
 	path := fmt.Sprintf("/repos/%s/%s/issues/%d/reactions", owner, name, issue)
-	return postReaction(path, content)
+	return postReactionExec(path, content)
 }
 
 // AddIssueCommentReaction adds an emoji reaction to an issue comment.
 func AddIssueCommentReaction(repo string, commentID int64, content string) error {
+	if useREST() {
+		return gh.AddIssueCommentReaction(context.Background(), repo, commentID, content)
+	}
 	owner, name, err := splitRepo(repo)
 	if err != nil {
 		return err
 	}
 	path := fmt.Sprintf("/repos/%s/%s/issues/comments/%d/reactions", owner, name, commentID)
-	return postReaction(path, content)
+	return postReactionExec(path, content)
 }
 
-func postReaction(apiPath, content string) error {
+func postReactionExec(apiPath, content string) error {
 	payload, err := json.Marshal(map[string]string{"content": content})
 	if err != nil {
 		return err

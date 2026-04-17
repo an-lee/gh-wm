@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/an-lee/gh-wm/internal/config/scalar"
 )
 
 // ParseAgentOutputFile reads and parses output.json. Returns nil, nil if file is missing or empty.
@@ -69,112 +71,38 @@ func ParseOutputKind(s string) OutputKind {
 	}
 }
 
-func stringField(m map[string]any, key string) string {
-	if m == nil {
-		return ""
-	}
-	v, ok := m[key]
-	if !ok {
-		return ""
-	}
-	s, ok := v.(string)
-	if !ok {
-		return ""
-	}
-	return strings.TrimSpace(s)
-}
-
-func stringSliceField(m map[string]any, key string) []string {
-	if m == nil {
-		return nil
-	}
-	v, ok := m[key]
-	if !ok {
-		return nil
-	}
-	arr, ok := v.([]any)
-	if !ok {
-		return nil
-	}
-	var out []string
-	for _, x := range arr {
-		s, ok := x.(string)
-		if ok && strings.TrimSpace(s) != "" {
-			out = append(out, strings.TrimSpace(s))
-		}
-	}
-	return out
-}
-
-func intField(m map[string]any, key string) int {
-	if m == nil {
-		return 0
-	}
-	v, ok := m[key]
-	if !ok {
-		return 0
-	}
-	switch x := v.(type) {
-	case float64:
-		return int(x)
-	case int:
-		return x
-	case int64:
-		return int(x)
-	default:
-		return 0
-	}
-}
-
-func boolPtrField(m map[string]any, key string) *bool {
-	if m == nil {
-		return nil
-	}
-	v, ok := m[key]
-	if !ok {
-		return nil
-	}
-	switch x := v.(type) {
-	case bool:
-		b := x
-		return &b
-	default:
-		return nil
-	}
-}
-
 func mapToCreatePR(m map[string]any) ItemCreatePullRequest {
 	return ItemCreatePullRequest{
-		Title:  stringField(m, "title"),
-		Body:   stringField(m, "body"),
-		Draft:  boolPtrField(m, "draft"),
-		Labels: stringSliceField(m, "labels"),
+		Title:  scalar.StringField(m, "title"),
+		Body:   scalar.StringField(m, "body"),
+		Draft:  scalar.BoolPtrField(m, "draft"),
+		Labels: scalar.StringSliceField(m, "labels"),
 	}
 }
 
 func mapToAddComment(m map[string]any) ItemAddComment {
 	return ItemAddComment{
-		Body:   stringField(m, "body"),
-		Target: intField(m, "target"),
+		Body:   scalar.StringField(m, "body"),
+		Target: scalar.IntField(m, "target"),
 	}
 }
 
 func mapToLabels(m map[string]any) ItemLabels {
 	return ItemLabels{
-		Labels: stringSliceField(m, "labels"),
-		Target: intField(m, "target"),
+		Labels: scalar.StringSliceField(m, "labels"),
+		Target: scalar.IntField(m, "target"),
 	}
 }
 
 func mapToCreateIssue(m map[string]any) ItemCreateIssue {
 	return ItemCreateIssue{
-		Title:     stringField(m, "title"),
-		Body:      stringField(m, "body"),
-		Labels:    stringSliceField(m, "labels"),
-		Assignees: stringSliceField(m, "assignees"),
+		Title:     scalar.StringField(m, "title"),
+		Body:      scalar.StringField(m, "body"),
+		Labels:    scalar.StringSliceField(m, "labels"),
+		Assignees: scalar.StringSliceField(m, "assignees"),
 	}
 }
 
 func mapToNoop(m map[string]any) ItemNoop {
-	return ItemNoop{Message: stringField(m, "message")}
+	return ItemNoop{Message: scalar.StringField(m, "message")}
 }

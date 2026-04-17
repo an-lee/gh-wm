@@ -25,6 +25,7 @@ const (
 	conversationJSONLFileName = "conversation.jsonl"
 	metaFileName              = "meta.json"
 	resultFileName            = "result.json"
+	runFileName               = "run.json"
 	// outputJSONFileName is the agent-written structured safe-outputs request (WM_OUTPUT_FILE).
 	outputJSONFileName = "output.json"
 
@@ -267,6 +268,82 @@ func (r *RunDir) WriteResult(res *types.RunResult) error {
 	path := filepath.Join(r.Path, resultFileName)
 	if err := os.WriteFile(path, b, 0o644); err != nil {
 		return fmt.Errorf("write result.json: %w", err)
+	}
+	return nil
+}
+
+// WriteRunJSON merges meta.json fields with the run outcome (same payload as result.json plus meta header).
+func (r *RunDir) WriteRunJSON(res *types.RunResult) error {
+	if r == nil || res == nil {
+		return nil
+	}
+	metaPath := filepath.Join(r.Path, metaFileName)
+	prev, err := os.ReadFile(metaPath)
+	if err != nil {
+		return fmt.Errorf("read meta.json for run.json: %w", err)
+	}
+	var m runMeta
+	if err := json.Unmarshal(prev, &m); err != nil {
+		return fmt.Errorf("parse meta.json: %w", err)
+	}
+	var errs []string
+	for _, e := range res.Errors {
+		if e != nil {
+			errs = append(errs, e.Error())
+		}
+	}
+	out := struct {
+		runMeta
+		Duration    string   `json:"duration"`
+		DurationMs  int64    `json:"duration_ms"`
+		Errors      []string `json:"errors,omitempty"`
+		RunDir      string   `json:"run_dir"`
+		AgentResult *struct {
+			Success         bool   `json:"success"`
+			ExitCode        int    `json:"exit_code"`
+			Stdout          string `json:"stdout,omitempty"`
+			Stderr          string `json:"stderr,omitempty"`
+			Summary         string `json:"summary,omitempty"`
+			TimedOut        bool   `json:"timed_out,omitempty"`
+			AgentStdoutPath string `json:"agent_stdout_path,omitempty"`
+			OutputFilePath  string `json:"output_file_path,omitempty"`
+		} `json:"agent_result,omitempty"`
+	}{
+		runMeta:    m,
+		Duration:   res.Duration.String(),
+		DurationMs: res.Duration.Milliseconds(),
+		Errors:     errs,
+		RunDir:     r.Path,
+	}
+	if res.AgentResult != nil {
+		ar := res.AgentResult
+		out.AgentResult = &struct {
+			Success         bool   `json:"success"`
+			ExitCode        int    `json:"exit_code"`
+			Stdout          string `json:"stdout,omitempty"`
+			Stderr          string `json:"stderr,omitempty"`
+			Summary         string `json:"summary,omitempty"`
+			TimedOut        bool   `json:"timed_out,omitempty"`
+			AgentStdoutPath string `json:"agent_stdout_path,omitempty"`
+			OutputFilePath  string `json:"output_file_path,omitempty"`
+		}{
+			Success:         ar.Success,
+			ExitCode:        ar.ExitCode,
+			Stdout:          ar.Stdout,
+			Stderr:          ar.Stderr,
+			Summary:         ar.Summary,
+			TimedOut:        ar.TimedOut,
+			AgentStdoutPath: ar.AgentStdoutPath,
+			OutputFilePath:  ar.OutputFilePath,
+		}
+	}
+	b, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode run.json: %w", err)
+	}
+	path := filepath.Join(r.Path, runFileName)
+	if err := os.WriteFile(path, b, 0o644); err != nil {
+		return fmt.Errorf("write run.json: %w", err)
 	}
 	return nil
 }

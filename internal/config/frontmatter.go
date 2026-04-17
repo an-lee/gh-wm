@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/an-lee/gh-wm/internal/config/spec"
 )
 
 // SplitFrontmatter extracts YAML between first pair of --- lines and body.
@@ -43,11 +45,13 @@ func LoadTaskFile(path string) (*Task, error) {
 	}
 	base := filepath.Base(path)
 	name := strings.TrimSuffix(base, filepath.Ext(base))
+	ts, _, _ := spec.ParseTaskFrontmatter(fm)
 	return &Task{
 		Name:        name,
 		Path:        path,
 		Frontmatter: fm,
 		Body:        body,
+		Spec:        ts,
 	}, nil
 }
 

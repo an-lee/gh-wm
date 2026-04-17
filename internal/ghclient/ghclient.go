@@ -2,13 +2,25 @@ package ghclient
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/an-lee/gh-wm/internal/gh"
 )
+
+// useREST returns true when GH_WM_REST=1 (go-gh REST); default is gh CLI subprocess for tests and minimal shells.
+func useREST() bool {
+	return os.Getenv("GH_WM_REST") == "1"
+}
 
 // AddIssueLabel adds a label to an issue (owner/repo from "owner/repo").
 func AddIssueLabel(repo string, issue int, label string) error {
+	if useREST() {
+		return gh.AddIssueLabel(context.Background(), repo, issue, label)
+	}
 	parts := strings.Split(repo, "/")
 	if len(parts) != 2 {
 		return fmt.Errorf("invalid repo: %s", repo)

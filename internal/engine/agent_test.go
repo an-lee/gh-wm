@@ -9,12 +9,13 @@ import (
 	"testing"
 
 	"github.com/an-lee/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/engine/engines"
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
 func TestAgentCLIArgs(t *testing.T) {
 	t.Parallel()
-	args := agentCLIArgs(&config.GlobalConfig{Model: "m1", MaxTurns: 7}, config.ClaudeOutputFormatText)
+	args := engines.AgentCLIArgs(&config.GlobalConfig{Model: "m1", MaxTurns: 7}, config.ClaudeOutputFormatText)
 	want := []string{"-p", "--dangerously-skip-permissions", "--model", "m1", "--max-turns", "7"}
 	if len(args) != len(want) {
 		t.Fatalf("got %v", args)
@@ -24,14 +25,14 @@ func TestAgentCLIArgs(t *testing.T) {
 			t.Fatalf("i=%d got %v want %v", i, args, want)
 		}
 	}
-	if args2 := agentCLIArgs(nil, config.ClaudeOutputFormatText); len(args2) != 2 || args2[0] != "-p" || args2[1] != "--dangerously-skip-permissions" {
+	if args2 := engines.AgentCLIArgs(nil, config.ClaudeOutputFormatText); len(args2) != 2 || args2[0] != "-p" || args2[1] != "--dangerously-skip-permissions" {
 		t.Fatalf("nil glob: %v", args2)
 	}
 }
 
 func TestAgentCLIArgs_OutputFormat(t *testing.T) {
 	t.Parallel()
-	args := agentCLIArgs(&config.GlobalConfig{Model: "m", MaxTurns: 7}, config.ClaudeOutputFormatStreamJSON)
+	args := engines.AgentCLIArgs(&config.GlobalConfig{Model: "m", MaxTurns: 7}, config.ClaudeOutputFormatStreamJSON)
 	want := []string{"-p", "--dangerously-skip-permissions", "--model", "m", "--max-turns", "7", "--output-format", "stream-json"}
 	if len(args) != len(want) {
 		t.Fatalf("got %v", args)
@@ -41,7 +42,7 @@ func TestAgentCLIArgs_OutputFormat(t *testing.T) {
 			t.Fatalf("i=%d got %v want %v", i, args, want)
 		}
 	}
-	argsJSON := agentCLIArgs(&config.GlobalConfig{}, config.ClaudeOutputFormatJSON)
+	argsJSON := engines.AgentCLIArgs(&config.GlobalConfig{}, config.ClaudeOutputFormatJSON)
 	wantJ := []string{"-p", "--dangerously-skip-permissions", "--output-format", "json"}
 	if len(argsJSON) != len(wantJ) {
 		t.Fatalf("json: got %v", argsJSON)
@@ -55,7 +56,7 @@ func TestAgentCLIArgs_OutputFormat(t *testing.T) {
 
 func TestParseWM_AGENT_CMD_Placeholder(t *testing.T) {
 	t.Parallel()
-	name, args, stdin, err := parseWM_AGENT_CMD("echo {prompt} tail", "BODY")
+	name, args, stdin, err := engines.ParseWMAgentCmd("echo {prompt} tail", "BODY")
 	if err != nil || stdin != nil {
 		t.Fatalf("err=%v stdin=%v", err, stdin)
 	}

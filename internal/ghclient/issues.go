@@ -2,11 +2,14 @@ package ghclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
 	"os/exec"
 	"strings"
+
+	"github.com/an-lee/gh-wm/internal/gh"
 )
 
 func splitRepo(repo string) (owner, name string, err error) {
@@ -19,6 +22,9 @@ func splitRepo(repo string) (owner, name string, err error) {
 
 // RemoveIssueLabel removes a label from an issue or PR (same number).
 func RemoveIssueLabel(repo string, issue int, label string) error {
+	if useREST() {
+		return gh.RemoveIssueLabel(context.Background(), repo, issue, label)
+	}
 	owner, name, err := splitRepo(repo)
 	if err != nil {
 		return err
@@ -36,6 +42,9 @@ func RemoveIssueLabel(repo string, issue int, label string) error {
 
 // ListIssueCommentBodies returns comment bodies in order (oldest first).
 func ListIssueCommentBodies(repo string, issue int) ([]string, error) {
+	if useREST() {
+		return gh.ListIssueCommentBodies(context.Background(), repo, issue)
+	}
 	owner, name, err := splitRepo(repo)
 	if err != nil {
 		return nil, err
@@ -59,8 +68,45 @@ func ListIssueCommentBodies(repo string, issue int) ([]string, error) {
 	return bodies, nil
 }
 
+// CreateIssue opens a new issue in the repository.
+func CreateIssue(ctx context.Context, repo, title, body string, labels, assignees []string) error {
+	if useREST() {
+		return gh.CreateIssue(ctx, repo, title, body, labels, assignees)
+	}
+	owner, name, err := splitRepo(repo)
+	if err != nil {
+		return err
+	}
+	path := fmt.Sprintf("/repos/%s/%s/issues", owner, name)
+	payload := map[string]any{
+		"title": title,
+		"body":  body,
+	}
+	if len(labels) > 0 {
+		payload["labels"] = labels
+	}
+	if len(assignees) > 0 {
+		payload["assignees"] = assignees
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command("gh", "api", "-X", "POST", path, "--input", "-")
+	cmd.Stdin = bytes.NewReader(b)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("gh api create issue: %w: %s", err, stderr.String())
+	}
+	return nil
+}
+
 // PostIssueComment adds a comment to an issue or PR.
 func PostIssueComment(repo string, issue int, body string) error {
+	if useREST() {
+		return gh.PostIssueComment(context.Background(), repo, issue, body)
+	}
 	owner, name, err := splitRepo(repo)
 	if err != nil {
 		return err

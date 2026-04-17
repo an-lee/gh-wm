@@ -3,7 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
 	"github.com/an-lee/gh-wm/internal/config"
@@ -32,7 +32,7 @@ func ApplyStateWorking(tc *types.TaskContext, wm config.WMExtension) error {
 		return nil
 	}
 	if err := ghclient.AddIssueLabel(tc.Repo, n, l); err != nil {
-		log.Printf("wm: ApplyStateWorking: %v", err)
+		slog.Info("wm: ApplyStateWorking", "err", err)
 		return fmt.Errorf("add working label %q: %w", l, err)
 	}
 	return nil
@@ -59,16 +59,16 @@ func transition(tc *types.TaskContext, wm config.WMExtension, fromKey, toKey str
 	if from != "" {
 		if err := ghclient.RemoveIssueLabel(tc.Repo, n, from); err != nil {
 			if isLabelRemoveNotFound(err) {
-				log.Printf("wm: transition remove label %q: label not present (ignored)", from)
+				slog.Info("wm: transition remove label: label not present (ignored)", "label", from)
 			} else {
-				log.Printf("wm: transition remove label %q: %v", from, err)
+				slog.Info("wm: transition remove label", "label", from, "err", err)
 				errs = append(errs, fmt.Errorf("remove label %q: %w", from, err))
 			}
 		}
 	}
 	if to != "" {
 		if err := ghclient.AddIssueLabel(tc.Repo, n, to); err != nil {
-			log.Printf("wm: transition add label %q: %v", to, err)
+			slog.Info("wm: transition add label", "label", to, "err", err)
 			errs = append(errs, fmt.Errorf("add label %q: %w", to, err))
 		}
 	}

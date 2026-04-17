@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gh-wm.github.io/gh-wm/task-schema.json",
+  "title": "gh-wm task frontmatter (subset)",
+  "type": "object",
+  "properties": {
+    "description": { "type": "string" },
+    "source": { "type": "string" },
+    "engine": {
+      "type": "string",
+      "enum": ["claude", "codex"],
+      "description": "Built-in agent; use WM_AGENT_CMD for other CLIs. The historical copilot name is deprecated (see v2.md)."
+    },
+    "timeout-minutes": { "type": "integer", "minimum": 1, "maximum": 480 },
+    "on": { "type": "object", "description": "Trigger OR-block (issues, issue_comment, pull_request, slash_command, schedule, workflow_dispatch)." },
+    "safe-outputs": {
+      "type": "object",
+      "description": "Declare allowed output.json item kinds (create-pull-request, add-comment, …)."
+    },
+    "wm": {
+      "type": "object",
+      "properties": {
+        "state_labels": {
+          "type": "object",
+          "properties": {
+            "working": { "type": "string" },
+            "done": { "type": "string" },
+            "failed": { "type": "string" }
+          }
+        }
+      }
+    },
+    "tools": {},
+    "context": { "type": "object" }
+  },
+  "additionalProperties": true
+}

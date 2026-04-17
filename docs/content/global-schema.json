@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gh-wm.github.io/gh-wm/global-schema.json",
+  "title": "gh-wm global config (.wm/config.yml subset)",
+  "type": "object",
+  "properties": {
+    "version": { "type": "integer" },
+    "engine": { "type": "string", "enum": ["claude", "codex"] },
+    "model": { "type": "string" },
+    "max_turns": { "type": "integer", "minimum": 1 },
+    "claude_output_format": { "type": "string", "enum": ["text", "json", "stream-json"] },
+    "workflow": {
+      "type": "object",
+      "properties": {
+        "runs_on": { "type": "array", "items": { "type": "string" } },
+        "install_claude_code": { "type": "boolean" }
+      }
+    },
+    "context": {
+      "type": "object",
+      "properties": {
+        "files": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "pr": {
+      "type": "object",
+      "properties": {
+        "draft": { "type": "boolean" },
+        "reviewers": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  },
+  "additionalProperties": true
+}

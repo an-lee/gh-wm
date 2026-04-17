@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/an-lee/gh-wm/internal/config"
+	"github.com/an-lee/gh-wm/internal/config/scalar"
 )
 
 // AvailableOutputsSection builds markdown appended to the agent prompt describing WM_OUTPUT_FILE.
@@ -45,15 +46,15 @@ func AvailableOutputsSection(glob *config.GlobalConfig, task *config.Task) strin
 				block = m
 			}
 		}
-		maxN := maxIntFromMap(block)
+		maxN := scalar.IntFromMap(block, "max")
 		if maxN <= 0 {
 			maxN = defaultMaxPerKind(row.kind)
 		}
 		line := fmt.Sprintf("- **`%s`** — max **%d** per run; fields: %s", row.kind, maxN, row.desc)
-		if p := stringFromMap(block, "title-prefix"); p != "" {
+		if p := scalar.StringFromMap(block, "title-prefix"); p != "" {
 			line += fmt.Sprintf("; titles must start with `%s` where configured", p)
 		}
-		if al := stringSliceFromMap(block, "allowed"); len(al) > 0 {
+		if al := scalar.StringSliceFromMap(block, "allowed"); len(al) > 0 {
 			line += fmt.Sprintf("; allowed labels: %v", al)
 		}
 		b.WriteString(line)

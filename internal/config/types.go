@@ -3,6 +3,8 @@ package config
 import (
 	"encoding/json"
 	"strings"
+
+	"github.com/an-lee/gh-wm/internal/config/spec"
 )
 
 // StepDef is one GitHub Actions job step (uses or run) for workflow.pre_steps.
@@ -36,6 +38,24 @@ type GlobalConfig struct {
 	} `yaml:"pr"`
 }
 
+// TypedSpec returns a [spec.GlobalSpec] snapshot for tooling and JSON schema alignment.
+func (g *GlobalConfig) TypedSpec() *spec.GlobalSpec {
+	if g == nil {
+		return nil
+	}
+	return &spec.GlobalSpec{
+		Version:            g.Version,
+		Engine:             g.Engine,
+		Model:              g.Model,
+		MaxTurns:           g.MaxTurns,
+		ClaudeOutputFormat: g.ClaudeOutputFormat,
+		WorkflowRunsOn:     append([]string(nil), g.Workflow.RunsOn...),
+		ContextFiles:       append([]string(nil), g.Context.Files...),
+		PRDraft:            g.PR.Draft,
+		PRReviewers:        append([]string(nil), g.PR.Reviewers...),
+	}
+}
+
 // WMExtension is wm: in task frontmatter
 type WMExtension struct {
 	StateLabels map[string]string `yaml:"state_labels"`
@@ -47,6 +67,8 @@ type Task struct {
 	Path        string         // absolute path
 	Frontmatter map[string]any // raw YAML
 	Body        string         // markdown prompt
+	// Spec is a typed view of Frontmatter from [spec.ParseTaskFrontmatter] (filled by LoadTaskFile).
+	Spec *spec.TaskSpec `json:"-"`
 }
 
 var validGitHubReactionContents = map[string]struct{}{

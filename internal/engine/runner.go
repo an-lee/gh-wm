@@ -71,6 +71,7 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 		concludeRun(result, &concludeArgs{
 			runSucceeded:  runSucceeded,
 			tc:            tc,
+			glob:          glob,
 			task:          task,
 			wm:            wm,
 			repoRoot:      repoRoot,
@@ -108,6 +109,10 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 		return result, err
 	}
 
+	min := task.TimeoutMinutes(45)
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(min)*time.Minute)
+	defer cancel()
+
 	tc = &types.TaskContext{
 		TaskName: taskName,
 		Repo:     os.Getenv("GITHUB_REPOSITORY"),
@@ -129,6 +134,7 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 		return result, errRunDir
 	}
 	result.RunDir = rd.Path
+	logPhase(taskName, types.PhaseActivation)
 	progressf(opts, "activation: run directory %s", rd.Path)
 
 	wm = task.WM()
@@ -169,6 +175,7 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 	if rd != nil {
 		_ = rd.UpdateMeta(types.PhaseAgent, false)
 	}
+	logPhase(taskName, types.PhaseAgent)
 	progressf(opts, "agent: starting subprocess (live stream on stderr below)")
 	res, agentErr := runAgent(ctx, glob, task, tc, opts, rd)
 	result.AgentResult = res
@@ -181,6 +188,7 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 	if rd != nil {
 		_ = rd.UpdateMeta(types.PhaseValidation, false)
 	}
+	logPhase(taskName, types.PhaseValidation)
 	progressf(opts, "validation: checking agent output size and exit status")
 	if err := validateAgentOutputErr(ctx, res); err != nil {
 		addRunErr(result, err)
@@ -191,6 +199,7 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 	if rd != nil {
 		_ = rd.UpdateMeta(types.PhaseOutputs, false)
 	}
+	logPhase(taskName, types.PhaseOutputs)
 	m := task.SafeOutputsMap()
 	if m != nil && len(m) > 0 {
 		progressf(opts, "safe-outputs: applying allowed GitHub actions from output.json")

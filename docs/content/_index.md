@@ -10,14 +10,16 @@ This documentation is the **canonical reference** for how the project works and 
 
 | Reader | Start here |
 |--------|------------|
-| **Humans** | [Architecture](architecture.md) → [CLI reference](cli-reference.md) → [Task format](task-format.md) |
-| **AI coding agents** | Read [Architecture](architecture.md) and [Development](development.md) before changing behavior. Use [Task format](task-format.md) when editing `.wm/tasks/*.md` or explaining compatibility with [gh-aw](https://github.github.io/gh-aw/). |
+| **Humans** | [Architecture](architecture.md) → [Architecture review](architecture-review.md) → [v2 changes](v2.md) → [CLI reference](cli-reference.md) → [Task format](task-format.md) |
+| **AI coding agents** | Read [Architecture](architecture.md), [Architecture review](architecture-review.md), and [Development](development.md) before changing behavior. Use [Task format](task-format.md) when editing `.wm/tasks/*.md` or explaining compatibility with [gh-aw](https://github.github.io/gh-aw/). |
 
 ## Contents
 
 | Doc | Purpose |
 |-----|---------|
 | [architecture.md](architecture.md) | End-to-end flow: GitHub Actions → `resolve` → matrix `run`, Go packages, and **RunTask pipeline (detailed reference)** (reads/writes per phase). |
+| [architecture-review.md](architecture-review.md) | Design review, target module layout, phased refactor roadmap (v2). |
+| [v2.md](v2.md) | Consolidated v2 breaking / deprecation notes (engine, safe-outputs, timeout, artifacts, GitHub transport). |
 | [task-format.md](task-format.md) | `.wm/config.yml`, `.wm/tasks/<name>.md` frontmatter, `on:` trigger semantics, `wm:` extensions. |
 | [cli-reference.md](cli-reference.md) | Every `gh wm` / `gh-wm` subcommand, flags, and environment variables. |
 | [development.md](development.md) | Repo layout, extension points, build/test, and conventions for contributors. |
