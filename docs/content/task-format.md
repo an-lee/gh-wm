@@ -71,9 +71,21 @@ GitHub’s `GITHUB_EVENT_NAME` must align with the keys below (e.g. `issues`, no
 | `schedule` | `schedule` | At resolve, any task with `on.schedule` matches a schedule event; use `WM_SCHEDULE_CRON` to narrow (see [architecture](architecture.md)). |
 | `workflow_dispatch` | `workflow_dispatch` | Presence of key is enough; inputs are not matched per-field yet. |
 
+### Optional `reaction:`
+
+Optional string sibling inside **`on:`** (e.g. `reaction: eyes`). Value must be a GitHub **reaction content** accepted by the API: **`+1`**, **`-1`**, **`laugh`**, **`confused`**, **`heart`**, **`hooray`**, **`rocket`**, **`eyes`**. It does **not** participate in event matching (triggers are still **`issues`** / **`issue_comment`** / … as above).
+
+When **`gh wm run`** executes the task, during **activation** (after context is loaded, **before** the agent subprocess), gh-wm posts that reaction to the **triggering** resource if possible:
+
+- **`issue_comment`** events: reaction on the **`comment`** from the payload when a comment id is present; otherwise no-op.
+- Other events with an issue or PR number (e.g. **`issues`**, **`pull_request`**): reaction on that issue/PR.
+- No **`GITHUB_REPOSITORY`**, or no applicable issue/comment (e.g. some **`schedule`** runs): skipped silently.
+
+If **`gh api`** fails (including permissions), the error is recorded but the run **continues** (best-effort). Duplicate reactions from the same user are treated as success when the API reports **`already_exists`**.
+
 ### Generated `wm-agent.yml` triggers
 
-`gh wm init` and `gh wm upgrade` build the workflow **`on:`** block from a **union** over all tasks ([`gen.CollectTriggersFromTasksDir`](../../internal/gen/triggers.go)): **`issues`**, **`issue_comment`**, and **`pull_request`** each get a merged **`types:`** list (task-only filters such as **`labels:`** are not copied into the workflow—resolve still enforces them). **`slash_command`** implies **`issue_comment`** with **`types: [created]`**; **`schedule`** unions normalized crons; **`workflow_dispatch`** is always included for manual runs. Keys with no GitHub Actions workflow equivalent (e.g. **`reaction:`**) are ignored for generation.
+`gh wm init` and `gh wm upgrade` build the workflow **`on:`** block from a **union** over all tasks ([`gen.CollectTriggersFromTasksDir`](../../internal/gen/triggers.go)): **`issues`**, **`issue_comment`**, and **`pull_request`** each get a merged **`types:`** list (task-only filters such as **`labels:`** are not copied into the workflow—resolve still enforces them). **`slash_command`** implies **`issue_comment`** with **`types: [created]`**; **`schedule`** unions normalized crons; **`workflow_dispatch`** is always included for manual runs. Keys with no GitHub Actions workflow equivalent (e.g. **`reaction:`**) are ignored for generation; **`reaction:`** is still applied at run time as described above.
 
 ### Schedule strings
 

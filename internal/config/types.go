@@ -49,6 +49,23 @@ type Task struct {
 	Body        string         // markdown prompt
 }
 
+var validGitHubReactionContents = map[string]struct{}{
+	"+1":       {},
+	"-1":       {},
+	"laugh":    {},
+	"confused": {},
+	"heart":    {},
+	"hooray":   {},
+	"rocket":   {},
+	"eyes":     {},
+}
+
+// ValidGitHubReaction reports whether s is a valid GitHub reactions API content string.
+func ValidGitHubReaction(s string) bool {
+	_, ok := validGitHubReactionContents[s]
+	return ok
+}
+
 // OnMap returns the on: block
 func (t *Task) OnMap() map[string]any {
 	if t == nil || t.Frontmatter == nil {
@@ -56,6 +73,19 @@ func (t *Task) OnMap() map[string]any {
 	}
 	on, _ := t.Frontmatter["on"].(map[string]any)
 	return on
+}
+
+// OnReactionContent returns on.reaction from frontmatter (trimmed), or empty if unset or not a string.
+func (t *Task) OnReactionContent() string {
+	on := t.OnMap()
+	if on == nil {
+		return ""
+	}
+	s, ok := on["reaction"].(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(s)
 }
 
 // Source returns source: from frontmatter (upstream URL for gh wm update), or empty.

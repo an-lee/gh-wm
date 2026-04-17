@@ -148,6 +148,8 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 		progressf(opts, "activation: working label step finished")
 	}
 
+	applyOnReactionBestEffort(opts, task, tc, result)
+
 	if task.HasSafeOutputKey("create-pull-request") {
 		prev, newBranch, created, prepErr := gitbranch.PrepareFeatureForPR(repoRoot, taskName)
 		if prepErr != nil {
@@ -203,6 +205,34 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 	return result, nil
 }
 
+func applyOnReactionBestEffort(opts *RunOptions, task *config.Task, tc *types.TaskContext, result *types.RunResult) {
+	if task == nil || tc == nil || result == nil {
+		return
+	}
+	content := task.OnReactionContent()
+	if content == "" || strings.TrimSpace(tc.Repo) == "" {
+		return
+	}
+	ev := tc.Event
+	if ev == nil {
+		return
+	}
+	name := strings.TrimSpace(ev.Name)
+	var err error
+	if name == "issue_comment" && tc.CommentID > 0 {
+		progressf(opts, "activation: adding reaction %q to comment %d", content, tc.CommentID)
+		err = ghclient.AddIssueCommentReaction(tc.Repo, tc.CommentID, content)
+	} else if n := issueOrPRNumber(tc); n > 0 {
+		progressf(opts, "activation: adding reaction %q to issue/PR #%d", content, n)
+		err = ghclient.AddIssueReaction(tc.Repo, n, content)
+	} else {
+		return
+	}
+	if err != nil {
+		addRunErr(result, fmt.Errorf("on.reaction: %w", err))
+	}
+}
+
 func loadCheckpointHint(tc *types.TaskContext) {
 	if os.Getenv("WM_CHECKPOINT") != "1" {
 		return
@@ -239,6 +269,22 @@ func extractNumbers(payload map[string]any, tc *types.TaskContext) {
 		if tc.IssueNumber == 0 && tc.PRNumber > 0 {
 			tc.IssueNumber = tc.PRNumber
 		}
+	}
+	if c, ok := payload["comment"].(map[string]any); ok {
+		tc.CommentID = int64FromID(c["id"])
+	}
+}
+
+func int64FromID(v any) int64 {
+	switch x := v.(type) {
+	case float64:
+		return int64(x)
+	case int:
+		return int64(x)
+	case int64:
+		return x
+	default:
+		return 0
 	}
 }
 

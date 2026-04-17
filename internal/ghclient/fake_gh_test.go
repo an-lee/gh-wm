@@ -30,6 +30,11 @@ if echo "$2" | grep -q '/issues/[0-9]*/comments$' && ! echo "$*" | grep -q -- '-
   echo '[{"body":"<!-- wm-checkpoint: {\"summary\":\"checkpoint summary\"} -->"}]'
   exit 0
 fi
+# POST reaction on issue or issue comment
+if echo "$*" | grep -q -- '-X POST' && echo "$*" | grep -q '/reactions'; then
+  cat >/dev/null
+  exit 0
+fi
 # POST comment with stdin
 if echo "$*" | grep -q -- '-X POST' && echo "$*" | grep -q '/comments'; then
   cat >/dev/null
@@ -79,6 +84,20 @@ func TestAddIssueLabel_WithFakeGh(t *testing.T) {
 func TestRemoveIssueLabel_WithFakeGh(t *testing.T) {
 	WithFakeGH(t)
 	if err := RemoveIssueLabel("o/r", 1, "lb"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAddIssueReaction_WithFakeGh(t *testing.T) {
+	WithFakeGH(t)
+	if err := AddIssueReaction("o/r", 1, "eyes"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAddIssueCommentReaction_WithFakeGh(t *testing.T) {
+	WithFakeGH(t)
+	if err := AddIssueCommentReaction("o/r", 42, "eyes"); err != nil {
 		t.Fatal(err)
 	}
 }

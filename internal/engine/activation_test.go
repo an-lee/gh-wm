@@ -39,3 +39,34 @@ func TestValidateTaskConfig(t *testing.T) {
 		t.Fatal("expected error for unknown engine")
 	}
 }
+
+func TestValidateTaskConfig_Reaction(t *testing.T) {
+	glob := &config.GlobalConfig{Engine: "claude"}
+	t.Run("valid", func(t *testing.T) {
+		t.Parallel()
+		task := &config.Task{Frontmatter: map[string]any{
+			"on": map[string]any{"reaction": "eyes"},
+		}}
+		if err := validateTaskConfig(task, glob); err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("invalid", func(t *testing.T) {
+		t.Parallel()
+		task := &config.Task{Frontmatter: map[string]any{
+			"on": map[string]any{"reaction": "not-a-reaction"},
+		}}
+		if err := validateTaskConfig(task, glob); err == nil {
+			t.Fatal("expected error for invalid on.reaction")
+		}
+	})
+	t.Run("invalid even with WM_AGENT_CMD", func(t *testing.T) {
+		t.Setenv("WM_AGENT_CMD", "echo")
+		task := &config.Task{Frontmatter: map[string]any{
+			"on": map[string]any{"reaction": "not-a-reaction"},
+		}}
+		if err := validateTaskConfig(task, glob); err == nil {
+			t.Fatal("expected error for invalid on.reaction when WM_AGENT_CMD is set")
+		}
+	})
+}

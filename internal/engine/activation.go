@@ -36,6 +36,18 @@ func validateTaskConfig(task *config.Task, glob *config.GlobalConfig) error {
 	if glob == nil {
 		return fmt.Errorf("config is nil")
 	}
+	if on := task.OnMap(); on != nil {
+		if _, has := on["reaction"]; has {
+			s, ok := on["reaction"].(string)
+			if !ok || strings.TrimSpace(s) == "" {
+				return fmt.Errorf("on.reaction must be a non-empty string")
+			}
+			s = strings.TrimSpace(s)
+			if !config.ValidGitHubReaction(s) {
+				return fmt.Errorf("on.reaction %q is not a valid GitHub reaction (use +1, -1, laugh, confused, heart, hooray, rocket, eyes)", s)
+			}
+		}
+	}
 	if wmAgent := strings.TrimSpace(os.Getenv("WM_AGENT_CMD")); wmAgent != "" {
 		return nil
 	}
