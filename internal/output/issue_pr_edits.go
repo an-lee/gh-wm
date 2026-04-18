@@ -16,11 +16,18 @@ func runUpdateIssue(ctx context.Context, tc *types.TaskContext, item ItemUpdateI
 	}
 	titleIn := strings.TrimSpace(item.Title)
 	bodyIn := item.Body
-	op := normalizeUpdateOperation(item.Operation)
+	opValue := strings.TrimSpace(item.Operation)
+	if opValue != "" && !isValidUpdateOperation(opValue) {
+		return fmt.Errorf("update_issue: invalid operation %q (use replace, append, prepend, replace-island)", opValue)
+	}
+	op := normalizeUpdateOperation(opValue)
 	if titleIn == "" && strings.TrimSpace(bodyIn) == "" {
 		return fmt.Errorf("update_issue: empty title and body")
 	}
 	if strings.TrimSpace(bodyIn) == "" {
+		if op != "replace" {
+			return fmt.Errorf("update_issue: operation %q requires non-empty body", op)
+		}
 		return ghclient.UpdateIssue(ctx, tc.Repo, n, titleIn, "")
 	}
 	outTitle, outBody, err := computeUpdatedBody(ctx, tc.Repo, n, titleIn, bodyIn, op, ghclient.GetIssueSnapshot)
@@ -37,11 +44,18 @@ func runUpdatePullRequest(ctx context.Context, tc *types.TaskContext, item ItemU
 	}
 	titleIn := strings.TrimSpace(item.Title)
 	bodyIn := item.Body
-	op := normalizeUpdateOperation(item.Operation)
+	opValue := strings.TrimSpace(item.Operation)
+	if opValue != "" && !isValidUpdateOperation(opValue) {
+		return fmt.Errorf("update_pull_request: invalid operation %q (use replace, append, prepend, replace-island)", opValue)
+	}
+	op := normalizeUpdateOperation(opValue)
 	if titleIn == "" && strings.TrimSpace(bodyIn) == "" {
 		return fmt.Errorf("update_pull_request: empty title and body")
 	}
 	if strings.TrimSpace(bodyIn) == "" {
+		if op != "replace" {
+			return fmt.Errorf("update_pull_request: operation %q requires non-empty body", op)
+		}
 		return ghclient.UpdatePullRequest(ctx, tc.Repo, n, titleIn, "")
 	}
 	outTitle, outBody, err := computeUpdatedBody(ctx, tc.Repo, n, titleIn, bodyIn, op, ghclient.GetIssueSnapshot)
@@ -90,7 +104,11 @@ func runCloseIssue(ctx context.Context, tc *types.TaskContext, item ItemCloseIss
 	if n <= 0 || tc == nil || strings.TrimSpace(tc.Repo) == "" {
 		return fmt.Errorf("close_issue: no issue number or repository")
 	}
-	return ghclient.CloseIssue(ctx, tc.Repo, n, item.Comment, item.StateReason)
+	stateReason := strings.TrimSpace(item.StateReason)
+	if stateReason != "" && !validIssueCloseReason(stateReason) {
+		return fmt.Errorf("close_issue: invalid state_reason %q (want completed, not_planned, duplicate, or empty)", stateReason)
+	}
+	return ghclient.CloseIssue(ctx, tc.Repo, n, item.Comment, stateReason)
 }
 
 func runClosePullRequest(ctx context.Context, tc *types.TaskContext, item ItemClosePullRequest) error {
