@@ -24,7 +24,7 @@ func RunSuccessOutputs(ctx context.Context, glob *config.GlobalConfig, task *con
 		return err
 	}
 	if len(ndItems) == 0 {
-		slog.Warn("wm: safe-outputs: no structured output (implicit noop); use `gh-wm emit noop` or other emit subcommands when safe-outputs is set",
+		slog.Warn("wm: safe-outputs: no structured output (implicit noop); use `gh wm emit noop` or other emit subcommands when safe-outputs is set",
 			"safe_output_file", strings.TrimSpace(res.SafeOutputFilePath))
 		if strings.TrimSpace(res.LastResponseText) != "" && (tc.IssueNumber > 0 || tc.PRNumber > 0) {
 			if err := postFallbackComment(tc, res.LastResponseText); err != nil {
