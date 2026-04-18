@@ -5,6 +5,7 @@ Hugo site configuration and theme live in this directory (`hugo.toml`, `layouts/
 | Doc | Source file |
 |-----|-------------|
 | Index | [`content/_index.md`](content/_index.md) |
+| FAQ | [`content/faq.md`](content/faq.md) |
 | Architecture | [`content/architecture.md`](content/architecture.md) |
 | Task format | [`content/task-format.md`](content/task-format.md) |
 | CLI reference | [`content/cli-reference.md`](content/cli-reference.md) |

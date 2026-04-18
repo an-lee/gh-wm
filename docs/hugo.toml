@@ -38,6 +38,11 @@ disableKinds = ['taxonomy', 'term']
     url = '/architecture/'
     weight = 10
   [[menu.main]]
+    identifier = 'faq'
+    name = 'FAQ'
+    url = '/faq/'
+    weight = 15
+  [[menu.main]]
     identifier = 'task-format'
     name = 'Task format'
     url = '/task-format/'
