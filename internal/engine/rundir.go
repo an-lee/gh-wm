@@ -27,9 +27,7 @@ const (
 	resultFileName            = "result.json"
 	runFileName               = "run.json"
 	activationFileName        = "activation.json"
-	// outputJSONFileName is the agent-written structured safe-outputs request (WM_OUTPUT_FILE).
-	outputJSONFileName = "output.json"
-	// safeOutputJSONLFileName is the NDJSON log from `gh-wm emit` (WM_SAFE_OUTPUT_FILE).
+	// safeOutputJSONLFileName is the NDJSON log from `gh wm emit` (WM_SAFE_OUTPUT_FILE).
 	safeOutputJSONLFileName = "output.jsonl"
 
 	defaultPruneAge = 7 * 24 * time.Hour
@@ -241,15 +239,7 @@ func (r *RunDir) AgentOutputPath(format string) string {
 	return filepath.Join(r.Path, agentArtifactFilename(format))
 }
 
-// OutputJSONPath returns the path for structured safe-output JSON (see WM_OUTPUT_FILE).
-func (r *RunDir) OutputJSONPath() string {
-	if r == nil {
-		return ""
-	}
-	return filepath.Join(r.Path, outputJSONFileName)
-}
-
-// SafeOutputJSONLPath returns the path for NDJSON safe-output lines from `gh-wm emit` (WM_SAFE_OUTPUT_FILE).
+// SafeOutputJSONLPath returns the path for NDJSON safe-output lines from `gh wm emit` (WM_SAFE_OUTPUT_FILE).
 func (r *RunDir) SafeOutputJSONLPath() string {
 	if r == nil {
 		return ""
@@ -336,7 +326,6 @@ func (r *RunDir) WriteResult(res *types.RunResult) error {
 			Summary            string `json:"summary,omitempty"`
 			TimedOut           bool   `json:"timed_out,omitempty"`
 			AgentStdoutPath    string `json:"agent_stdout_path,omitempty"`
-			OutputFilePath     string `json:"output_file_path,omitempty"`
 			SafeOutputFilePath string `json:"safe_output_file_path,omitempty"`
 			LastResponseText   string `json:"last_response_text,omitempty"`
 		} `json:"agent_result,omitempty"`
@@ -358,7 +347,6 @@ func (r *RunDir) WriteResult(res *types.RunResult) error {
 			Summary            string `json:"summary,omitempty"`
 			TimedOut           bool   `json:"timed_out,omitempty"`
 			AgentStdoutPath    string `json:"agent_stdout_path,omitempty"`
-			OutputFilePath     string `json:"output_file_path,omitempty"`
 			SafeOutputFilePath string `json:"safe_output_file_path,omitempty"`
 			LastResponseText   string `json:"last_response_text,omitempty"`
 		}{
@@ -369,7 +357,6 @@ func (r *RunDir) WriteResult(res *types.RunResult) error {
 			Summary:            ar.Summary,
 			TimedOut:           ar.TimedOut,
 			AgentStdoutPath:    ar.AgentStdoutPath,
-			OutputFilePath:     ar.OutputFilePath,
 			SafeOutputFilePath: ar.SafeOutputFilePath,
 			LastResponseText:   ar.LastResponseText,
 		}
@@ -419,7 +406,6 @@ func (r *RunDir) WriteRunJSON(res *types.RunResult) error {
 			Summary            string `json:"summary,omitempty"`
 			TimedOut           bool   `json:"timed_out,omitempty"`
 			AgentStdoutPath    string `json:"agent_stdout_path,omitempty"`
-			OutputFilePath     string `json:"output_file_path,omitempty"`
 			SafeOutputFilePath string `json:"safe_output_file_path,omitempty"`
 			LastResponseText   string `json:"last_response_text,omitempty"`
 		} `json:"agent_result,omitempty"`
@@ -440,7 +426,6 @@ func (r *RunDir) WriteRunJSON(res *types.RunResult) error {
 			Summary            string `json:"summary,omitempty"`
 			TimedOut           bool   `json:"timed_out,omitempty"`
 			AgentStdoutPath    string `json:"agent_stdout_path,omitempty"`
-			OutputFilePath     string `json:"output_file_path,omitempty"`
 			SafeOutputFilePath string `json:"safe_output_file_path,omitempty"`
 			LastResponseText   string `json:"last_response_text,omitempty"`
 		}{
@@ -451,7 +436,6 @@ func (r *RunDir) WriteRunJSON(res *types.RunResult) error {
 			Summary:            ar.Summary,
 			TimedOut:           ar.TimedOut,
 			AgentStdoutPath:    ar.AgentStdoutPath,
-			OutputFilePath:     ar.OutputFilePath,
 			SafeOutputFilePath: ar.SafeOutputFilePath,
 			LastResponseText:   ar.LastResponseText,
 		}

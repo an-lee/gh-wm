@@ -11,28 +11,6 @@ import (
 	"github.com/an-lee/gh-wm/internal/config/scalar"
 )
 
-// ParseAgentOutputFile reads and parses output.json. Returns nil, nil if file is missing or empty.
-func ParseAgentOutputFile(path string) (*AgentOutputFile, error) {
-	if strings.TrimSpace(path) == "" {
-		return nil, nil
-	}
-	b, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("read output file: %w", err)
-	}
-	if len(strings.TrimSpace(string(b))) == 0 {
-		return nil, nil
-	}
-	var root AgentOutputFile
-	if err := json.Unmarshal(b, &root); err != nil {
-		return nil, fmt.Errorf("parse output.json: %w", err)
-	}
-	return &root, nil
-}
-
 // ParseAgentOutputJSONLFile reads one JSON object per line (NDJSON). Malformed lines are skipped.
 // Returns nil, nil if the path is empty, the file is missing, or there are no valid lines.
 func ParseAgentOutputJSONLFile(path string) ([]map[string]any, error) {

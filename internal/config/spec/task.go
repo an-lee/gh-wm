@@ -42,7 +42,7 @@ func ParseTaskFrontmatter(fm map[string]any) (*TaskSpec, []string, error) {
 		if s.Engine != "" {
 			el := strings.ToLower(s.Engine)
 			if el == "copilot" {
-				warnings = append(warnings, `engine "copilot" is deprecated (v2): use WM_AGENT_CMD for a compatible CLI or choose claude/codex`)
+				warnings = append(warnings, `engine "copilot" is no longer supported; use WM_AGENT_CMD or set engine to claude or codex`)
 			} else if _, ok := knownEngines[el]; !ok {
 				warnings = append(warnings, fmt.Sprintf("engine %q is not a built-in name (claude, codex); use WM_AGENT_CMD for custom CLIs", s.Engine))
 			}

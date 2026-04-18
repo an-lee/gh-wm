@@ -43,13 +43,13 @@ func TestParseTaskFrontmatter_UnknownEngineWarning(t *testing.T) {
 	}
 }
 
-func TestParseTaskFrontmatter_CopilotDeprecationWarning(t *testing.T) {
+func TestParseTaskFrontmatter_CopilotUnsupportedWarning(t *testing.T) {
 	t.Parallel()
 	_, warns, err := ParseTaskFrontmatter(map[string]any{"engine": "copilot"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(warns) != 1 || !strings.Contains(warns[0], "deprecated") {
+	if len(warns) != 1 || !strings.Contains(warns[0], "no longer supported") {
 		t.Fatalf("warns=%v", warns)
 	}
 }

@@ -11,14 +11,10 @@ import (
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
-func TestRunSuccessOutputs_MergesNDJSONBeforeLegacyJSON(t *testing.T) {
+func TestRunSuccessOutputs_NDJSONNoop(t *testing.T) {
 	t.Parallel()
 	nd := filepath.Join(t.TempDir(), "out.jsonl")
 	if err := os.WriteFile(nd, []byte("{\"type\":\"noop\",\"message\":\"from ndjson\"}\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	legacy := filepath.Join(t.TempDir(), "output.json")
-	if err := os.WriteFile(legacy, []byte(`{"items":[{"type":"noop","message":"legacy"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	g := &config.GlobalConfig{}
@@ -26,7 +22,7 @@ func TestRunSuccessOutputs_MergesNDJSONBeforeLegacyJSON(t *testing.T) {
 		"noop": map[string]any{},
 	}}}
 	tc := &types.TaskContext{RepoPath: t.TempDir(), Repo: "o/r", IssueNumber: 1}
-	res := &types.AgentResult{SafeOutputFilePath: nd, OutputFilePath: legacy}
+	res := &types.AgentResult{SafeOutputFilePath: nd}
 	if err := RunSuccessOutputs(context.Background(), g, task, tc, res); err != nil {
 		t.Fatal(err)
 	}
@@ -34,8 +30,8 @@ func TestRunSuccessOutputs_MergesNDJSONBeforeLegacyJSON(t *testing.T) {
 
 func TestRunSuccessOutputs_NestedNoopEnvelope(t *testing.T) {
 	t.Parallel()
-	p := filepath.Join(t.TempDir(), "output.json")
-	if err := os.WriteFile(p, []byte(`{"items":[{"noop":{"message":"nested noop"}}]}`), 0o644); err != nil {
+	p := filepath.Join(t.TempDir(), "out.jsonl")
+	if err := os.WriteFile(p, []byte(`{"noop":{"message":"nested noop"}}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	g := &config.GlobalConfig{}
@@ -43,7 +39,7 @@ func TestRunSuccessOutputs_NestedNoopEnvelope(t *testing.T) {
 		"noop": map[string]any{},
 	}}}
 	tc := &types.TaskContext{RepoPath: t.TempDir(), Repo: "o/r", IssueNumber: 1}
-	res := &types.AgentResult{OutputFilePath: p}
+	res := &types.AgentResult{SafeOutputFilePath: p}
 	if err := RunSuccessOutputs(context.Background(), g, task, tc, res); err != nil {
 		t.Fatalf("nested noop: %v", err)
 	}
@@ -51,8 +47,8 @@ func TestRunSuccessOutputs_NestedNoopEnvelope(t *testing.T) {
 
 func TestRunSuccessOutputs_AgentDrivenNoop(t *testing.T) {
 	t.Parallel()
-	p := filepath.Join(t.TempDir(), "output.json")
-	if err := os.WriteFile(p, []byte(`{"items":[{"type":"noop","message":"nothing"}]}`), 0o644); err != nil {
+	p := filepath.Join(t.TempDir(), "out.jsonl")
+	if err := os.WriteFile(p, []byte(`{"type":"noop","message":"nothing"}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	g := &config.GlobalConfig{}
@@ -60,7 +56,7 @@ func TestRunSuccessOutputs_AgentDrivenNoop(t *testing.T) {
 		"add-comment": map[string]any{},
 	}}}
 	tc := &types.TaskContext{RepoPath: t.TempDir(), Repo: "o/r", IssueNumber: 1}
-	res := &types.AgentResult{OutputFilePath: p}
+	res := &types.AgentResult{SafeOutputFilePath: p}
 	if err := RunSuccessOutputs(context.Background(), g, task, tc, res); err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +69,7 @@ func TestRunSuccessOutputs_ImplicitNoopWhenEmpty(t *testing.T) {
 		"add-comment": map[string]any{},
 	}}}
 	tc := &types.TaskContext{RepoPath: t.TempDir()}
-	res := &types.AgentResult{OutputFilePath: filepath.Join(t.TempDir(), "missing.json")}
+	res := &types.AgentResult{SafeOutputFilePath: filepath.Join(t.TempDir(), "missing.jsonl")}
 	if err := RunSuccessOutputs(context.Background(), g, task, tc, res); err != nil {
 		t.Fatalf("expected success (implicit noop), got: %v", err)
 	}
@@ -101,8 +97,8 @@ func TestRunSuccessOutputs_MissingExecutorFails(t *testing.T) {
 		delete(kindRegistry, KindAddComment)
 	})
 
-	p := filepath.Join(t.TempDir(), "output.json")
-	if err := os.WriteFile(p, []byte(`{"items":[{"type":"add_comment","body":"hello"}]}`), 0o644); err != nil {
+	p := filepath.Join(t.TempDir(), "out.jsonl")
+	if err := os.WriteFile(p, []byte(`{"type":"add_comment","body":"hello"}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	g := &config.GlobalConfig{}
@@ -110,7 +106,7 @@ func TestRunSuccessOutputs_MissingExecutorFails(t *testing.T) {
 		"add-comment": map[string]any{},
 	}}}
 	tc := &types.TaskContext{RepoPath: t.TempDir(), Repo: "o/r", IssueNumber: 1}
-	res := &types.AgentResult{OutputFilePath: p}
+	res := &types.AgentResult{SafeOutputFilePath: p}
 
 	err := RunSuccessOutputs(context.Background(), g, task, tc, res)
 	if err == nil {
@@ -159,8 +155,8 @@ func TestRunSuccessOutputs_ImplicitNoopWithLastResponseTextNoIssue(t *testing.T)
 	}}}
 	tc := &types.TaskContext{RepoPath: t.TempDir()}
 	res := &types.AgentResult{
-		OutputFilePath:   filepath.Join(t.TempDir(), "missing.json"),
-		LastResponseText: "agent said something",
+		SafeOutputFilePath: filepath.Join(t.TempDir(), "missing.jsonl"),
+		LastResponseText:   "agent said something",
 	}
 	if err := RunSuccessOutputs(context.Background(), g, task, tc, res); err != nil {
 		t.Fatalf("expected success without GitHub target: %v", err)

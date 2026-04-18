@@ -84,7 +84,6 @@ func AvailableOutputsSection(glob *config.GlobalConfig, task *config.Task) strin
 	b.WriteString("Each call appends one validated JSON line to **`WM_SAFE_OUTPUT_FILE`** (`output.jsonl`). ")
 	b.WriteString("The run sets **`WM_REPO_ROOT`**, **`WM_TASK`**, **`WM_SAFE_OUTPUT_FILE`**, and typically **`GITHUB_REPOSITORY`** plus **`WM_ISSUE_NUMBER`** / **`WM_PR_NUMBER`** when applicable.\n\n")
 	b.WriteString("If you have nothing to post, run **`gh-wm emit noop --message \"…\"`** (optional; missing output is treated as an implicit noop with a warning).\n\n")
-	b.WriteString("Legacy: writing a single JSON blob to **`WM_OUTPUT_FILE`** (`output.json` with `items`) is still supported and merged with the NDJSON log.\n\n")
 	b.WriteString("**Available for this task:**\n\n")
 
 	order := []struct {

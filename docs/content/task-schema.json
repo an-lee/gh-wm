@@ -9,7 +9,7 @@
     "engine": {
       "type": "string",
       "enum": ["claude", "codex"],
-      "description": "Built-in agent; use WM_AGENT_CMD for other CLIs. The historical copilot name is deprecated (see v2.md)."
+      "description": "Built-in agent; use WM_AGENT_CMD for other CLIs. The historical copilot engine name is not supported (see v2.md)."
     },
     "timeout-minutes": { "type": "integer", "minimum": 1, "maximum": 480 },
     "on": { "type": "object", "description": "Trigger OR-block (issues, issue_comment, pull_request, pull_request_review_comment, slash_command, schedule, workflow_dispatch). slash_command may include events: [issue_comment, pull_request_review_comment]." },

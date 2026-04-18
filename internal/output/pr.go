@@ -15,7 +15,7 @@ import (
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
-// runCreatePullRequestItem runs create_pull_request from agent output.json.
+// runCreatePullRequestItem runs create_pull_request from a validated safe-output item.
 func runCreatePullRequestItem(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext, p *Policy, item ItemCreatePullRequest) error {
 	if p == nil {
 		p = newPolicy(task)

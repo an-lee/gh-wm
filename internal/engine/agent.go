@@ -66,10 +66,8 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 		}
 	}
 	cmd.Dir = tc.RepoPath
-	outputPath := ""
 	safeOutPath := ""
 	if rd != nil {
-		outputPath = rd.OutputJSONPath()
 		safeOutPath = rd.SafeOutputJSONLPath()
 	}
 	env := append(os.Environ(),
@@ -77,9 +75,6 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 		fmt.Sprintf("WM_TASK=%s", tc.TaskName),
 		fmt.Sprintf("WM_REPO_ROOT=%s", tc.RepoPath),
 	)
-	if outputPath != "" {
-		env = append(env, "WM_OUTPUT_FILE="+outputPath)
-	}
 	if safeOutPath != "" {
 		env = append(env, "WM_SAFE_OUTPUT_FILE="+safeOutPath)
 	}
@@ -150,7 +145,6 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 		Success:            err == nil,
 		ExitCode:           0,
 		AgentStdoutPath:    agentPath,
-		OutputFilePath:     outputPath,
 		SafeOutputFilePath: safeOutPath,
 	}
 	if err != nil {

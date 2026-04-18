@@ -211,7 +211,7 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 	logPhase(taskName, types.PhaseOutputs)
 	m := task.SafeOutputsMap()
 	if m != nil && len(m) > 0 {
-		progressf(opts, "safe-outputs: applying allowed GitHub actions from output.jsonl + output.json")
+		progressf(opts, "safe-outputs: applying allowed GitHub actions from output.jsonl")
 	}
 	if outErr := output.RunSuccessOutputs(ctx, glob, task, tc, res); outErr != nil {
 		addRunErr(result, outErr)

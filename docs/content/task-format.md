@@ -47,7 +47,7 @@ Loaded by [`config.Load`](../../internal/config/config.go). Struct: [`GlobalConf
 | `engine` | Default agent backend name (e.g. `claude`); task can override with `engine:`. |
 | `model` | Passed to the default **`claude`** / **`codex`** CLI as **`--model`** when set ([`agentCLIArgs`](../../internal/engine/agent.go)). |
 | `max_turns` | Passed as **`--max-turns`** when non-zero (default **100** in [`DefaultGlobal`](../../internal/config/config.go)). |
-| `claude_output_format` | Optional: **`text`** (default), **`json`**, or **`stream-json`**. For the built-in **`claude`** invocation only (not **`WM_AGENT_CMD`** / **codex** / **copilot**), selects **`claude -p --output-format`** and the run-dir file (**`agent-stdout.log`** vs **`conversation.json`** / **`conversation.jsonl`**). Overridden by **`WM_CLAUDE_OUTPUT_FORMAT`**. |
+| `claude_output_format` | Optional: **`text`** (default), **`json`**, or **`stream-json`**. For the built-in **`claude`** invocation only (not **`WM_AGENT_CMD`** / **codex**), selects **`claude -p --output-format`** and the run-dir file (**`agent-stdout.log`** vs **`conversation.json`** / **`conversation.jsonl`**). Overridden by **`WM_CLAUDE_OUTPUT_FORMAT`**. |
 | `workflow.runs_on` | YAML list of GitHub Actions runner labels baked into generated `wm-agent.yml` as the reusable workflow `runs_on` input (JSON array). If omitted or empty, defaults to `ubuntu-latest`. Use e.g. `self-hosted` plus OS labels for self-hosted runners. |
 | `workflow.install_claude_code` | Optional boolean (default **true**). When **true**, generated workflows run the official **Claude Code** install step and put `~/.local/bin` on `PATH` before `gh-wm run` so the default **`claude`** engine is available on minimal self-hosted runners. Set **`false`** for **codex-only** setups or when **`claude`** is already installed on the runner. |
 | `workflow.gh_wm_extension_version` | Optional string. When set, generated CI workflows install **`gh-wm`** with **`gh extension install owner/repo --pin <ref>`** (release tag or commit per **`gh help extension install`**). When unset or empty, the install uses the latest. Use this to pin CI to a tag or commit of the extension repo. |
@@ -101,15 +101,13 @@ In frontmatter, `on.schedule` is a **string** (see [`Task.ScheduleString`](../..
 | `hourly` | `M */1 * * *` with scattered minute `M` in 5–54 |
 | other | If it is already a **5-field** cron string, whitespace-normalized and used as-is; otherwise passed through unchanged (must be valid for GitHub Actions if used as cron) |
 
-## `safe-outputs:` — policy + `gh-wm emit` (or legacy `output.json`)
+## `safe-outputs:` — policy + `gh wm emit`
 
 If the task omits **`safe-outputs:`** or the block is **empty**, the post-agent safe-output phase does **nothing**.
 
-If **`safe-outputs:`** contains **at least one key**, the **recommended** way to record outputs is to run **`gh wm emit <subcommand>`** with flags for each follow-up. Each call appends one validated JSON line to **`WM_SAFE_OUTPUT_FILE`** (`output.jsonl` in the [per-run directory](architecture.md#what-persists-where)). The run sets **`WM_REPO_ROOT`**, **`WM_TASK`**, **`WM_SAFE_OUTPUT_FILE`**, **`GITHUB_REPOSITORY`**, and **`WM_ISSUE_NUMBER`** / **`WM_PR_NUMBER`** when applicable. Built-in subcommands **`missing-tool`** and **`missing-data`** are always available.
+If **`safe-outputs:`** contains **at least one key**, record outputs by running **`gh wm emit <subcommand>`** with flags for each follow-up. Each call appends one validated JSON line to **`WM_SAFE_OUTPUT_FILE`** (`output.jsonl` in the [per-run directory](architecture.md#what-persists-where)). The run sets **`WM_REPO_ROOT`**, **`WM_TASK`**, **`WM_SAFE_OUTPUT_FILE`**, **`GITHUB_REPOSITORY`**, and **`WM_ISSUE_NUMBER`** / **`WM_PR_NUMBER`** when applicable. Built-in subcommands **`missing-tool`** and **`missing-data`** are always available.
 
-If there is **no** NDJSON and **no** legacy `output.json`, the safe-output phase **succeeds** with a **warning** (implicit noop). Prefer **`gh wm emit noop --message "…"`** when you want an explicit record.
-
-**Legacy:** writing a single JSON document to **`WM_OUTPUT_FILE`** (`output.json` with **`items`**) is still supported and **merged** after NDJSON lines (`output.jsonl` first, then legacy `items`).
+If there is **no** NDJSON in `output.jsonl`, the safe-output phase **succeeds** with a **warning** (implicit noop). Prefer **`gh wm emit noop --message "…"`** when you want an explicit record.
 
 Keys under **`safe-outputs:`** declare what operations are **allowed**; each item has a **`type`** using **underscores** (gh-aw style): **`create_pull_request`**, **`add_comment`**, **`add_labels`**, **`remove_labels`**, **`create_issue`**, **`update_pull_request`**, **`update_issue`**, **`close_issue`**, **`close_pull_request`**, **`add_reviewer`**, **`create_pull_request_review_comment`**, **`submit_pull_request_review`**, **`reply_to_pull_request_review_comment`**, **`resolve_pull_request_review_thread`**, **`push_to_pull_request_branch`**, **`noop`**, **`missing_tool`**, **`missing_data`**. Dash forms in **`type`** (e.g. `create-pull-request`) are accepted too.
 
@@ -147,7 +145,7 @@ The agent prompt includes an **Available Outputs** section whenever `safe-output
 | `on:` | **Used** for matching (see table above). |
 | `source:` | Optional upstream reference: an **https URL** or **`owner/repo/path`** to the file on **`main`** (e.g. **`owner/repo/workflows/task.md`**, same style as gh aw). Set when adding via **`gh wm add`** (URL or **`owner/repo/task`** shorthand); **`gh wm update`** resolves it and re-fetches the file. |
 | `description:` | Stored in frontmatter; useful for humans/tools. |
-| `engine:` | Selects backend when `WM_AGENT_CMD` is unset: `claude` (default), `codex` (`codex -p` or `WM_ENGINE_CODEX_CMD`), `copilot` requires `WM_AGENT_CMD`. |
+| `engine:` | Selects backend when `WM_AGENT_CMD` is unset: `claude` (default), `codex` (`codex -p` or `WM_ENGINE_CODEX_CMD`). The former `copilot` engine name is **removed**; use **`WM_AGENT_CMD`** for a custom CLI. |
 | `timeout-minutes:` | **Used** by [`cmd/run`](../../cmd/run.go) for the context timeout (capped). |
 | `tools:` | Serialized to env **`WM_TASK_TOOLS`** for the agent subprocess (JSON if structured). |
 | `permissions:`, `network:`, `imports:` | Not interpreted. |

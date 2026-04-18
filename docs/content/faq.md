@@ -27,21 +27,21 @@ See [CLI reference](cli-reference.md) and [Architecture](architecture.md).
 
 ### What are the main phases of a run?
 
-Roughly: **activation** (event/task checks, optional working labels, run directory, feature branch setup for PR outputs) → **agent** (subprocess writing to per-run `output.json` / `output.jsonl`) → **validation** (exit status, size/time limits) → **safe-outputs** (merge and apply allowed actions) → **conclusion** (done/failed labels, checkpoint comment, artifacts). Details: [Architecture — RunTask pipeline](architecture.md).
+Roughly: **activation** (event/task checks, run directory, feature branch setup for PR outputs) → **agent** (subprocess writing agent log and per-run **`output.jsonl`**) → **validation** (exit status, size/time limits) → **safe-outputs** (apply allowed actions from **`output.jsonl`**) → **conclusion** (checkpoint comment, artifacts). Details: [Architecture — RunTask pipeline](architecture.md).
 
 ### What are per-run artifacts?
 
-Each run can use a directory under `.wm/runs/` (or `WM_RUN_DIR`) with files such as **`meta.json`**, **`result.json`**, **`run.json`** (merged snapshot), and agent outputs **`output.json`** / **`output.jsonl`**. See [Architecture](architecture.md).
+Each run can use a directory under `.wm/runs/` (or `WM_RUN_DIR`) with files such as **`meta.json`**, **`result.json`**, **`run.json`** (merged snapshot), and agent **`output.jsonl`** (safe-output **requests** via **`gh wm emit`**). See [Architecture](architecture.md).
 
 ## Safe outputs and GitHub mutations
 
 ### Why `safe-outputs:` and `gh wm emit` instead of raw `gh`?
 
-Declared **`safe-outputs:`** in the task defines **what** the agent may request (comments, labels, PRs, etc.) and **limits** (`max:`, allowlists). The agent is steered to record intents via **`gh wm emit`** (NDJSON into `WM_SAFE_OUTPUT_FILE`) or legacy structured output; gh-wm **validates** before touching GitHub. That keeps mutations **policy-bound** and reviewable. See [Task format](task-format.md) and [Architecture](architecture.md).
+Declared **`safe-outputs:`** in the task defines **what** the agent may request (comments, labels, PRs, etc.) and **limits** (`max:`, allowlists). The agent records intents via **`gh wm emit`** (NDJSON into **`WM_SAFE_OUTPUT_FILE`**); gh-wm **validates** before touching GitHub. That keeps mutations **policy-bound** and reviewable. See [Task format](task-format.md) and [Architecture](architecture.md).
 
-### What is `WM_SAFE_OUTPUT_FILE`? NDJSON vs `output.json`?
+### What is `WM_SAFE_OUTPUT_FILE`?
 
-**`WM_SAFE_OUTPUT_FILE`** points at per-run **`output.jsonl`**: one JSON object per line (`gh wm emit` appends validated lines). The runner **merges** that with legacy **`WM_OUTPUT_FILE`** / **`output.json`** `items` when applying safe-outputs. Empty merged output typically **warns and succeeds** (noop). See [CLI reference](cli-reference.md) and [Architecture](architecture.md).
+**`WM_SAFE_OUTPUT_FILE`** points at per-run **`output.jsonl`**: one JSON object per line (`gh wm emit` appends validated lines). The runner reads that file when applying safe-outputs. Empty output typically **warns and succeeds** (noop). See [CLI reference](cli-reference.md) and [Architecture](architecture.md).
 
 ### Why `process-outputs` and `--agent-only` in CI?
 
@@ -65,7 +65,7 @@ See the repository [README](../../README.md) and [CLI reference](cli-reference.m
 
 ### Which agent runs by default? How do I override?
 
-The default engine uses **Claude** (`claude -p`) unless you change **`engine:`** or set **`WM_AGENT_CMD`** to another command. The name **`copilot`** in frontmatter is **deprecated**; prefer **`WM_AGENT_CMD`** or **`claude`** / **`codex`**. See [v2.md](v2.md) and [CLI reference](cli-reference.md).
+The default engine uses **Claude** (`claude -p`) unless you change **`engine:`** or set **`WM_AGENT_CMD`** to another command. The former **`engine: copilot`** name is **removed**; use **`WM_AGENT_CMD`** or **`claude`** / **`codex`**. See [v2.md](v2.md) and [CLI reference](cli-reference.md).
 
 ### Why does `run` want a clean git working tree?
 

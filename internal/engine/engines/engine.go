@@ -81,7 +81,7 @@ func ResolveEngine(engineName, wmAgentCmd string) (Engine, error) {
 	case "codex":
 		return codexEngine{}, nil
 	case "copilot":
-		return nil, fmt.Errorf("engine copilot: set WM_AGENT_CMD to invoke your Copilot-compatible CLI (v2 removes this placeholder unless a real implementation ships)")
+		return nil, fmt.Errorf(`engine "copilot" is no longer supported; use WM_AGENT_CMD or set engine to "claude" or "codex"`)
 	default:
 		return claudeEngine{}, nil
 	}

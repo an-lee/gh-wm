@@ -13,8 +13,8 @@ This document complements [architecture.md](architecture.md) with a **design rev
 
 - Clear **five-phase pipeline** (`activation → agent → validation → safe-outputs → conclusion-defer`) with deferred cleanup that survives early failures.
 - **CLI / engine / infra split**: `cmd/` stays thin; `internal/engine/` orchestrates; GitHub I/O is isolated behind helpers.
-- **Per-run artifacts** (`prompt.md`, `output.json`, agent transcript, `meta.json`, `result.json`, optional `run.json`) support debugging and CI introspection.
-- **Loop prevention** is layered: workflow (`concurrency`, `if:` on actor), resolver (bot sender, state-label churn), and content (`<!-- wm-agent:` marker on wm-authored comments).
+- **Per-run artifacts** (`prompt.md`, `output.jsonl`, agent transcript, `meta.json`, `result.json`, optional `run.json`) support debugging and CI introspection.
+- **Loop prevention** is layered: workflow (`concurrency`, `if:` on actor), resolver (bot sender), and content (`<!-- wm-agent:` marker on wm-authored comments).
 - **Declarative tasks** keep community workflows portable.
 
 ## Weaknesses (prioritized)
@@ -131,7 +131,7 @@ flowchart LR
 
 ### Phase 2 — Engine interface
 
-- **`internal/engine/engines`**: `claude`, `codex`, `custom` (`WM_AGENT_CMD`); remove unusable **`copilot`** placeholder (use `WM_AGENT_CMD` instead).
+- **`internal/engine/engines`**: `claude`, `codex`, `custom` (`WM_AGENT_CMD`); **`copilot`** placeholder removed.
 
 ### Phase 3 — Safe-output registry
 

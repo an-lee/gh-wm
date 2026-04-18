@@ -58,9 +58,7 @@ type AgentResult struct {
 	TimedOut bool
 	// AgentStdoutPath is the on-disk combined agent log when RunDir is used (full transcript).
 	AgentStdoutPath string
-	// OutputFilePath is the path where the agent may write structured safe-output JSON (output.json).
-	OutputFilePath string
-	// SafeOutputFilePath is the NDJSON log from `gh-wm emit` (output.jsonl), merged with OutputFilePath in RunSuccessOutputs.
+	// SafeOutputFilePath is the NDJSON log from `gh wm emit` (output.jsonl), read by RunSuccessOutputs.
 	SafeOutputFilePath string
 	// LastResponseText is the final assistant text from Claude print-mode conversation.json(l) (result.result), when available.
 	LastResponseText string
