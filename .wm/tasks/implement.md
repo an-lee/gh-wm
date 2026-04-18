@@ -20,12 +20,6 @@ safe-outputs:
     max: 5
 
 engine: claude
-
-wm:
-  state_labels:
-    working: "agent:working"
-    done: "agent:review"
-    failed: "agent:failed"
 ---
 
 # Implement Feature

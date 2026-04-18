@@ -57,14 +57,14 @@ gh wm upgrade
 | `gh wm add <…>`           | Add a task `.md` (`owner/repo/task`, URL, or path); runs `upgrade` after |
 | `gh wm assign <n>`        | Add label (default `agent`) to issue `#n`                     |
 | `gh wm resolve`           | List task names matching `GITHUB_EVENT` / payload             |
-| `gh wm run --task <name>` | Run one task (agent + optional `safe-outputs` / labels)       |
+| `gh wm run --task <name>` | Run one task (agent + optional `safe-outputs`)                 |
 | `gh wm status`            | List issues with agent-related labels (`--all` = `gh search`) |
 | `gh wm logs <n>`          | List `wm-agent` runs (best-effort match on `#n` in title)     |
 
 ### CI entrypoints
 
 - **`gh wm resolve`** — reads `--payload` or `GITHUB_EVENT_PATH` (if both unset, payload defaults to `{}`), prints JSON array of matching task names.
-- **`gh wm run --task …`** — same payload resolution as `resolve`; requires a **clean git working tree** unless **`--allow-dirty`**. Streams agent output to **stderr** and prints a short summary when finished. Runs the agent (default: `claude -p` with the task body plus optional `context.files` from `.wm/config.yml`; `timeout-minutes` from frontmatter). Override with `WM_AGENT_CMD`. On success, runs `safe-outputs` steps (e.g. PR, comment) and optional `wm.state_labels`. Use `WM_CHECKPOINT=1` for checkpoint load/post.
+- **`gh wm run --task …`** — same payload resolution as `resolve`; requires a **clean git working tree** unless **`--allow-dirty`**. Streams agent output to **stderr** and prints a short summary when finished. Runs the agent (default: `claude -p` with the task body plus optional `context.files` from `.wm/config.yml`; `timeout-minutes` from frontmatter). Override with `WM_AGENT_CMD`. On success, runs `safe-outputs` steps (e.g. PR, comment). Use `WM_CHECKPOINT=1` for checkpoint load/post.
 
 ### Secrets
 
@@ -73,8 +73,6 @@ gh wm upgrade
 ## Task format
 
 Tasks are `.wm/tasks/<name>.md` with YAML frontmatter compatible with [GitHub Agentic Workflows](https://github.github.io/gh-aw/) (`on:`, `safe-outputs:`, `engine:`, …) and a markdown body used as the agent prompt.
-
-Optional **`wm:`** block (ignored by gh-aw) for gh-wm-only options, e.g. `state_labels`.
 
 ## Architecture (summary)
 

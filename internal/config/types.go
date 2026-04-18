@@ -58,11 +58,6 @@ func (g *GlobalConfig) TypedSpec() *spec.GlobalSpec {
 	}
 }
 
-// WMExtension is wm: in task frontmatter
-type WMExtension struct {
-	StateLabels map[string]string `yaml:"state_labels"`
-}
-
 // Task holds one .wm/tasks/*.md file
 type Task struct {
 	Name        string         // filename without .md
@@ -196,27 +191,6 @@ func clampTimeout(m, defaultM int) int {
 		return maxTimeoutMinutes
 	}
 	return m
-}
-
-// WM returns parsed wm: extension from frontmatter.
-func (t *Task) WM() WMExtension {
-	var w WMExtension
-	if t == nil || t.Frontmatter == nil {
-		return w
-	}
-	raw, ok := t.Frontmatter["wm"].(map[string]any)
-	if !ok {
-		return w
-	}
-	if sl, ok := raw["state_labels"].(map[string]any); ok {
-		w.StateLabels = make(map[string]string)
-		for k, v := range sl {
-			if s, ok := v.(string); ok {
-				w.StateLabels[k] = s
-			}
-		}
-	}
-	return w
 }
 
 // ToolsYAML returns raw tools: value as YAML-friendly string for env (Phase 3 / WM_TASK_TOOLS).

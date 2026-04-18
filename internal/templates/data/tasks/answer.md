@@ -16,8 +16,22 @@ engine: claude
 
 # Answer
 
-Answer the question or fulfill the request in the comment thread.
+Answer the question or fulfill the request in the comment thread. Be concise and cite code or paths when you reference behavior.
 
-## Safe output (required)
+## 1. Research
 
-Before exiting, write JSON to **`WM_OUTPUT_FILE`**: `{"items":[{"type":"add_comment","body":"…"}]}` (or **`noop`** if nothing to post).
+- Read the triggering comment and thread context.
+- Use search and file reads to ground answers in **this** repository (avoid generic guesses).
+
+## 2. Formulate
+
+- Write a clear answer: what, why, and where in the repo (if applicable).
+- If something is ambiguous or missing, say what you would need to know.
+
+## 3. Safe output (required)
+
+Post your reply with **`gh wm emit`**:
+
+`gh wm emit add-comment --body "…"`
+
+If nothing should be posted to GitHub (e.g. empty or invalid trigger): `gh wm emit noop --message "…"`.

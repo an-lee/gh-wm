@@ -17,19 +17,6 @@
       "type": "object",
       "description": "Declare allowed output kinds and optional messages (create-pull-request, add-comment, create-pull-request-review-comment, submit-pull-request-review, messages.run-started, …)."
     },
-    "wm": {
-      "type": "object",
-      "properties": {
-        "state_labels": {
-          "type": "object",
-          "properties": {
-            "working": { "type": "string" },
-            "done": { "type": "string" },
-            "failed": { "type": "string" }
-          }
-        }
-      }
-    },
     "tools": {},
     "context": { "type": "object" }
   },

@@ -19,23 +19,46 @@ safe-outputs:
     max: 5
 
 engine: claude
-
-wm:
-  state_labels:
-    working: "agent:working"
-    done: "agent:review"
-    failed: "agent:failed"
 ---
 
-# Implement Feature
+# Implement feature
 
 You are a developer agent working on this repository.
 
-Implement the feature or fix described in the issue.
-Create tests if applicable. Commit with clear messages.
+Follow repository conventions and any project agent guide your team maintains (e.g. `CLAUDE.md`, `AGENTS.md`).
 
-Follow repository conventions and any project agent guide your team maintains.
+## 1. Context
 
-## Safe output (required)
+- Read the issue title, body, and thread so you understand acceptance criteria and constraints.
+- Explore the codebase (search, read relevant files) before changing code.
 
-Before exiting, write JSON to **`WM_OUTPUT_FILE`**: `{"items":[...]}`. Use **`create_pull_request`** when you have commits to push as a PR, **`add_comment`** to summarize on the issue, and/or **`noop`** with a message if no GitHub follow-up is needed.
+## 2. Implement
+
+- Implement the feature or fix with minimal, focused changes.
+- Add or update tests when the repo expects them for the area you touch.
+
+## 3. Validate
+
+- Run the project’s usual checks (tests, build, linters) before you finish.
+- Do **not** leave the branch in a broken state: no failing tests or obvious build errors from your commits.
+- Commit with clear messages when you have real changes.
+
+## 4. Safe output (required)
+
+Record follow-ups with **`gh wm emit`** (not raw `gh` or hand-written `output.json`). The runner sets `WM_REPO_ROOT`, `WM_TASK`, and `WM_SAFE_OUTPUT_FILE` for you.
+
+- **Commits to ship:** after validation passes, if you have commits that should become a PR:
+
+  `gh wm emit create-pull-request --title "…" --body "…"`
+
+  Use `--draft` / `--labels` only if you need to override task defaults; task policy may merge labels.
+
+- **Blocked or no PR:** explain on the issue with:
+
+  `gh wm emit add-comment --body "…"`
+
+- **Nothing to do on GitHub** (e.g. duplicate issue, out of scope): record explicitly:
+
+  `gh wm emit noop --message "…"`
+
+You may emit **one** primary outcome (PR **or** issue comment **or** noop); use `add-comment` for short updates when policy allows multiple lines.

@@ -240,3 +240,16 @@ func TestPostCheckpoint_UsesStdoutWhenSummaryEmpty(t *testing.T) {
 	tc := &types.TaskContext{Repo: "o/r", IssueNumber: 1}
 	postCheckpoint(tc, &types.AgentResult{Stdout: "from stdout"})
 }
+
+func TestIssueOrPRNumber(t *testing.T) {
+	t.Parallel()
+	if issueOrPRNumber(nil) != 0 {
+		t.Fatal("nil")
+	}
+	if issueOrPRNumber(&types.TaskContext{IssueNumber: 2}) != 2 {
+		t.Fatal("issue")
+	}
+	if issueOrPRNumber(&types.TaskContext{PRNumber: 3}) != 3 {
+		t.Fatal("pr")
+	}
+}
