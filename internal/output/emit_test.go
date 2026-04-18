@@ -98,6 +98,27 @@ func TestValidateAndAppend_UpdateIssueTitlePrefix(t *testing.T) {
 	}
 }
 
+func TestValidateAndAppend_UpdateIssueInvalidOperation(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "out.jsonl")
+	g := &config.GlobalConfig{}
+	task := &config.Task{
+		Name: "t",
+		Frontmatter: map[string]any{
+			"safe-outputs": map[string]any{
+				"update-issue": map[string]any{"max": 1},
+			},
+		},
+	}
+	tc := &types.TaskContext{Repo: "o/r", RepoPath: dir, IssueNumber: 3}
+	item := map[string]any{"title": "", "body": "b", "operation": "bogus", "target": 0}
+	err := ValidateAndAppend(context.Background(), g, task, tc, KindUpdateIssue, item, path)
+	if err == nil {
+		t.Fatal("expected validation error for operation")
+	}
+}
+
 func TestValidateAndAppend_CloseIssueInvalidStateReason(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -160,6 +181,26 @@ func TestValidateAndAppend_CreatePullRequestReviewCommentOK(t *testing.T) {
 		"body": "hi", "commit_id": "abc1234", "path": "f.go", "line": 3, "side": "right", "target": 0,
 	}
 	if err := ValidateAndAppend(context.Background(), g, task, tc, KindCreatePullRequestReviewComment, item, path); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestValidateAndAppend_PushToPullRequestBranchOK(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "out.jsonl")
+	g := &config.GlobalConfig{}
+	task := &config.Task{
+		Name: "t",
+		Frontmatter: map[string]any{
+			"safe-outputs": map[string]any{
+				"push-to-pull-request-branch": map[string]any{"max": 1},
+			},
+		},
+	}
+	tc := &types.TaskContext{Repo: "o/r", RepoPath: dir, PRNumber: 5}
+	item := map[string]any{"target": 0}
+	if err := ValidateAndAppend(context.Background(), g, task, tc, KindPushToPullRequestBranch, item, path); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -81,6 +81,26 @@ func CreateIssue(ctx context.Context, repo, title, body string, labels, assignee
 	return PostJSON(ctx, path, payload)
 }
 
+// issueSnapshot is the subset of GET /repos/{owner}/{repo}/issues/{number} we need for edits.
+type issueSnapshot struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
+}
+
+// GetIssueSnapshot returns the current title and body for an issue or PR (same issue number).
+func GetIssueSnapshot(ctx context.Context, repo string, number int) (title, body string, err error) {
+	owner, name, err := splitRepo(repo)
+	if err != nil {
+		return "", "", err
+	}
+	path := fmt.Sprintf("repos/%s/%s/issues/%d", owner, name, number)
+	var v issueSnapshot
+	if err := GetJSON(ctx, path, &v); err != nil {
+		return "", "", err
+	}
+	return v.Title, v.Body, nil
+}
+
 // UpdateIssue PATCHes title and/or body. Empty strings are omitted from the payload.
 func UpdateIssue(ctx context.Context, repo string, number int, title, body string) error {
 	owner, name, err := splitRepo(repo)

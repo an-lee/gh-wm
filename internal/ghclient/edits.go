@@ -3,6 +3,7 @@ package ghclient
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strconv"
@@ -10,6 +11,32 @@ import (
 
 	"github.com/an-lee/gh-wm/internal/gh"
 )
+
+// GetIssueSnapshot returns the current title and body (issue or PR number).
+func GetIssueSnapshot(ctx context.Context, repo string, number int) (title, body string, err error) {
+	if useREST() {
+		return gh.GetIssueSnapshot(ctx, repo, number)
+	}
+	args := []string{"issue", "view", strconv.Itoa(number), "--json", "title,body"}
+	if repo != "" {
+		args = append(args, "--repo", repo)
+	}
+	cmd := exec.CommandContext(ctx, "gh", args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return "", "", fmt.Errorf("gh issue view: %w: %s", err, stderr.String())
+	}
+	var v struct {
+		Title string `json:"title"`
+		Body  string `json:"body"`
+	}
+	if err := json.Unmarshal(out, &v); err != nil {
+		return "", "", fmt.Errorf("parse gh issue view json: %w", err)
+	}
+	return v.Title, v.Body, nil
+}
 
 // UpdateIssue edits an issue title/body (at least one of title, body must be non-empty).
 func UpdateIssue(ctx context.Context, repo string, number int, title, body string) error {

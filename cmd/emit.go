@@ -39,6 +39,7 @@ func init() {
 		emitCreatePullRequestReviewCommentCmd,
 		emitReplyPullRequestReviewCommentCmd,
 		emitResolvePullRequestReviewThreadCmd,
+		emitPushToPullRequestBranchCmd,
 		emitMissingToolCmd,
 		emitMissingDataCmd,
 	)
@@ -71,10 +72,12 @@ func init() {
 
 	emitUpdateIssueCmd.Flags().String("title", "", "new title (optional if --body set)")
 	emitUpdateIssueCmd.Flags().String("body", "", "new body (optional if --title set)")
+	emitUpdateIssueCmd.Flags().String("operation", "", "body mode: replace (default), append, prepend, replace-island")
 	emitUpdateIssueCmd.Flags().Int("target", 0, "issue number (default: WM_ISSUE_NUMBER / WM_PR_NUMBER)")
 
 	emitUpdatePRCmd.Flags().String("title", "", "new title (optional if --body set)")
 	emitUpdatePRCmd.Flags().String("body", "", "new body (optional if --title set)")
+	emitUpdatePRCmd.Flags().String("operation", "", "body mode: replace (default), append, prepend, replace-island")
 	emitUpdatePRCmd.Flags().Int("target", 0, "PR number (default: WM_PR_NUMBER / WM_ISSUE_NUMBER)")
 
 	emitCloseIssueCmd.Flags().String("comment", "", "optional closing comment")
@@ -110,6 +113,8 @@ func init() {
 	emitResolvePullRequestReviewThreadCmd.Flags().String("thread-id", "", "GraphQL review thread id (required)")
 	_ = emitResolvePullRequestReviewThreadCmd.MarkFlagRequired("thread-id")
 	emitResolvePullRequestReviewThreadCmd.Flags().Int("target", 0, "PR number (default: WM_PR_NUMBER / WM_ISSUE_NUMBER)")
+
+	emitPushToPullRequestBranchCmd.Flags().Int("target", 0, "PR number (default: WM_PR_NUMBER / WM_ISSUE_NUMBER)")
 
 	emitMissingToolCmd.Flags().String("tool", "", "tool or capability name")
 	emitMissingToolCmd.Flags().String("reason", "", "why it is unavailable")
@@ -271,9 +276,12 @@ var emitUpdateIssueCmd = &cobra.Command{
 		title, _ := cmd.Flags().GetString("title")
 		body, _ := cmd.Flags().GetString("body")
 		target, _ := cmd.Flags().GetInt("target")
-		return runEmit(cmd.Context(), output.KindUpdateIssue, map[string]any{
-			"title": title, "body": body, "target": target,
-		})
+		op, _ := cmd.Flags().GetString("operation")
+		item := map[string]any{"title": title, "body": body, "target": target}
+		if strings.TrimSpace(op) != "" {
+			item["operation"] = op
+		}
+		return runEmit(cmd.Context(), output.KindUpdateIssue, item)
 	},
 }
 
@@ -284,9 +292,12 @@ var emitUpdatePRCmd = &cobra.Command{
 		title, _ := cmd.Flags().GetString("title")
 		body, _ := cmd.Flags().GetString("body")
 		target, _ := cmd.Flags().GetInt("target")
-		return runEmit(cmd.Context(), output.KindUpdatePullRequest, map[string]any{
-			"title": title, "body": body, "target": target,
-		})
+		op, _ := cmd.Flags().GetString("operation")
+		item := map[string]any{"title": title, "body": body, "target": target}
+		if strings.TrimSpace(op) != "" {
+			item["operation"] = op
+		}
+		return runEmit(cmd.Context(), output.KindUpdatePullRequest, item)
 	},
 }
 
@@ -377,6 +388,17 @@ var emitResolvePullRequestReviewThreadCmd = &cobra.Command{
 		target, _ := cmd.Flags().GetInt("target")
 		return runEmit(cmd.Context(), output.KindResolvePullRequestReviewThread, map[string]any{
 			"thread_id": threadID, "target": target,
+		})
+	},
+}
+
+var emitPushToPullRequestBranchCmd = &cobra.Command{
+	Use:   "push-to-pull-request-branch",
+	Short: "Request pushing the current branch to the PR head (git push)",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		target, _ := cmd.Flags().GetInt("target")
+		return runEmit(cmd.Context(), output.KindPushToPullRequestBranch, map[string]any{
+			"target": target,
 		})
 	},
 }

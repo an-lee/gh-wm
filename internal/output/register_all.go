@@ -23,6 +23,7 @@ func init() {
 	registerKind(KindCreatePullRequestReviewComment, execKindCreatePullRequestReviewComment)
 	registerKind(KindReplyToPullRequestReviewComment, execKindReplyToPullRequestReviewComment)
 	registerKind(KindResolvePullRequestReviewThread, execKindResolvePullRequestReviewThread)
+	registerKind(KindPushToPullRequestBranch, execKindPushToPullRequestBranch)
 }
 
 func execKindCreatePullRequest(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext, p *Policy, raw map[string]any) error {
@@ -102,4 +103,8 @@ func execKindReplyToPullRequestReviewComment(ctx context.Context, _ *config.Glob
 func execKindResolvePullRequestReviewThread(ctx context.Context, _ *config.GlobalConfig, _ *config.Task, tc *types.TaskContext, _ *Policy, raw map[string]any) error {
 	item := mapToResolvePullRequestReviewThread(raw)
 	return runResolvePullRequestReviewThread(ctx, tc, item)
+}
+
+func execKindPushToPullRequestBranch(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext, p *Policy, raw map[string]any) error {
+	return runPushToPullRequestBranch(ctx, glob, task, tc, p, raw)
 }

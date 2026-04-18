@@ -18,6 +18,7 @@ const (
 	KindCreatePullRequestReviewComment  OutputKind = "create_pull_request_review_comment"
 	KindReplyToPullRequestReviewComment OutputKind = "reply_to_pull_request_review_comment"
 	KindResolvePullRequestReviewThread  OutputKind = "resolve_pull_request_review_thread"
+	KindPushToPullRequestBranch         OutputKind = "push_to_pull_request_branch"
 	KindNoop                            OutputKind = "noop"
 	KindMissingTool                     OutputKind = "missing_tool"
 	KindMissingData                     OutputKind = "missing_data"
@@ -58,16 +59,18 @@ type ItemCreateIssue struct {
 
 // ItemUpdateIssue fields for update_issue.
 type ItemUpdateIssue struct {
-	Title  string `json:"title,omitempty"`
-	Body   string `json:"body,omitempty"`
-	Target int    `json:"target"`
+	Title     string `json:"title,omitempty"`
+	Body      string `json:"body,omitempty"`
+	Target    int    `json:"target"`
+	Operation string `json:"operation,omitempty"` // replace (default), append, prepend, replace-island
 }
 
 // ItemUpdatePullRequest fields for update_pull_request.
 type ItemUpdatePullRequest struct {
-	Title  string `json:"title,omitempty"`
-	Body   string `json:"body,omitempty"`
-	Target int    `json:"target"`
+	Title     string `json:"title,omitempty"`
+	Body      string `json:"body,omitempty"`
+	Target    int    `json:"target"`
+	Operation string `json:"operation,omitempty"`
 }
 
 // ItemCloseIssue fields for close_issue.
@@ -111,6 +114,11 @@ type ItemReplyToPullRequestReviewComment struct {
 type ItemResolvePullRequestReviewThread struct {
 	ThreadID string `json:"thread_id"`
 	Target   int    `json:"target"`
+}
+
+// ItemPushToPullRequestBranch fields for push_to_pull_request_branch (git push to PR head).
+type ItemPushToPullRequestBranch struct {
+	Target int `json:"target"` // PR number; 0 = WM_PR_NUMBER / event
 }
 
 // ItemNoop records completion without GitHub writes.

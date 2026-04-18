@@ -37,6 +37,8 @@ func emitSubcommand(kind OutputKind) string {
 		return "reply-to-pull-request-review-comment"
 	case KindResolvePullRequestReviewThread:
 		return "resolve-pull-request-review-thread"
+	case KindPushToPullRequestBranch:
+		return "push-to-pull-request-branch"
 	case KindNoop:
 		return "noop"
 	case KindMissingTool:
@@ -93,14 +95,15 @@ func AvailableOutputsSection(glob *config.GlobalConfig, task *config.Task) strin
 		{fmAddLabels, KindAddLabels, "`--labels` (repeat or comma-separated), optional `--target`"},
 		{fmRemoveLabels, KindRemoveLabels, "`--labels`, optional `--target`"},
 		{fmCreateIssue, KindCreateIssue, "`--title`, optional `--body`, `--labels`, `--assignees`"},
-		{fmUpdatePullRequest, KindUpdatePullRequest, "optional `--title`, `--body` (at least one), optional `--target`"},
-		{fmUpdateIssue, KindUpdateIssue, "optional `--title`, `--body` (at least one), optional `--target`"},
+		{fmUpdatePullRequest, KindUpdatePullRequest, "optional `--title`, `--body` (at least one), optional `--operation` (replace|append|prepend|replace-island), optional `--target`"},
+		{fmUpdateIssue, KindUpdateIssue, "optional `--title`, `--body` (at least one), optional `--operation` (replace|append|prepend|replace-island), optional `--target`"},
 		{fmCloseIssue, KindCloseIssue, "optional `--comment`, `--state-reason`, optional `--target`"},
 		{fmClosePullRequest, KindClosePullRequest, "optional `--comment`, optional `--target`"},
 		{fmAddReviewer, KindAddReviewer, "`--reviewers` (repeat or comma-separated), optional `--target`"},
 		{fmCreatePullRequestReviewComment, KindCreatePullRequestReviewComment, "`--body`, `--commit-id`, `--path`, `--line`, `--side` (LEFT|RIGHT), optional `--start-line`, optional `--target`"},
 		{fmReplyToPullRequestReviewComment, KindReplyToPullRequestReviewComment, "`--body`, `--comment-id`, optional `--target`"},
 		{fmResolvePullRequestReviewThread, KindResolvePullRequestReviewThread, "`--thread-id`, optional `--target`"},
+		{fmPushToPullRequestBranch, KindPushToPullRequestBranch, "optional `--target` (PR number; else `WM_PR_NUMBER`); requires checkout on PR head; runs `git push`"},
 	}
 
 	for _, row := range order {

@@ -24,6 +24,7 @@ const (
 	fmCreatePullRequestReviewComment  = "create-pull-request-review-comment"
 	fmReplyToPullRequestReviewComment = "reply-to-pull-request-review-comment"
 	fmResolvePullRequestReviewThread  = "resolve-pull-request-review-thread"
+	fmPushToPullRequestBranch         = "push-to-pull-request-branch"
 	fmNoop                            = "noop"
 )
 
@@ -56,6 +57,8 @@ func kindToFrontmatter(kind OutputKind) string {
 		return fmReplyToPullRequestReviewComment
 	case KindResolvePullRequestReviewThread:
 		return fmResolvePullRequestReviewThread
+	case KindPushToPullRequestBranch:
+		return fmPushToPullRequestBranch
 	case KindNoop:
 		return fmNoop
 	default:
@@ -67,7 +70,7 @@ func kindToFrontmatter(kind OutputKind) string {
 func defaultMaxPerKind(kind OutputKind) int {
 	switch kind {
 	case KindCreatePullRequest, KindAddComment, KindCreateIssue,
-		KindUpdatePullRequest, KindUpdateIssue, KindCloseIssue:
+		KindUpdatePullRequest, KindUpdateIssue, KindCloseIssue, KindPushToPullRequestBranch:
 		return 1
 	case KindClosePullRequest:
 		return 10
@@ -278,4 +281,51 @@ func (p *Policy) RemoveLabelAllowed(label string) bool {
 		}
 	}
 	return false
+}
+
+// PushPRTitleMatchesPolicy returns an error if title-prefix is set in safe-outputs and the PR title does not start with it.
+func (p *Policy) PushPRTitleMatchesPolicy(title string) error {
+	if p == nil {
+		return nil
+	}
+	block := p.fmBlock(KindPushToPullRequestBranch)
+	if block == nil {
+		return nil
+	}
+	prefix := strings.TrimSpace(scalar.StringFromMap(block, "title-prefix"))
+	if prefix == "" {
+		return nil
+	}
+	t := strings.TrimSpace(title)
+	if strings.HasPrefix(t, prefix) {
+		return nil
+	}
+	return fmt.Errorf("push_to_pull_request_branch: PR title %q does not start with required prefix %q", t, prefix)
+}
+
+// PushPRHasRequiredLabels returns an error if safe-outputs lists labels and the PR is missing any of them.
+func (p *Policy) PushPRHasRequiredLabels(prLabelNames []string) error {
+	if p == nil {
+		return nil
+	}
+	block := p.fmBlock(KindPushToPullRequestBranch)
+	if block == nil {
+		return nil
+	}
+	required := scalar.StringSliceFromMap(block, "labels")
+	if len(required) == 0 {
+		return nil
+	}
+	have := make(map[string]struct{})
+	for _, l := range prLabelNames {
+		if l != "" {
+			have[l] = struct{}{}
+		}
+	}
+	for _, r := range required {
+		if _, ok := have[r]; !ok {
+			return fmt.Errorf("push_to_pull_request_branch: PR missing required label %q", r)
+		}
+	}
+	return nil
 }
