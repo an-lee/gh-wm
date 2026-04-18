@@ -673,24 +673,27 @@ func TestApplyPolicyMutations_CreatePullRequest_EmptyTitleNoPrefix(t *testing.T)
 // ---------------------------------------------------------------------------
 
 func TestValidateAndAppend_CloseIssue_ValidStateReasons(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	path := filepath.Join(dir, "out.jsonl")
-	g := &config.GlobalConfig{}
-	task := &config.Task{
-		Name: "t",
-		Frontmatter: map[string]any{
-			"safe-outputs": map[string]any{
-				"close-issue": map[string]any{"max": 1},
-			},
-		},
-	}
-	tc := &types.TaskContext{Repo: "o/r", RepoPath: dir, IssueNumber: 3}
 	for _, sr := range []string{"completed", "not_planned", "duplicate", "COMPLETED", "Not-Planned"} {
-		item := map[string]any{"target": 0, "state_reason": sr}
-		if err := ValidateAndAppend(context.Background(), g, task, tc, KindCloseIssue, item, path); err != nil {
-			t.Fatalf("state_reason %q: unexpected error: %v", sr, err)
-		}
+		sr := sr
+		t.Run(sr, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			path := filepath.Join(dir, "out.jsonl")
+			g := &config.GlobalConfig{}
+			task := &config.Task{
+				Name: "t",
+				Frontmatter: map[string]any{
+					"safe-outputs": map[string]any{
+						"close-issue": map[string]any{"max": 1},
+					},
+				},
+			}
+			tc := &types.TaskContext{Repo: "o/r", RepoPath: dir, IssueNumber: 3}
+			item := map[string]any{"target": 0, "state_reason": sr}
+			if err := ValidateAndAppend(context.Background(), g, task, tc, KindCloseIssue, item, path); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
 	}
 }
 
@@ -856,24 +859,27 @@ func TestValidateAndAppend_ResolvePullRequestReviewThread_TargetOverridesEventCo
 }
 
 func TestValidateAndAppend_SubmitPullRequestReview_ValidEvents(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-	path := filepath.Join(dir, "out.jsonl")
-	g := &config.GlobalConfig{}
-	task := &config.Task{
-		Name: "t",
-		Frontmatter: map[string]any{
-			"safe-outputs": map[string]any{
-				"submit-pull-request-review": map[string]any{"max": 1},
-			},
-		},
-	}
-	tc := &types.TaskContext{Repo: "o/r", RepoPath: dir, PRNumber: 5}
 	for _, ev := range []string{"APPROVE", "approve", "REQUEST_CHANGES", "COMMENT"} {
-		item := map[string]any{"event": ev, "target": 0}
-		if err := ValidateAndAppend(context.Background(), g, task, tc, KindSubmitPullRequestReview, item, path); err != nil {
-			t.Fatalf("event %q: unexpected error: %v", ev, err)
-		}
+		ev := ev
+		t.Run(ev, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			path := filepath.Join(dir, "out.jsonl")
+			g := &config.GlobalConfig{}
+			task := &config.Task{
+				Name: "t",
+				Frontmatter: map[string]any{
+					"safe-outputs": map[string]any{
+						"submit-pull-request-review": map[string]any{"max": 1},
+					},
+				},
+			}
+			tc := &types.TaskContext{Repo: "o/r", RepoPath: dir, PRNumber: 5}
+			item := map[string]any{"event": ev, "target": 0}
+			if err := ValidateAndAppend(context.Background(), g, task, tc, KindSubmitPullRequestReview, item, path); err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
 	}
 }
 
