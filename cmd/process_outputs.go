@@ -24,7 +24,7 @@ var processOutputsCmd = &cobra.Command{
 	Use:   "process-outputs",
 	Short: "Apply safe-outputs and conclusion for a run directory (after --agent-only)",
 	Long: `Loads the run directory from a prior gh wm run --agent-only invocation and executes
-the safe-outputs phase plus conclusion (checkpoint, state labels). Use in a follow-up CI job
+the safe-outputs phase plus conclusion (checkpoint). Use in a follow-up CI job
 with write permissions while the agent job used a read-only token.
 
 Pass either --run-dir or --task (CI: --task "$TASK_NAME" resolves the newest .wm/runs/<id> for that task).`,

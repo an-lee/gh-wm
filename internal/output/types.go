@@ -1,4 +1,4 @@
-// Package output runs post-agent safe-output steps from agent-written output.json.
+// Package output runs post-agent safe-output steps from WM_SAFE_OUTPUT_FILE (output.jsonl NDJSON).
 package output
 
 // OutputKind is the JSON `type` field value (underscore form, gh-aw style).
@@ -25,7 +25,7 @@ const (
 	KindMissingData                     OutputKind = "missing_data"
 )
 
-// AgentOutputFile is the root JSON shape written to WM_OUTPUT_FILE (output.json).
+// AgentOutputFile is the in-memory aggregate of parsed NDJSON items for one run.
 type AgentOutputFile struct {
 	Items []map[string]any `json:"items"`
 }

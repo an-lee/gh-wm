@@ -139,7 +139,7 @@ func TestRunTask_AgentOnly_ThenProcessOutputs(t *testing.T) {
 	}
 }
 
-// Regression: agent exits 0 but writes no output.json / output.jsonl — run must still succeed (implicit noop).
+// Regression: agent exits 0 but writes no output.jsonl — run must still succeed (implicit noop).
 func TestRunTask_SafeOutputsImplicitNoop(t *testing.T) {
 	t.Setenv("WM_AGENT_CMD", "true")
 	t.Setenv("GITHUB_REPOSITORY", "o/r")

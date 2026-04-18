@@ -45,7 +45,7 @@ Follow repository conventions and any project agent guide your team maintains (e
 
 ## 4. Safe output (required)
 
-Record follow-ups with **`gh wm emit`** (not raw `gh` or hand-written `output.json`). The runner sets `WM_REPO_ROOT`, `WM_TASK`, and `WM_SAFE_OUTPUT_FILE` for you.
+Record follow-ups with **`gh wm emit`** (not raw `gh`). The runner sets `WM_REPO_ROOT`, `WM_TASK`, and `WM_SAFE_OUTPUT_FILE` for you.
 
 - **Commits to ship:** after validation passes, if you have commits that should become a PR:
 

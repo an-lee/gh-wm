@@ -98,7 +98,7 @@ func ProcessRunOutputs(ctx context.Context, repoRoot, runDirPath string, event *
 
 	m := task.SafeOutputsMap()
 	if m != nil && len(m) > 0 {
-		progressf(opts, "safe-outputs: applying allowed GitHub actions from output.jsonl + output.json")
+		progressf(opts, "safe-outputs: applying allowed GitHub actions from output.jsonl")
 	}
 	if outErr := output.RunSuccessOutputs(ctx, glob, task, tc, ar); outErr != nil {
 		addRunErr(result, outErr)
@@ -150,7 +150,6 @@ func loadPersistedAgentResult(runDirPath string) (*types.AgentResult, error) {
 			Summary            string `json:"summary,omitempty"`
 			TimedOut           bool   `json:"timed_out,omitempty"`
 			AgentStdoutPath    string `json:"agent_stdout_path,omitempty"`
-			OutputFilePath     string `json:"output_file_path,omitempty"`
 			SafeOutputFilePath string `json:"safe_output_file_path,omitempty"`
 			LastResponseText   string `json:"last_response_text,omitempty"`
 		} `json:"agent_result"`
@@ -175,14 +174,10 @@ func loadPersistedAgentResult(runDirPath string) (*types.AgentResult, error) {
 		Summary:            file.AgentResult.Summary,
 		TimedOut:           file.AgentResult.TimedOut,
 		AgentStdoutPath:    file.AgentResult.AgentStdoutPath,
-		OutputFilePath:     file.AgentResult.OutputFilePath,
 		SafeOutputFilePath: file.AgentResult.SafeOutputFilePath,
 		LastResponseText:   file.AgentResult.LastResponseText,
 	}
 	rd := &RunDir{Path: runDirPath}
-	if ar.OutputFilePath == "" {
-		ar.OutputFilePath = rd.OutputJSONPath()
-	}
 	if ar.SafeOutputFilePath == "" {
 		ar.SafeOutputFilePath = rd.SafeOutputJSONLPath()
 	}

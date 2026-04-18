@@ -10,8 +10,8 @@ import (
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
-// RunSuccessOutputs runs agent-driven safe outputs from WM_SAFE_OUTPUT_FILE (output.jsonl NDJSON)
-// and/or legacy WM_OUTPUT_FILE (output.json). If both are empty, logs a warning and succeeds (implicit noop).
+// RunSuccessOutputs runs agent-driven safe outputs from WM_SAFE_OUTPUT_FILE (output.jsonl NDJSON).
+// If empty, logs a warning and succeeds (implicit noop).
 func RunSuccessOutputs(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext, res *types.AgentResult) error {
 	if glob == nil || task == nil || tc == nil || res == nil {
 		return nil
@@ -19,23 +19,13 @@ func RunSuccessOutputs(ctx context.Context, glob *config.GlobalConfig, task *con
 	if !taskDeclaresSafeOutputs(task) {
 		return nil
 	}
-	ao, err := ParseAgentOutputFile(res.OutputFilePath)
-	if err != nil {
-		return err
-	}
 	ndItems, err := ParseAgentOutputJSONLFile(res.SafeOutputFilePath)
 	if err != nil {
 		return err
 	}
-	var legacy []map[string]any
-	if ao != nil {
-		legacy = ao.Items
-	}
-	merged := append(append([]map[string]any(nil), ndItems...), legacy...)
-	if len(merged) == 0 {
-		slog.Warn("wm: safe-outputs: no structured output (implicit noop); use `gh-wm emit noop` or other emit subcommands when safe-outputs is set",
-			"safe_output_file", strings.TrimSpace(res.SafeOutputFilePath),
-			"legacy_output_file", strings.TrimSpace(res.OutputFilePath))
+	if len(ndItems) == 0 {
+		slog.Warn("wm: safe-outputs: no structured output (implicit noop); use `gh wm emit noop` or other emit subcommands when safe-outputs is set",
+			"safe_output_file", strings.TrimSpace(res.SafeOutputFilePath))
 		if strings.TrimSpace(res.LastResponseText) != "" && (tc.IssueNumber > 0 || tc.PRNumber > 0) {
 			if err := postFallbackComment(tc, res.LastResponseText); err != nil {
 				return err
@@ -43,7 +33,7 @@ func RunSuccessOutputs(ctx context.Context, glob *config.GlobalConfig, task *con
 		}
 		return nil
 	}
-	return runAgentDrivenOutputs(ctx, glob, task, tc, &AgentOutputFile{Items: merged})
+	return runAgentDrivenOutputs(ctx, glob, task, tc, &AgentOutputFile{Items: ndItems})
 }
 
 func taskDeclaresSafeOutputs(task *config.Task) bool {

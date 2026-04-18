@@ -320,8 +320,8 @@ func TestResolveEngine_CopilotDeprecated(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for copilot")
 	}
-	if !strings.Contains(err.Error(), "copilot") {
-		t.Errorf("error should mention copilot: %v", err)
+	if !strings.Contains(err.Error(), "no longer supported") {
+		t.Errorf("error should mention removal: %v", err)
 	}
 }
 

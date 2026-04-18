@@ -1,6 +1,6 @@
 # gh-wm documentation
 
-**gh-wm** is a Go [`gh` CLI extension](https://docs.github.com/en/github-cli/github-cli/creating-github-cli-extensions) that runs **gh-aw–compatible** task files (Markdown + YAML frontmatter) from `.wm/tasks/` **without** compiling to lockfiles or AWF. When `safe-outputs:` is set, the agent normally records outputs via **`gh wm emit`** (NDJSON) or legacy **`output.json`**; gh-wm validates and applies them (`max:`, allowlists, etc.).
+**gh-wm** is a Go [`gh` CLI extension](https://docs.github.com/en/github-cli/github-cli/creating-github-cli-extensions) that runs **gh-aw–compatible** task files (Markdown + YAML frontmatter) from `.wm/tasks/` **without** compiling to lockfiles or AWF. When `safe-outputs:` is set, the agent records outputs via **`gh wm emit`** (NDJSON into **`output.jsonl`**); gh-wm validates and applies them (`max:`, allowlists, etc.).
 
 This documentation is the **canonical reference** for how the project works and how to extend it.
 
@@ -28,6 +28,6 @@ This documentation is the **canonical reference** for how the project works and 
 
 ## One-sentence mental model
 
-**GitHub delivers an event → `gh wm resolve` lists matching task names → Actions runs `gh wm run --task <name>` per match; each run runs the agent (default: `claude -p`), then applies validated safe outputs from **`gh wm emit`** / legacy **`output.json`** when `safe-outputs:` is configured.**
+**GitHub delivers an event → `gh wm resolve` lists matching task names → Actions runs `gh wm run --task <name>` per match; each run runs the agent (default: `claude -p`), then applies validated safe outputs from **`gh wm emit`** when `safe-outputs:` is configured.**
 
 For install and a minimal user quick start, see the repository [README](../../README.md).

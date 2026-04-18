@@ -59,8 +59,8 @@ func validateTaskConfig(task *config.Task, glob *config.GlobalConfig) error {
 	case "", "claude", "codex":
 		return nil
 	case "copilot":
-		return fmt.Errorf("engine copilot requires WM_AGENT_CMD")
+		return fmt.Errorf(`engine "copilot" is no longer supported; use WM_AGENT_CMD or set engine to "claude" or "codex"`)
 	default:
-		return fmt.Errorf("unknown engine %q (use claude, codex, copilot, or set WM_AGENT_CMD)", eng)
+		return fmt.Errorf("unknown engine %q (use claude, codex, or set WM_AGENT_CMD)", eng)
 	}
 }

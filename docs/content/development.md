@@ -43,8 +43,8 @@ Deployment runs via [`.github/workflows/pages.yml`](../../.github/workflows/page
 | [`main.go`](../../main.go)                                        | Calls `cmd.Execute()`.                                                                                                                 |
 | [`cmd/`](../../cmd/)                                              | Cobra commands; keep thin—delegate to `internal/`.                                                                                     |
 | [`internal/config/`](../../internal/config/)                      | YAML + markdown frontmatter loading.                                                                                                   |
-| [`internal/engine/`](../../internal/engine/)                      | Resolve + run + agent + per-run artifact dirs (`rundir.go`) + state labels + checkpoint wiring.                                         |
-| [`internal/output/`](../../internal/output/)                      | Merges `output.jsonl` (`gh wm emit`) + legacy `output.json`; runs validated safe-output `items` per `safe-outputs:` policy.                |
+| [`internal/engine/`](../../internal/engine/)                      | Resolve + run + agent + per-run artifact dirs (`rundir.go`) + checkpoint wiring.                                         |
+| [`internal/output/`](../../internal/output/)                      | Reads `output.jsonl` (`gh wm emit`); runs validated safe-output `items` per `safe-outputs:` policy.                |
 | [`internal/trigger/`](../../internal/trigger/)                    | `on:` matching (`match.go`).                                                                                                           |
 | [`internal/types/`](../../internal/types/)                        | `GitHubEvent`, `TaskContext`, `AgentResult`, `RunResult`, `Phase`.                                                                                           |
 | [`internal/gen/`](../../internal/gen/)                            | `wm-agent.yml` generation and task-driven workflow trigger collection (`triggers.go`, `schedules.go`).                                                                                                |
@@ -77,7 +77,7 @@ Deployment runs via [`.github/workflows/pages.yml`](../../.github/workflows/page
 
 ## Agent backend selection
 
-See [`runAgent`](../../internal/engine/agent.go): `WM_AGENT_CMD` overrides everything; otherwise `engine:` selects `claude`, `codex` (+ optional `WM_ENGINE_CODEX_CMD`), or **`copilot`** (must set `WM_AGENT_CMD`).
+See [`runAgent`](../../internal/engine/agent.go): `WM_AGENT_CMD` overrides everything; otherwise `engine:` selects `claude` or `codex` (+ optional `WM_ENGINE_CODEX_CMD`). The former **`copilot`** engine name errors; use **`WM_AGENT_CMD`** for a custom CLI.
 
 ## Workflows and releases
 
