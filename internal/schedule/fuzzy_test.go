@@ -25,6 +25,37 @@ func TestFuzzyNormalizeSchedule(t *testing.T) {
 	}
 }
 
+func TestFuzzyNormalizeSchedule_EveryNHours(t *testing.T) {
+	t.Parallel()
+	id := "/repo/.wm/tasks/doc.md"
+	e3a := FuzzyNormalizeSchedule("every 3 hours", id)
+	e3b := FuzzyNormalizeSchedule("every 3 hours", id)
+	if e3a != e3b {
+		t.Fatalf("every 3 hours not stable: %q vs %q", e3a, e3b)
+	}
+	if !strings.Contains(e3a, "*/3") {
+		t.Fatalf("expected */3 in cron, got %q", e3a)
+	}
+	if FuzzyNormalizeSchedule("every 1 hour", id) != FuzzyNormalizeSchedule("hourly", id) {
+		t.Fatal("every 1 hour should match hourly")
+	}
+	if FuzzyNormalizeSchedule("every 1 hours", id) != FuzzyNormalizeSchedule("hourly", id) {
+		t.Fatal("every 1 hours should match hourly")
+	}
+	if FuzzyNormalizeSchedule("every 24 hours", id) != FuzzyNormalizeSchedule("daily", id) {
+		t.Fatal("every 24 hours should match daily")
+	}
+	if FuzzyNormalizeSchedule("EVERY  3  HOURS", id) != e3a {
+		t.Fatalf("case and whitespace: got %q want %q", FuzzyNormalizeSchedule("EVERY  3  HOURS", id), e3a)
+	}
+	if FuzzyNormalizeSchedule("every 0 hours", id) != "every 0 hours" {
+		t.Fatal("every 0 hours should pass through")
+	}
+	if FuzzyNormalizeSchedule("every 25 hours", id) != "every 25 hours" {
+		t.Fatal("every 25 hours should pass through")
+	}
+}
+
 func TestIsCronExpression(t *testing.T) {
 	t.Parallel()
 	if !IsCronExpression("0 0 * * *") {

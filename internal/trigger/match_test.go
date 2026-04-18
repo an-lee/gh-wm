@@ -304,6 +304,10 @@ func TestScheduleCronMatches(t *testing.T) {
 	if !ScheduleCronMatches(testTaskWithSchedule(p, "hourly"), hourlyCron) {
 		t.Fatal("hourly fuzzy cron")
 	}
+	every3Cron := schedule.FuzzyNormalizeSchedule("every 3 hours", p)
+	if !ScheduleCronMatches(testTaskWithSchedule(p, "every 3 hours"), every3Cron) {
+		t.Fatal("every 3 hours fuzzy cron")
+	}
 	if !ScheduleCronMatches(testTaskWithSchedule(p, "0  0   * * *"), "0 0 * * *") {
 		t.Fatal("whitespace normalization for raw cron")
 	}

@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"hash/fnv"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
 // cronFieldPattern matches valid single cron field tokens (GitHub Actions / POSIX cron).
 var cronFieldPattern = regexp.MustCompile(`^[\d\*\-/,]+$`)
+
+// everyNHoursPattern matches "every N hour(s)" for fuzzy schedule expansion (case-insensitive).
+var everyNHoursPattern = regexp.MustCompile(`(?i)^every\s+(\d+)\s+hours?$`)
 
 // IsCronExpression reports whether input looks like a 5-field GitHub Actions cron string.
 func IsCronExpression(input string) bool {
@@ -72,9 +76,28 @@ func weightedDailyTimeSlot(identifier string) (hour, minute int) {
 	return slot.hour, slot.minute
 }
 
+// scatteredHourlyMinute returns a deterministic minute in 5–54 for hourly / every-N-hours crons.
+func scatteredHourlyMinute(identifier string) int {
+	return stableHash(identifier, 50) + 5
+}
+
+// parseEveryNHours returns (n, true) if s matches "every N hour(s)" with a decimal N; otherwise (0, false).
+func parseEveryNHours(s string) (n int, matched bool) {
+	m := everyNHoursPattern.FindStringSubmatch(strings.TrimSpace(s))
+	if m == nil {
+		return 0, false
+	}
+	v, err := strconv.Atoi(m[1])
+	if err != nil {
+		return 0, true
+	}
+	return v, true
+}
+
 // FuzzyNormalizeSchedule converts gh-aw-style schedule keywords (daily, weekly, hourly) into a
 // deterministic cron using the same weighted pool and FNV-1a hashing as github/gh-aw.
 // identifier should be stable (e.g. task file path). Raw 5-field cron expressions are returned whitespace-normalized.
+// "every N hours" (1≤N≤23) expands to M */N * * * with scattered M; N=1 matches hourly; N=24 matches daily.
 func FuzzyNormalizeSchedule(scheduleStr, identifier string) string {
 	scheduleStr = strings.TrimSpace(scheduleStr)
 	if scheduleStr == "" {
@@ -82,6 +105,17 @@ func FuzzyNormalizeSchedule(scheduleStr, identifier string) string {
 	}
 	if IsCronExpression(scheduleStr) {
 		return strings.Join(strings.Fields(scheduleStr), " ")
+	}
+	if n, matched := parseEveryNHours(scheduleStr); matched {
+		if n < 1 || n > 24 {
+			return scheduleStr
+		}
+		if n == 24 {
+			h, m := weightedDailyTimeSlot(identifier)
+			return fmt.Sprintf("%d %d * * *", m, h)
+		}
+		minute := scatteredHourlyMinute(identifier)
+		return fmt.Sprintf("%d */%d * * *", minute, n)
 	}
 	switch strings.ToLower(scheduleStr) {
 	case "daily":
@@ -92,8 +126,7 @@ func FuzzyNormalizeSchedule(scheduleStr, identifier string) string {
 		h, m := weightedDailyTimeSlot(identifier)
 		return fmt.Sprintf("%d %d * * %d", m, h, dow)
 	case "hourly":
-		minute := stableHash(identifier, 50) + 5
-		return fmt.Sprintf("%d */1 * * *", minute)
+		return fmt.Sprintf("%d */1 * * *", scatteredHourlyMinute(identifier))
 	default:
 		return scheduleStr
 	}
