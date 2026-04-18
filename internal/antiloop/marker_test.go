@@ -70,7 +70,7 @@ func TestShouldSkipAutomatedSender_BotTypeHeuristic(t *testing.T) {
 		Payload: map[string]any{"sender": map[string]any{"type": " bot "}},
 	}
 	if !ShouldSkipAutomatedSender(ev) {
-		t.Fatal("sender type Bot should be skipped")
+		t.Fatal("sender type should be skipped after trimming and case-insensitive Bot match")
 	}
 }
 
@@ -81,7 +81,7 @@ func TestShouldSkipAutomatedSender_BotLoginSuffixHeuristic(t *testing.T) {
 		Payload: map[string]any{"sender": map[string]any{"login": "  CI-AUTOMATION[BOT]  "}},
 	}
 	if !ShouldSkipAutomatedSender(ev) {
-		t.Fatal("sender login ending with [bot] should be skipped")
+		t.Fatal("sender login ending with [bot] should be skipped regardless of case and surrounding whitespace")
 	}
 }
 
