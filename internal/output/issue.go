@@ -30,10 +30,8 @@ func runCreateIssue(ctx context.Context, tc *types.TaskContext, item ItemCreateI
 			assignees = append(assignees, a)
 		}
 	}
-	for _, l := range labels {
-		if err := ghclient.EnsureRepoLabel(ctx, tc.Repo, l); err != nil {
-			return err
-		}
+	if err := ghclient.EnsureRepoLabels(ctx, tc.Repo, labels); err != nil {
+		return err
 	}
 	return ghclient.CreateIssue(ctx, tc.Repo, t, body, labels, assignees)
 }

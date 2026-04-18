@@ -62,17 +62,12 @@ func tryCreatePullRequest(ctx context.Context, task *config.Task, tc *types.Task
 		return fmt.Errorf("git push: %w: %s", err, string(out))
 	}
 
-	for _, l := range labels {
-		if l == "" {
-			continue
-		}
-		repo, err := ghRepoForLabels(tc)
-		if err != nil {
-			return fmt.Errorf("ensure label %q: resolve repo: %w", l, err)
-		}
-		if err := ghclient.EnsureRepoLabel(ctx, repo, l); err != nil {
-			return fmt.Errorf("ensure label %q: %w", l, err)
-		}
+	repo, err := ghRepoForLabels(tc)
+	if err != nil {
+		return fmt.Errorf("ensure labels: resolve repo: %w", err)
+	}
+	if err := ghclient.EnsureRepoLabels(ctx, repo, labels); err != nil {
+		return fmt.Errorf("ensure labels: %w", err)
 	}
 
 	args := []string{"pr", "create", "--base", base, "--title", title, "--body", body}

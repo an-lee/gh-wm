@@ -28,6 +28,7 @@ func runAddLabelsFromItem(ctx context.Context, tc *types.TaskContext, p *Policy,
 	if n <= 0 || tc.Repo == "" {
 		return fmt.Errorf("add_labels: no issue/PR number or repository")
 	}
+	var allowed []string
 	for _, label := range item.Labels {
 		if label == "" {
 			continue
@@ -35,9 +36,12 @@ func runAddLabelsFromItem(ctx context.Context, tc *types.TaskContext, p *Policy,
 		if !p.LabelAllowed(KindAddLabels, label) {
 			return fmt.Errorf("add_labels: label %q not allowed by policy", label)
 		}
-		if err := ghclient.EnsureRepoLabel(ctx, tc.Repo, label); err != nil {
-			return err
-		}
+		allowed = append(allowed, label)
+	}
+	if err := ghclient.EnsureRepoLabels(ctx, tc.Repo, allowed); err != nil {
+		return err
+	}
+	for _, label := range allowed {
 		if err := ghclient.AddIssueLabel(tc.Repo, n, label); err != nil {
 			return err
 		}

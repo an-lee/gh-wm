@@ -4,54 +4,101 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"os/exec"
 	"strings"
 
 	"github.com/an-lee/gh-wm/internal/gh"
+	"github.com/an-lee/gh-wm/internal/retry"
 )
+
+const ghLabelListMax = 9999
 
 // EnsureRepoLabel creates the label in the repository if it does not already exist.
 func EnsureRepoLabel(ctx context.Context, repo, label string) error {
-	if strings.TrimSpace(label) == "" {
+	return EnsureRepoLabels(ctx, repo, []string{label})
+}
+
+// EnsureRepoLabels ensures each non-empty label exists on the repo (batched list + create missing).
+func EnsureRepoLabels(ctx context.Context, repo string, labels []string) error {
+	want := dedupeNonEmptyLabels(labels)
+	if len(want) == 0 {
 		return nil
 	}
 	if useREST() {
-		return gh.EnsureRepoLabel(ctx, repo, label)
+		return gh.EnsureRepoLabels(ctx, repo, want)
 	}
-	owner, name, err := splitRepo(repo)
+	existing, err := listRepoLabelsSubprocess(ctx, repo)
 	if err != nil {
 		return err
 	}
-	enc := url.PathEscape(label)
-	getPath := fmt.Sprintf("/repos/%s/%s/labels/%s", owner, name, enc)
-	cmd := exec.CommandContext(ctx, "gh", "api", getPath)
-	out, err := cmd.CombinedOutput()
-	if err == nil {
-		return nil
+	for _, l := range want {
+		if _, ok := existing[l]; ok {
+			continue
+		}
+		if err := createRepoLabelSubprocess(ctx, repo, l); err != nil {
+			return fmt.Errorf("ensure label %q: %w", l, err)
+		}
+		existing[l] = struct{}{}
 	}
-	if !labelGetNotFound(string(out)) {
-		return fmt.Errorf("gh api get label %q: %w: %s", label, err, strings.TrimSpace(string(out)))
-	}
-	create := exec.CommandContext(ctx, "gh", "label", "create", label, "--repo", repo, "--color", gh.DefaultRepoLabelColor)
-	createOut, err := create.CombinedOutput()
-	if err == nil {
-		return nil
-	}
-	s := string(createOut)
-	if strings.Contains(strings.ToLower(s), "already exists") {
-		return nil
-	}
-	return fmt.Errorf("gh label create %q: %w: %s", label, err, strings.TrimSpace(s))
+	return nil
 }
 
-func labelGetNotFound(apiOut string) bool {
-	s := strings.TrimSpace(apiOut)
-	var msg struct {
-		Message string `json:"message"`
+func dedupeNonEmptyLabels(in []string) []string {
+	seen := make(map[string]struct{})
+	var out []string
+	for _, l := range in {
+		l = strings.TrimSpace(l)
+		if l == "" {
+			continue
+		}
+		if _, ok := seen[l]; ok {
+			continue
+		}
+		seen[l] = struct{}{}
+		out = append(out, l)
 	}
-	if json.Unmarshal([]byte(s), &msg) == nil && strings.EqualFold(strings.TrimSpace(msg.Message), "Not Found") {
-		return true
+	return out
+}
+
+func listRepoLabelsSubprocess(ctx context.Context, repo string) (map[string]struct{}, error) {
+	var names map[string]struct{}
+	err := retry.WithAttempts(ctx, 3, func() error {
+		cmd := exec.CommandContext(ctx, "gh", "label", "list", "--repo", repo, "--json", "name", "--limit", fmt.Sprintf("%d", ghLabelListMax))
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("gh label list: %w: %s", err, strings.TrimSpace(string(out)))
+		}
+		var rows []struct {
+			Name string `json:"name"`
+		}
+		if err := json.Unmarshal(out, &rows); err != nil {
+			return fmt.Errorf("parse gh label list json: %w", err)
+		}
+		names = make(map[string]struct{}, len(rows))
+		for _, r := range rows {
+			if r.Name != "" {
+				names[r.Name] = struct{}{}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	return strings.Contains(strings.ToLower(s), "not found") && strings.Contains(s, "404")
+	return names, nil
+}
+
+func createRepoLabelSubprocess(ctx context.Context, repo, label string) error {
+	return retry.WithAttempts(ctx, 3, func() error {
+		cmd := exec.CommandContext(ctx, "gh", "label", "create", label, "--repo", repo, "--color", gh.DefaultRepoLabelColor)
+		out, err := cmd.CombinedOutput()
+		if err == nil {
+			return nil
+		}
+		s := string(out)
+		if strings.Contains(strings.ToLower(s), "already exists") {
+			return nil
+		}
+		return fmt.Errorf("gh label create %q: %w: %s", label, err, strings.TrimSpace(s))
+	})
 }
