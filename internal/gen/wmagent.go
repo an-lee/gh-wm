@@ -81,11 +81,11 @@ jobs:
           printf '%s' "$EVENT_JSON" > .wm/runs/github-event.json
           gh wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json --agent-only
       - name: Pack workspace for outputs job
-        run: tar -czf /tmp/wm-workspace.tar.gz -C "$GITHUB_WORKSPACE" .
+        run: tar -czf "{{ "${{" }} runner.temp {{ "}}" }}/wm-workspace.tar.gz" -C "$GITHUB_WORKSPACE" .
       - uses: actions/upload-artifact@v4
         with:
           name: wm-workspace-{{ "${{" }} matrix.task {{ "}}" }}-{{ "${{" }} github.run_id {{ "}}" }}
-          path: /tmp/wm-workspace.tar.gz
+          path: {{ "${{" }} runner.temp {{ "}}" }}/wm-workspace.tar.gz
 
   run_outputs:
     needs: [resolve, run_agent]
