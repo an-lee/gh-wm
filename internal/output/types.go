@@ -5,19 +5,22 @@ package output
 type OutputKind string
 
 const (
-	KindCreatePullRequest OutputKind = "create_pull_request"
-	KindAddComment        OutputKind = "add_comment"
-	KindAddLabels         OutputKind = "add_labels"
-	KindRemoveLabels      OutputKind = "remove_labels"
-	KindCreateIssue       OutputKind = "create_issue"
-	KindUpdatePullRequest OutputKind = "update_pull_request"
-	KindUpdateIssue       OutputKind = "update_issue"
-	KindCloseIssue        OutputKind = "close_issue"
-	KindClosePullRequest  OutputKind = "close_pull_request"
-	KindAddReviewer       OutputKind = "add_reviewer"
-	KindNoop              OutputKind = "noop"
-	KindMissingTool       OutputKind = "missing_tool"
-	KindMissingData       OutputKind = "missing_data"
+	KindCreatePullRequest               OutputKind = "create_pull_request"
+	KindAddComment                      OutputKind = "add_comment"
+	KindAddLabels                       OutputKind = "add_labels"
+	KindRemoveLabels                    OutputKind = "remove_labels"
+	KindCreateIssue                     OutputKind = "create_issue"
+	KindUpdatePullRequest               OutputKind = "update_pull_request"
+	KindUpdateIssue                     OutputKind = "update_issue"
+	KindCloseIssue                      OutputKind = "close_issue"
+	KindClosePullRequest                OutputKind = "close_pull_request"
+	KindAddReviewer                     OutputKind = "add_reviewer"
+	KindCreatePullRequestReviewComment  OutputKind = "create_pull_request_review_comment"
+	KindReplyToPullRequestReviewComment OutputKind = "reply_to_pull_request_review_comment"
+	KindResolvePullRequestReviewThread  OutputKind = "resolve_pull_request_review_thread"
+	KindNoop                            OutputKind = "noop"
+	KindMissingTool                     OutputKind = "missing_tool"
+	KindMissingData                     OutputKind = "missing_data"
 )
 
 // AgentOutputFile is the root JSON shape written to WM_OUTPUT_FILE (output.json).
@@ -84,6 +87,30 @@ type ItemClosePullRequest struct {
 type ItemAddReviewer struct {
 	Reviewers []string `json:"reviewers"`
 	Target    int      `json:"target"`
+}
+
+// ItemCreatePullRequestReviewComment fields for create_pull_request_review_comment (inline review comment).
+type ItemCreatePullRequestReviewComment struct {
+	Body      string `json:"body"`
+	CommitID  string `json:"commit_id"`
+	Path      string `json:"path"`
+	Line      int    `json:"line"`
+	Side      string `json:"side"` // LEFT or RIGHT
+	StartLine int    `json:"start_line,omitempty"`
+	Target    int    `json:"target"`
+}
+
+// ItemReplyToPullRequestReviewComment fields for reply_to_pull_request_review_comment.
+type ItemReplyToPullRequestReviewComment struct {
+	Body      string `json:"body"`
+	CommentID int    `json:"comment_id"`
+	Target    int    `json:"target"`
+}
+
+// ItemResolvePullRequestReviewThread fields for resolve_pull_request_review_thread (GraphQL thread id).
+type ItemResolvePullRequestReviewThread struct {
+	ThreadID string `json:"thread_id"`
+	Target   int    `json:"target"`
 }
 
 // ItemNoop records completion without GitHub writes.

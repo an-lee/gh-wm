@@ -296,6 +296,53 @@ func validateEmitPayload(kind OutputKind, task *config.Task, tc *types.TaskConte
 			return fmt.Errorf("emit: add_reviewer: no PR number or GITHUB_REPOSITORY")
 		}
 		return nil
+	case KindCreatePullRequestReviewComment:
+		if strings.TrimSpace(scalar.StringField(item, "body")) == "" {
+			return fmt.Errorf("emit: create_pull_request_review_comment: empty body")
+		}
+		if strings.TrimSpace(scalar.StringField(item, "commit_id")) == "" {
+			return fmt.Errorf("emit: create_pull_request_review_comment: empty commit_id")
+		}
+		if strings.TrimSpace(scalar.StringField(item, "path")) == "" {
+			return fmt.Errorf("emit: create_pull_request_review_comment: empty path")
+		}
+		if scalar.IntField(item, "line") <= 0 {
+			return fmt.Errorf("emit: create_pull_request_review_comment: line must be positive")
+		}
+		if _, err := normalizeReviewCommentSide(scalar.StringField(item, "side")); err != nil {
+			return fmt.Errorf("emit: create_pull_request_review_comment: %w", err)
+		}
+		start := scalar.IntField(item, "start_line")
+		line := scalar.IntField(item, "line")
+		if start > 0 && start > line {
+			return fmt.Errorf("emit: create_pull_request_review_comment: start_line must be <= line")
+		}
+		target := scalar.IntField(item, "target")
+		if resolvePRTarget(tc, target) <= 0 || tc == nil || strings.TrimSpace(tc.Repo) == "" {
+			return fmt.Errorf("emit: create_pull_request_review_comment: no PR number or GITHUB_REPOSITORY")
+		}
+		return nil
+	case KindReplyToPullRequestReviewComment:
+		if strings.TrimSpace(scalar.StringField(item, "body")) == "" {
+			return fmt.Errorf("emit: reply_to_pull_request_review_comment: empty body")
+		}
+		if scalar.IntField(item, "comment_id") <= 0 {
+			return fmt.Errorf("emit: reply_to_pull_request_review_comment: invalid comment_id")
+		}
+		target := scalar.IntField(item, "target")
+		if resolvePRTarget(tc, target) <= 0 || tc == nil || strings.TrimSpace(tc.Repo) == "" {
+			return fmt.Errorf("emit: reply_to_pull_request_review_comment: no PR number or GITHUB_REPOSITORY")
+		}
+		return nil
+	case KindResolvePullRequestReviewThread:
+		if strings.TrimSpace(scalar.StringField(item, "thread_id")) == "" {
+			return fmt.Errorf("emit: resolve_pull_request_review_thread: empty thread_id")
+		}
+		target := scalar.IntField(item, "target")
+		if resolvePRTarget(tc, target) <= 0 || tc == nil || strings.TrimSpace(tc.Repo) == "" {
+			return fmt.Errorf("emit: resolve_pull_request_review_thread: no PR number or GITHUB_REPOSITORY")
+		}
+		return nil
 	default:
 		return fmt.Errorf("emit: unknown kind %q", kind)
 	}

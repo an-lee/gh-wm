@@ -20,6 +20,9 @@ func init() {
 	registerKind(KindCloseIssue, execKindCloseIssue)
 	registerKind(KindClosePullRequest, execKindClosePullRequest)
 	registerKind(KindAddReviewer, execKindAddReviewer)
+	registerKind(KindCreatePullRequestReviewComment, execKindCreatePullRequestReviewComment)
+	registerKind(KindReplyToPullRequestReviewComment, execKindReplyToPullRequestReviewComment)
+	registerKind(KindResolvePullRequestReviewThread, execKindResolvePullRequestReviewThread)
 }
 
 func execKindCreatePullRequest(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext, p *Policy, raw map[string]any) error {
@@ -84,4 +87,19 @@ func execKindClosePullRequest(ctx context.Context, _ *config.GlobalConfig, _ *co
 func execKindAddReviewer(ctx context.Context, _ *config.GlobalConfig, _ *config.Task, tc *types.TaskContext, _ *Policy, raw map[string]any) error {
 	item := mapToAddReviewer(raw)
 	return runAddReviewers(ctx, tc, item)
+}
+
+func execKindCreatePullRequestReviewComment(ctx context.Context, _ *config.GlobalConfig, _ *config.Task, tc *types.TaskContext, _ *Policy, raw map[string]any) error {
+	item := mapToCreatePullRequestReviewComment(raw)
+	return runCreatePullRequestReviewComment(ctx, tc, item)
+}
+
+func execKindReplyToPullRequestReviewComment(ctx context.Context, _ *config.GlobalConfig, _ *config.Task, tc *types.TaskContext, _ *Policy, raw map[string]any) error {
+	item := mapToReplyToPullRequestReviewComment(raw)
+	return runReplyToPullRequestReviewComment(ctx, tc, item)
+}
+
+func execKindResolvePullRequestReviewThread(ctx context.Context, _ *config.GlobalConfig, _ *config.Task, tc *types.TaskContext, _ *Policy, raw map[string]any) error {
+	item := mapToResolvePullRequestReviewThread(raw)
+	return runResolvePullRequestReviewThread(ctx, tc, item)
 }

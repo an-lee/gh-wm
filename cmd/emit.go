@@ -36,6 +36,9 @@ func init() {
 		emitCloseIssueCmd,
 		emitClosePRCmd,
 		emitAddReviewerCmd,
+		emitCreatePullRequestReviewCommentCmd,
+		emitReplyPullRequestReviewCommentCmd,
+		emitResolvePullRequestReviewThreadCmd,
 		emitMissingToolCmd,
 		emitMissingDataCmd,
 	)
@@ -84,6 +87,29 @@ func init() {
 	emitAddReviewerCmd.Flags().StringSlice("reviewers", nil, "logins (repeat or comma-separated)")
 	_ = emitAddReviewerCmd.MarkFlagRequired("reviewers")
 	emitAddReviewerCmd.Flags().Int("target", 0, "PR number (default: WM_PR_NUMBER / WM_ISSUE_NUMBER)")
+
+	emitCreatePullRequestReviewCommentCmd.Flags().String("body", "", "comment body (required)")
+	_ = emitCreatePullRequestReviewCommentCmd.MarkFlagRequired("body")
+	emitCreatePullRequestReviewCommentCmd.Flags().String("commit-id", "", "commit SHA (required)")
+	_ = emitCreatePullRequestReviewCommentCmd.MarkFlagRequired("commit-id")
+	emitCreatePullRequestReviewCommentCmd.Flags().String("path", "", "file path in the commit (required)")
+	_ = emitCreatePullRequestReviewCommentCmd.MarkFlagRequired("path")
+	emitCreatePullRequestReviewCommentCmd.Flags().Int("line", 0, "line number in the diff (required)")
+	_ = emitCreatePullRequestReviewCommentCmd.MarkFlagRequired("line")
+	emitCreatePullRequestReviewCommentCmd.Flags().String("side", "", "LEFT or RIGHT (required)")
+	_ = emitCreatePullRequestReviewCommentCmd.MarkFlagRequired("side")
+	emitCreatePullRequestReviewCommentCmd.Flags().Int("start-line", 0, "for multi-line comments; must be <= line")
+	emitCreatePullRequestReviewCommentCmd.Flags().Int("target", 0, "PR number (default: WM_PR_NUMBER / WM_ISSUE_NUMBER)")
+
+	emitReplyPullRequestReviewCommentCmd.Flags().String("body", "", "reply body (required)")
+	_ = emitReplyPullRequestReviewCommentCmd.MarkFlagRequired("body")
+	emitReplyPullRequestReviewCommentCmd.Flags().Int("comment-id", 0, "parent review comment id (required)")
+	_ = emitReplyPullRequestReviewCommentCmd.MarkFlagRequired("comment-id")
+	emitReplyPullRequestReviewCommentCmd.Flags().Int("target", 0, "PR number (default: WM_PR_NUMBER / WM_ISSUE_NUMBER)")
+
+	emitResolvePullRequestReviewThreadCmd.Flags().String("thread-id", "", "GraphQL review thread id (required)")
+	_ = emitResolvePullRequestReviewThreadCmd.MarkFlagRequired("thread-id")
+	emitResolvePullRequestReviewThreadCmd.Flags().Int("target", 0, "PR number (default: WM_PR_NUMBER / WM_ISSUE_NUMBER)")
 
 	emitMissingToolCmd.Flags().String("tool", "", "tool or capability name")
 	emitMissingToolCmd.Flags().String("reason", "", "why it is unavailable")
@@ -306,6 +332,52 @@ var emitAddReviewerCmd = &cobra.Command{
 			item["reviewers"] = arr
 		}
 		return runEmit(cmd.Context(), output.KindAddReviewer, item)
+	},
+}
+
+var emitCreatePullRequestReviewCommentCmd = &cobra.Command{
+	Use:   "create-pull-request-review-comment",
+	Short: "Request an inline pull request review comment on a diff line",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		body, _ := cmd.Flags().GetString("body")
+		commitID, _ := cmd.Flags().GetString("commit-id")
+		path, _ := cmd.Flags().GetString("path")
+		line, _ := cmd.Flags().GetInt("line")
+		side, _ := cmd.Flags().GetString("side")
+		startLine, _ := cmd.Flags().GetInt("start-line")
+		target, _ := cmd.Flags().GetInt("target")
+		item := map[string]any{
+			"body": body, "commit_id": commitID, "path": path, "line": line, "side": side, "target": target,
+		}
+		if cmd.Flags().Changed("start-line") && startLine > 0 {
+			item["start_line"] = startLine
+		}
+		return runEmit(cmd.Context(), output.KindCreatePullRequestReviewComment, item)
+	},
+}
+
+var emitReplyPullRequestReviewCommentCmd = &cobra.Command{
+	Use:   "reply-to-pull-request-review-comment",
+	Short: "Request a reply to an existing pull request review comment",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		body, _ := cmd.Flags().GetString("body")
+		commentID, _ := cmd.Flags().GetInt("comment-id")
+		target, _ := cmd.Flags().GetInt("target")
+		return runEmit(cmd.Context(), output.KindReplyToPullRequestReviewComment, map[string]any{
+			"body": body, "comment_id": commentID, "target": target,
+		})
+	},
+}
+
+var emitResolvePullRequestReviewThreadCmd = &cobra.Command{
+	Use:   "resolve-pull-request-review-thread",
+	Short: "Request resolving a pull request review thread (GraphQL thread id)",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		threadID, _ := cmd.Flags().GetString("thread-id")
+		target, _ := cmd.Flags().GetInt("target")
+		return runEmit(cmd.Context(), output.KindResolvePullRequestReviewThread, map[string]any{
+			"thread_id": threadID, "target": target,
+		})
 	},
 }
 

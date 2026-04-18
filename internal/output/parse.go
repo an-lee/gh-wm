@@ -118,6 +118,12 @@ func ParseOutputKind(s string) OutputKind {
 		return KindClosePullRequest
 	case "add_reviewer":
 		return KindAddReviewer
+	case "create_pull_request_review_comment":
+		return KindCreatePullRequestReviewComment
+	case "reply_to_pull_request_review_comment":
+		return KindReplyToPullRequestReviewComment
+	case "resolve_pull_request_review_thread":
+		return KindResolvePullRequestReviewThread
 	case "noop":
 		return KindNoop
 	case "missing_tool":
@@ -196,6 +202,33 @@ func mapToAddReviewer(m map[string]any) ItemAddReviewer {
 	return ItemAddReviewer{
 		Reviewers: scalar.StringSliceField(m, "reviewers"),
 		Target:    scalar.IntField(m, "target"),
+	}
+}
+
+func mapToCreatePullRequestReviewComment(m map[string]any) ItemCreatePullRequestReviewComment {
+	return ItemCreatePullRequestReviewComment{
+		Body:      scalar.StringField(m, "body"),
+		CommitID:  scalar.StringField(m, "commit_id"),
+		Path:      scalar.StringField(m, "path"),
+		Line:      scalar.IntField(m, "line"),
+		Side:      scalar.StringField(m, "side"),
+		StartLine: scalar.IntField(m, "start_line"),
+		Target:    scalar.IntField(m, "target"),
+	}
+}
+
+func mapToReplyToPullRequestReviewComment(m map[string]any) ItemReplyToPullRequestReviewComment {
+	return ItemReplyToPullRequestReviewComment{
+		Body:      scalar.StringField(m, "body"),
+		CommentID: scalar.IntField(m, "comment_id"),
+		Target:    scalar.IntField(m, "target"),
+	}
+}
+
+func mapToResolvePullRequestReviewThread(m map[string]any) ItemResolvePullRequestReviewThread {
+	return ItemResolvePullRequestReviewThread{
+		ThreadID: scalar.StringField(m, "thread_id"),
+		Target:   scalar.IntField(m, "target"),
 	}
 }
 

@@ -119,6 +119,51 @@ func TestValidateAndAppend_CloseIssueInvalidStateReason(t *testing.T) {
 	}
 }
 
+func TestValidateAndAppend_CreatePullRequestReviewCommentInvalidSide(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "out.jsonl")
+	g := &config.GlobalConfig{}
+	task := &config.Task{
+		Name: "t",
+		Frontmatter: map[string]any{
+			"safe-outputs": map[string]any{
+				"create-pull-request-review-comment": map[string]any{"max": 1},
+			},
+		},
+	}
+	tc := &types.TaskContext{Repo: "o/r", RepoPath: dir, PRNumber: 9}
+	item := map[string]any{
+		"body": "hi", "commit_id": "abc1234", "path": "f.go", "line": 3, "side": "MIDDLE", "target": 0,
+	}
+	err := ValidateAndAppend(context.Background(), g, task, tc, KindCreatePullRequestReviewComment, item, path)
+	if err == nil {
+		t.Fatal("expected validation error for side")
+	}
+}
+
+func TestValidateAndAppend_CreatePullRequestReviewCommentOK(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "out.jsonl")
+	g := &config.GlobalConfig{}
+	task := &config.Task{
+		Name: "t",
+		Frontmatter: map[string]any{
+			"safe-outputs": map[string]any{
+				"create-pull-request-review-comment": map[string]any{"max": 1},
+			},
+		},
+	}
+	tc := &types.TaskContext{Repo: "o/r", RepoPath: dir, PRNumber: 9}
+	item := map[string]any{
+		"body": "hi", "commit_id": "abc1234", "path": "f.go", "line": 3, "side": "right", "target": 0,
+	}
+	if err := ValidateAndAppend(context.Background(), g, task, tc, KindCreatePullRequestReviewComment, item, path); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestValidateAndAppend_SkipsMalformedExistingLine(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

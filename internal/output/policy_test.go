@@ -27,6 +27,9 @@ func TestKindToFrontmatter_AllKinds(t *testing.T) {
 		{KindCloseIssue, "close-issue"},
 		{KindClosePullRequest, "close-pull-request"},
 		{KindAddReviewer, "add-reviewer"},
+		{KindCreatePullRequestReviewComment, "create-pull-request-review-comment"},
+		{KindReplyToPullRequestReviewComment, "reply-to-pull-request-review-comment"},
+		{KindResolvePullRequestReviewThread, "resolve-pull-request-review-thread"},
 		{KindNoop, "noop"},
 	}
 	for _, tc := range cases {
@@ -66,6 +69,9 @@ func TestDefaultMaxPerKind_AllKinds(t *testing.T) {
 		{KindCloseIssue, 1},
 		{KindClosePullRequest, 10},
 		{KindAddReviewer, 3},
+		{KindCreatePullRequestReviewComment, 5},
+		{KindReplyToPullRequestReviewComment, 10},
+		{KindResolvePullRequestReviewThread, 5},
 		{KindNoop, 10},
 	}
 	for _, tc := range cases {
@@ -241,6 +247,7 @@ func TestAllowed_TaskWithoutSafeOutputs(t *testing.T) {
 	for _, kind := range []OutputKind{
 		KindCreatePullRequest, KindAddComment, KindAddLabels, KindRemoveLabels, KindCreateIssue,
 		KindUpdatePullRequest, KindUpdateIssue, KindCloseIssue, KindClosePullRequest, KindAddReviewer,
+		KindCreatePullRequestReviewComment, KindReplyToPullRequestReviewComment, KindResolvePullRequestReviewThread,
 	} {
 		if p.Allowed(kind) {
 			t.Fatalf("task without safe-outputs should not allow %s", kind)

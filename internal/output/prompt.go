@@ -31,6 +31,12 @@ func emitSubcommand(kind OutputKind) string {
 		return "close-pull-request"
 	case KindAddReviewer:
 		return "add-reviewer"
+	case KindCreatePullRequestReviewComment:
+		return "create-pull-request-review-comment"
+	case KindReplyToPullRequestReviewComment:
+		return "reply-to-pull-request-review-comment"
+	case KindResolvePullRequestReviewThread:
+		return "resolve-pull-request-review-thread"
 	case KindNoop:
 		return "noop"
 	case KindMissingTool:
@@ -92,6 +98,9 @@ func AvailableOutputsSection(glob *config.GlobalConfig, task *config.Task) strin
 		{fmCloseIssue, KindCloseIssue, "optional `--comment`, `--state-reason`, optional `--target`"},
 		{fmClosePullRequest, KindClosePullRequest, "optional `--comment`, optional `--target`"},
 		{fmAddReviewer, KindAddReviewer, "`--reviewers` (repeat or comma-separated), optional `--target`"},
+		{fmCreatePullRequestReviewComment, KindCreatePullRequestReviewComment, "`--body`, `--commit-id`, `--path`, `--line`, `--side` (LEFT|RIGHT), optional `--start-line`, optional `--target`"},
+		{fmReplyToPullRequestReviewComment, KindReplyToPullRequestReviewComment, "`--body`, `--comment-id`, optional `--target`"},
+		{fmResolvePullRequestReviewThread, KindResolvePullRequestReviewThread, "`--thread-id`, optional `--target`"},
 	}
 
 	for _, row := range order {

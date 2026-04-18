@@ -11,17 +11,20 @@ import (
 
 // Frontmatter keys (dash form) used in safe-outputs:
 const (
-	fmCreatePullRequest = "create-pull-request"
-	fmAddComment        = "add-comment"
-	fmAddLabels         = "add-labels"
-	fmRemoveLabels      = "remove-labels"
-	fmCreateIssue       = "create-issue"
-	fmUpdatePullRequest = "update-pull-request"
-	fmUpdateIssue       = "update-issue"
-	fmCloseIssue        = "close-issue"
-	fmClosePullRequest  = "close-pull-request"
-	fmAddReviewer       = "add-reviewer"
-	fmNoop              = "noop"
+	fmCreatePullRequest               = "create-pull-request"
+	fmAddComment                      = "add-comment"
+	fmAddLabels                       = "add-labels"
+	fmRemoveLabels                    = "remove-labels"
+	fmCreateIssue                     = "create-issue"
+	fmUpdatePullRequest               = "update-pull-request"
+	fmUpdateIssue                     = "update-issue"
+	fmCloseIssue                      = "close-issue"
+	fmClosePullRequest                = "close-pull-request"
+	fmAddReviewer                     = "add-reviewer"
+	fmCreatePullRequestReviewComment  = "create-pull-request-review-comment"
+	fmReplyToPullRequestReviewComment = "reply-to-pull-request-review-comment"
+	fmResolvePullRequestReviewThread  = "resolve-pull-request-review-thread"
+	fmNoop                            = "noop"
 )
 
 // kindToFrontmatter maps JSON type (underscore) to frontmatter key (dash).
@@ -47,6 +50,12 @@ func kindToFrontmatter(kind OutputKind) string {
 		return fmClosePullRequest
 	case KindAddReviewer:
 		return fmAddReviewer
+	case KindCreatePullRequestReviewComment:
+		return fmCreatePullRequestReviewComment
+	case KindReplyToPullRequestReviewComment:
+		return fmReplyToPullRequestReviewComment
+	case KindResolvePullRequestReviewThread:
+		return fmResolvePullRequestReviewThread
 	case KindNoop:
 		return fmNoop
 	default:
@@ -64,6 +73,10 @@ func defaultMaxPerKind(kind OutputKind) int {
 		return 10
 	case KindAddReviewer:
 		return 3
+	case KindCreatePullRequestReviewComment, KindResolvePullRequestReviewThread:
+		return 5
+	case KindReplyToPullRequestReviewComment:
+		return 10
 	case KindAddLabels, KindRemoveLabels:
 		return 3
 	case KindNoop:
