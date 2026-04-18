@@ -11,12 +11,14 @@ import (
 
 // Frontmatter keys (dash form) used in safe-outputs:
 const (
-	fmCreatePullRequest = "create-pull-request"
-	fmAddComment        = "add-comment"
-	fmAddLabels         = "add-labels"
-	fmRemoveLabels      = "remove-labels"
-	fmCreateIssue       = "create-issue"
-	fmNoop              = "noop"
+	fmCreatePullRequest              = "create-pull-request"
+	fmAddComment                     = "add-comment"
+	fmAddLabels                      = "add-labels"
+	fmRemoveLabels                   = "remove-labels"
+	fmCreateIssue                    = "create-issue"
+	fmCreatePullRequestReviewComment = "create-pull-request-review-comment"
+	fmSubmitPullRequestReview        = "submit-pull-request-review"
+	fmNoop                           = "noop"
 )
 
 // kindToFrontmatter maps JSON type (underscore) to frontmatter key (dash).
@@ -32,6 +34,10 @@ func kindToFrontmatter(kind OutputKind) string {
 		return fmRemoveLabels
 	case KindCreateIssue:
 		return fmCreateIssue
+	case KindCreatePullRequestReviewComment:
+		return fmCreatePullRequestReviewComment
+	case KindSubmitPullRequestReview:
+		return fmSubmitPullRequestReview
 	case KindNoop:
 		return fmNoop
 	default:
@@ -42,8 +48,10 @@ func kindToFrontmatter(kind OutputKind) string {
 // defaultMaxPerKind when frontmatter omits max:
 func defaultMaxPerKind(kind OutputKind) int {
 	switch kind {
-	case KindCreatePullRequest, KindAddComment, KindCreateIssue:
+	case KindCreatePullRequest, KindAddComment, KindCreateIssue, KindSubmitPullRequestReview:
 		return 1
+	case KindCreatePullRequestReviewComment:
+		return 5
 	case KindAddLabels, KindRemoveLabels:
 		return 3
 	case KindNoop:

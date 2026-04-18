@@ -35,7 +35,7 @@ exit 1
 func TestRunCommentFromItem_Issue(t *testing.T) {
 	installFakeGHForComment(t)
 	tc := &types.TaskContext{RepoPath: t.TempDir(), Repo: "o/r", IssueNumber: 1}
-	if err := runCommentFromItem(context.Background(), tc, ItemAddComment{Body: "hello"}); err != nil {
+	if err := runCommentFromItem(context.Background(), nil, tc, ItemAddComment{Body: "hello"}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -43,14 +43,14 @@ func TestRunCommentFromItem_Issue(t *testing.T) {
 func TestRunCommentFromItem_PR(t *testing.T) {
 	installFakeGHForComment(t)
 	tc := &types.TaskContext{RepoPath: t.TempDir(), Repo: "o/r", PRNumber: 2}
-	if err := runCommentFromItem(context.Background(), tc, ItemAddComment{Body: "hello"}); err != nil {
+	if err := runCommentFromItem(context.Background(), nil, tc, ItemAddComment{Body: "hello"}); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestRunCommentFromItem_EmptyBody(t *testing.T) {
 	tc := &types.TaskContext{RepoPath: t.TempDir(), Repo: "o/r", IssueNumber: 1}
-	if err := runCommentFromItem(context.Background(), tc, ItemAddComment{Body: ""}); err == nil {
+	if err := runCommentFromItem(context.Background(), nil, tc, ItemAddComment{Body: ""}); err == nil {
 		t.Fatal("expected error")
 	}
 }

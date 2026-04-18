@@ -5,14 +5,16 @@ package output
 type OutputKind string
 
 const (
-	KindCreatePullRequest OutputKind = "create_pull_request"
-	KindAddComment        OutputKind = "add_comment"
-	KindAddLabels         OutputKind = "add_labels"
-	KindRemoveLabels      OutputKind = "remove_labels"
-	KindCreateIssue       OutputKind = "create_issue"
-	KindNoop              OutputKind = "noop"
-	KindMissingTool       OutputKind = "missing_tool"
-	KindMissingData       OutputKind = "missing_data"
+	KindCreatePullRequest              OutputKind = "create_pull_request"
+	KindAddComment                     OutputKind = "add_comment"
+	KindAddLabels                      OutputKind = "add_labels"
+	KindRemoveLabels                   OutputKind = "remove_labels"
+	KindCreateIssue                    OutputKind = "create_issue"
+	KindCreatePullRequestReviewComment OutputKind = "create_pull_request_review_comment"
+	KindSubmitPullRequestReview        OutputKind = "submit_pull_request_review"
+	KindNoop                           OutputKind = "noop"
+	KindMissingTool                    OutputKind = "missing_tool"
+	KindMissingData                    OutputKind = "missing_data"
 )
 
 // AgentOutputFile is the root JSON shape written to WM_OUTPUT_FILE (output.json).
@@ -46,6 +48,24 @@ type ItemCreateIssue struct {
 	Body      string   `json:"body"`
 	Labels    []string `json:"labels,omitempty"`
 	Assignees []string `json:"assignees,omitempty"`
+}
+
+// ItemCreatePullRequestReviewComment fields for inline PR review comments.
+type ItemCreatePullRequestReviewComment struct {
+	Body     string `json:"body"`
+	Path     string `json:"path"`
+	Line     int    `json:"line"`
+	Side     string `json:"side,omitempty"`
+	CommitID string `json:"commit_id,omitempty"`
+	Target   int    `json:"target,omitempty"`
+}
+
+// ItemSubmitPullRequestReview fields for submitting a PR review.
+type ItemSubmitPullRequestReview struct {
+	Event    string `json:"event"`
+	Body     string `json:"body,omitempty"`
+	CommitID string `json:"commit_id,omitempty"`
+	Target   int    `json:"target,omitempty"`
 }
 
 // ItemNoop records completion without GitHub writes.

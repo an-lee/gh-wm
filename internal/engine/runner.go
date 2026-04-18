@@ -167,6 +167,7 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 	}
 
 	applyOnReactionBestEffort(opts, task, tc, result)
+	_ = output.PostConfiguredStatusComment(task, tc, "run-started", "")
 
 	if task.HasSafeOutputKey("create-pull-request") {
 		prev, newBranch, created, prepErr := gitbranch.PrepareFeatureForPR(repoRoot, taskName)

@@ -108,6 +108,10 @@ func ParseOutputKind(s string) OutputKind {
 		return KindRemoveLabels
 	case "create_issue":
 		return KindCreateIssue
+	case "create_pull_request_review_comment":
+		return KindCreatePullRequestReviewComment
+	case "submit_pull_request_review":
+		return KindSubmitPullRequestReview
 	case "noop":
 		return KindNoop
 	case "missing_tool":
@@ -166,5 +170,25 @@ func mapToMissingData(m map[string]any) ItemMissingData {
 	return ItemMissingData{
 		What:   scalar.StringField(m, "what"),
 		Reason: scalar.StringField(m, "reason"),
+	}
+}
+
+func mapToCreatePullRequestReviewComment(m map[string]any) ItemCreatePullRequestReviewComment {
+	return ItemCreatePullRequestReviewComment{
+		Body:     scalar.StringField(m, "body"),
+		Path:     scalar.StringField(m, "path"),
+		Line:     scalar.IntField(m, "line"),
+		Side:     scalar.StringField(m, "side"),
+		CommitID: scalar.StringField(m, "commit_id"),
+		Target:   scalar.IntField(m, "target"),
+	}
+}
+
+func mapToSubmitPullRequestReview(m map[string]any) ItemSubmitPullRequestReview {
+	return ItemSubmitPullRequestReview{
+		Event:    scalar.StringField(m, "event"),
+		Body:     scalar.StringField(m, "body"),
+		CommitID: scalar.StringField(m, "commit_id"),
+		Target:   scalar.IntField(m, "target"),
 	}
 }

@@ -21,6 +21,10 @@ func emitSubcommand(kind OutputKind) string {
 		return "remove-labels"
 	case KindCreateIssue:
 		return "create-issue"
+	case KindCreatePullRequestReviewComment:
+		return "create-pull-request-review-comment"
+	case KindSubmitPullRequestReview:
+		return "submit-pull-request-review"
 	case KindNoop:
 		return "noop"
 	case KindMissingTool:
@@ -77,6 +81,8 @@ func AvailableOutputsSection(glob *config.GlobalConfig, task *config.Task) strin
 		{fmAddLabels, KindAddLabels, "`--labels` (repeat or comma-separated), optional `--target`"},
 		{fmRemoveLabels, KindRemoveLabels, "`--labels`, optional `--target`"},
 		{fmCreateIssue, KindCreateIssue, "`--title`, optional `--body`, `--labels`, `--assignees`"},
+		{fmCreatePullRequestReviewComment, KindCreatePullRequestReviewComment, "`--body`, `--path`, `--line`, optional `--side`, `--commit`, `--target`"},
+		{fmSubmitPullRequestReview, KindSubmitPullRequestReview, "`--event` (APPROVE|REQUEST_CHANGES|COMMENT), optional `--body`, `--commit`, `--target`"},
 	}
 
 	for _, row := range order {

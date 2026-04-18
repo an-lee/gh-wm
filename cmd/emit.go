@@ -31,6 +31,8 @@ func init() {
 		emitRemoveLabelsCmd,
 		emitCreateIssueCmd,
 		emitCreatePRCmd,
+		emitCreatePRReviewCommentCmd,
+		emitSubmitPRReviewCmd,
 		emitMissingToolCmd,
 		emitMissingDataCmd,
 	)
@@ -60,6 +62,22 @@ func init() {
 	emitCreatePRCmd.Flags().String("body", "", "PR body")
 	emitCreatePRCmd.Flags().Bool("draft", false, "open as draft")
 	emitCreatePRCmd.Flags().StringSlice("labels", nil, "labels")
+
+	emitCreatePRReviewCommentCmd.Flags().String("body", "", "review comment body (required)")
+	_ = emitCreatePRReviewCommentCmd.MarkFlagRequired("body")
+	emitCreatePRReviewCommentCmd.Flags().String("path", "", "file path in the diff (required)")
+	_ = emitCreatePRReviewCommentCmd.MarkFlagRequired("path")
+	emitCreatePRReviewCommentCmd.Flags().Int("line", 0, "line number in the diff (required)")
+	_ = emitCreatePRReviewCommentCmd.MarkFlagRequired("line")
+	emitCreatePRReviewCommentCmd.Flags().String("side", "", "LEFT or RIGHT (default from safe-outputs or RIGHT)")
+	emitCreatePRReviewCommentCmd.Flags().String("commit", "", "head commit SHA (default: fetch PR head)")
+	emitCreatePRReviewCommentCmd.Flags().Int("target", 0, "PR number (default: WM_PR_NUMBER / WM_ISSUE_NUMBER)")
+
+	emitSubmitPRReviewCmd.Flags().String("event", "", "APPROVE, REQUEST_CHANGES, or COMMENT (required)")
+	_ = emitSubmitPRReviewCmd.MarkFlagRequired("event")
+	emitSubmitPRReviewCmd.Flags().String("body", "", "summary body (optional)")
+	emitSubmitPRReviewCmd.Flags().String("commit", "", "head commit SHA (default: fetch PR head)")
+	emitSubmitPRReviewCmd.Flags().Int("target", 0, "PR number (default: WM_PR_NUMBER / WM_ISSUE_NUMBER)")
 
 	emitMissingToolCmd.Flags().String("tool", "", "tool or capability name")
 	emitMissingToolCmd.Flags().String("reason", "", "why it is unavailable")
@@ -211,6 +229,46 @@ var emitCreateIssueCmd = &cobra.Command{
 			item["assignees"] = arr
 		}
 		return runEmit(cmd.Context(), output.KindCreateIssue, item)
+	},
+}
+
+var emitCreatePRReviewCommentCmd = &cobra.Command{
+	Use:   "create-pull-request-review-comment",
+	Short: "Request an inline pull request review comment on a diff line",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		body, _ := cmd.Flags().GetString("body")
+		path, _ := cmd.Flags().GetString("path")
+		line, _ := cmd.Flags().GetInt("line")
+		side, _ := cmd.Flags().GetString("side")
+		commit, _ := cmd.Flags().GetString("commit")
+		target, _ := cmd.Flags().GetInt("target")
+		item := map[string]any{"body": body, "path": path, "line": line, "target": target}
+		if cmd.Flags().Changed("side") {
+			item["side"] = side
+		}
+		if commit != "" {
+			item["commit_id"] = commit
+		}
+		return runEmit(cmd.Context(), output.KindCreatePullRequestReviewComment, item)
+	},
+}
+
+var emitSubmitPRReviewCmd = &cobra.Command{
+	Use:   "submit-pull-request-review",
+	Short: "Submit a pull request review (approve, request changes, or comment)",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		event, _ := cmd.Flags().GetString("event")
+		body, _ := cmd.Flags().GetString("body")
+		commit, _ := cmd.Flags().GetString("commit")
+		target, _ := cmd.Flags().GetInt("target")
+		item := map[string]any{"event": event, "target": target}
+		if body != "" {
+			item["body"] = body
+		}
+		if commit != "" {
+			item["commit_id"] = commit
+		}
+		return runEmit(cmd.Context(), output.KindSubmitPullRequestReview, item)
 	},
 }
 

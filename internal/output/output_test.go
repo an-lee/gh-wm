@@ -121,7 +121,7 @@ func TestRunSuccessOutputs_NilShortCircuit(t *testing.T) {
 func TestRunCommentFromItem_NoNumber(t *testing.T) {
 	t.Parallel()
 	tc := &types.TaskContext{RepoPath: t.TempDir()}
-	if err := runCommentFromItem(context.Background(), tc, ItemAddComment{Body: "x"}); err == nil {
+	if err := runCommentFromItem(context.Background(), nil, tc, ItemAddComment{Body: "x"}); err == nil {
 		t.Fatal("expected error")
 	}
 }

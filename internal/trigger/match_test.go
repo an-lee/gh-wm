@@ -165,7 +165,7 @@ func TestMatchOnOR_SlashCommand(t *testing.T) {
 	// wrong event type
 	ev2 := &types.GitHubEvent{Name: "issues", Payload: ev.Payload}
 	if MatchOnOR(ev2, on) {
-		t.Fatal("slash_command only on issue_comment")
+		t.Fatal("slash_command should not match issues event")
 	}
 	// empty name
 	onBad := map[string]any{"slash_command": map[string]any{"name": ""}}
@@ -181,6 +181,46 @@ func TestMatchOnOR_SlashCommand(t *testing.T) {
 	}
 	if MatchOnOR(evWM, on) {
 		t.Fatal("wm marker should block slash_command match")
+	}
+}
+
+func TestMatchOnOR_SlashCommand_ReviewCommentWebhook(t *testing.T) {
+	t.Parallel()
+	ev := &types.GitHubEvent{
+		Name: "pull_request_review_comment",
+		Payload: map[string]any{
+			"action": "created",
+			"comment": map[string]any{
+				"body": "/grumpy look at this line",
+			},
+		},
+	}
+	on := map[string]any{"slash_command": map[string]any{
+		"name":   "grumpy",
+		"events": []any{"pull_request_review_comment"},
+	}}
+	if !MatchOnOR(ev, on) {
+		t.Fatal("expected match on pull_request_review_comment")
+	}
+	evIssue := &types.GitHubEvent{Name: "issue_comment", Payload: ev.Payload}
+	if MatchOnOR(evIssue, on) {
+		t.Fatal("issue_comment should not match when events excludes it")
+	}
+}
+
+func TestMatchOnOR_PullRequestReviewCommentBlock(t *testing.T) {
+	t.Parallel()
+	ev := &types.GitHubEvent{
+		Name:    "pull_request_review_comment",
+		Payload: map[string]any{"action": "created"},
+	}
+	on := map[string]any{"pull_request_review_comment": map[string]any{"types": []any{"created"}}}
+	if !MatchOnOR(ev, on) {
+		t.Fatal("expected match")
+	}
+	ev.Payload["action"] = "deleted"
+	if MatchOnOR(ev, on) {
+		t.Fatal("expected no match when action filtered out")
 	}
 }
 

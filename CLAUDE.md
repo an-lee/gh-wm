@@ -38,7 +38,7 @@ Core pipeline: **event → resolve → run agent**.
 | Trigger | `internal/trigger/match.go` | `MatchOnOR` — OR-semantics over `on:` frontmatter (`issues`, `issue_comment`, `pull_request`, `slash_command`, `schedule`, `workflow_dispatch`) |
 | Runner | `internal/engine/runner.go`, `agent.go`, `rundir.go`, `process_outputs.go` | `RunTask` → `runAgent`; optional **`RunOptions.AgentOnly`** stops before safe-outputs; **`ProcessRunOutputs`** completes safe-outputs + conclusion (CI write token). **`timeout-minutes`** enforced in `RunTask` (default 45) |
 | Config | `internal/config/` | `.wm/config.yml` (GlobalConfig), task frontmatter parsing (`map[string]any`; add typed accessors when fields become first-class) |
-| Output | `internal/output/` | Merges `WM_SAFE_OUTPUT_FILE` (NDJSON from `gh wm emit`) + legacy `output.json`; validates against `safe-outputs:` policy; executes items (noop, comment, label, issue, PR, missing_tool, missing_data) |
+| Output | `internal/output/` | Merges `WM_SAFE_OUTPUT_FILE` (NDJSON from `gh wm emit`) + legacy `output.json`; validates against `safe-outputs:` policy; executes items (noop, comment, label, issue, PR, PR review comments, submit PR review, missing_tool, missing_data); optional `safe-outputs.messages` status comments |
 | Checkpoint | `internal/checkpoint/` | When `WM_CHECKPOINT=1`: loads/posts checkpoint state via issue comments |
 | Git helpers | `internal/gitstatus/`, `internal/gitbranch/` | Clean-tree check (`run` requires clean unless `--allow-dirty`); feature-branch prep for PR outputs |
 | GitHub | `internal/ghclient/`, `internal/gh/` | Default: `gh api` subprocess; set **`GH_WM_REST=1`** for `go-gh` REST ([`internal/gh`](internal/gh/)). `CurrentRepo` still shells out to `gh repo view`. |

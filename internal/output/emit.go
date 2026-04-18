@@ -150,6 +150,13 @@ func applyPolicyMutations(task *config.Task, p *Policy, kind OutputKind, item ma
 		t = p.ApplyTitlePrefix(KindCreatePullRequest, t)
 		item["title"] = t
 		item["labels"] = toStringSliceAny(p.MergeLabels(KindCreatePullRequest, scalar.StringSliceField(item, "labels")))
+	case KindCreatePullRequestReviewComment:
+		if strings.TrimSpace(scalar.StringField(item, "side")) == "" {
+			block := p.fmBlock(KindCreatePullRequestReviewComment)
+			if s := strings.TrimSpace(scalar.StringFromMap(block, "side")); s != "" {
+				item["side"] = s
+			}
+		}
 	default:
 		// no in-map mutations
 	}
@@ -235,6 +242,34 @@ func validateEmitPayload(kind OutputKind, task *config.Task, tc *types.TaskConte
 	case KindCreatePullRequest:
 		if tc == nil || strings.TrimSpace(tc.RepoPath) == "" {
 			return fmt.Errorf("emit: create_pull_request: WM_REPO_ROOT / repo path not set")
+		}
+		return nil
+	case KindCreatePullRequestReviewComment:
+		path := strings.TrimSpace(scalar.StringField(item, "path"))
+		if path == "" {
+			return fmt.Errorf("emit: create_pull_request_review_comment: empty path")
+		}
+		if scalar.IntField(item, "line") <= 0 {
+			return fmt.Errorf("emit: create_pull_request_review_comment: line must be positive")
+		}
+		if strings.TrimSpace(scalar.StringField(item, "body")) == "" {
+			return fmt.Errorf("emit: create_pull_request_review_comment: empty body")
+		}
+		target := scalar.IntField(item, "target")
+		if resolvePRTarget(tc, target) <= 0 || tc == nil || strings.TrimSpace(tc.Repo) == "" {
+			return fmt.Errorf("emit: create_pull_request_review_comment: no PR number or GITHUB_REPOSITORY")
+		}
+		return nil
+	case KindSubmitPullRequestReview:
+		ev := strings.TrimSpace(strings.ToUpper(scalar.StringField(item, "event")))
+		switch ev {
+		case "APPROVE", "REQUEST_CHANGES", "COMMENT":
+		default:
+			return fmt.Errorf("emit: submit_pull_request_review: event must be APPROVE, REQUEST_CHANGES, or COMMENT")
+		}
+		target := scalar.IntField(item, "target")
+		if resolvePRTarget(tc, target) <= 0 || tc == nil || strings.TrimSpace(tc.Repo) == "" {
+			return fmt.Errorf("emit: submit_pull_request_review: no PR number or GITHUB_REPOSITORY")
 		}
 		return nil
 	default:

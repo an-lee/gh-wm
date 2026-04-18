@@ -70,7 +70,8 @@ GitHub’s `GITHUB_EVENT_NAME` must align with the keys below (e.g. `issues`, no
 | `issues` | `issues` | Matches `payload.action` against `types:` (e.g. `labeled`, `opened`). Empty `types` → always match. Optional **`labels:`** (list of names): when set, only **`labeled`** actions match, and **`payload.label.name`** must equal one of the listed names (use this to avoid tasks re-firing on unrelated or state-machine labels). |
 | `issue_comment` | `issue_comment` | Optionally restricts `types:` (e.g. `created`). |
 | `pull_request` | `pull_request` or `pull_request_target` | Matches `payload.action` to `types:` (e.g. `review_requested`). Empty `types` → always match. |
-| `slash_command` | `issue_comment` | Body must start with `/name` or `/name …` where `name` comes from `slash_command.name`. |
+| `pull_request_review_comment` | `pull_request_review_comment` | Optionally restricts `types:` (e.g. `created`). Empty `types` → always match. |
+| `slash_command` | `issue_comment` and/or `pull_request_review_comment` | Body must start with `/name` or `/name …` where `name` comes from `slash_command.name`. Optional **`events:`** lists which webhook names may carry the command (default **`[issue_comment]`**). Use **`pull_request_comment`** as an alias for **`issue_comment`**. |
 | `schedule` | `schedule` | At resolve, any task with `on.schedule` matches a schedule event; use `WM_SCHEDULE_CRON` to narrow (see [architecture](architecture.md)). |
 | `workflow_dispatch` | `workflow_dispatch` | Presence of key is enough; inputs are not matched per-field yet. |
 
@@ -88,7 +89,7 @@ If **`gh api`** fails (including permissions), the error is recorded but the run
 
 ### Generated `wm-agent.yml` triggers
 
-`gh wm init` and `gh wm upgrade` build the workflow **`on:`** block from a **union** over all tasks ([`gen.CollectTriggersFromTasksDir`](../../internal/gen/triggers.go)): **`issues`**, **`issue_comment`**, and **`pull_request`** each get a merged **`types:`** list (task-only filters such as **`labels:`** are not copied into the workflow—resolve still enforces them). **`slash_command`** implies **`issue_comment`** with **`types: [created]`**; **`schedule`** unions normalized crons; **`workflow_dispatch`** is always included for manual runs. Keys with no GitHub Actions workflow equivalent (e.g. **`reaction:`**) are ignored for generation; **`reaction:`** is still applied at run time as described above.
+`gh wm init` and `gh wm upgrade` build the workflow **`on:`** block from a **union** over all tasks ([`gen.CollectTriggersFromTasksDir`](../../internal/gen/triggers.go)): **`issues`**, **`issue_comment`**, **`pull_request`**, and **`pull_request_review_comment`** each get a merged **`types:`** list (task-only filters such as **`labels:`** are not copied into the workflow—resolve still enforces them). **`slash_command`** implies **`issue_comment`** with **`types: [created]`** when **`events:`** is omitted or includes conversation comments; it also unions **`pull_request_review_comment`** with **`types: [created]`** when **`events:`** includes **`pull_request_review_comment`**. **`schedule`** unions normalized crons; **`workflow_dispatch`** is always included for manual runs. Keys with no GitHub Actions workflow equivalent (e.g. **`reaction:`**) are ignored for generation; **`reaction:`** is still applied at run time as described above.
 
 ### Schedule strings
 
@@ -113,7 +114,18 @@ When that happens and the event has an **issue or PR number**, gh-wm **posts a f
 
 **Legacy:** writing a single JSON document to **`WM_OUTPUT_FILE`** (`output.json` with **`items`**) is still supported and **merged** after NDJSON lines (`output.jsonl` first, then legacy `items`).
 
-Keys under **`safe-outputs:`** declare what operations are **allowed**; each item has a **`type`** using **underscores** (gh-aw style): **`create_pull_request`**, **`add_comment`**, **`add_labels`**, **`remove_labels`**, **`create_issue`**, **`noop`**, **`missing_tool`**, **`missing_data`**. Dash forms in **`type`** (e.g. `create-pull-request`) are accepted too.
+Keys under **`safe-outputs:`** declare what operations are **allowed**; each item has a **`type`** using **underscores** (gh-aw style): **`create_pull_request`**, **`add_comment`**, **`add_labels`**, **`remove_labels`**, **`create_issue`**, **`create_pull_request_review_comment`**, **`submit_pull_request_review`**, **`noop`**, **`missing_tool`**, **`missing_data`**. Dash forms in **`type`** (e.g. `create-pull-request`) are accepted too.
+
+Optional **`messages:`** (sibling of the emit keys under **`safe-outputs:`**) configures **status comments** on the triggering issue/PR and **footers** on emitted comments:
+
+| Key | When |
+|-----|------|
+| **`run-started`** | After activation (reaction), before the agent (best-effort; may be skipped when **`GITHUB_TOKEN`** cannot write comments, e.g. CI agent-only job). |
+| **`run-success`** | After safe-outputs succeed (full run or **`process-outputs`**). |
+| **`run-failure`** | When the run fails before/during conclusion; **`{status}`** expands to a short error hint. |
+| **`footer`** | Appended to **`add_comment`**, inline review comments, and submit-review bodies (before the hidden wm marker where applicable). |
+
+Placeholders: **`{workflow_name}`** ( **`GITHUB_WORKFLOW`** or task name), **`{run_url}`** (Actions run URL when env vars are set), **`{event_type}`** ( **`GITHUB_EVENT_NAME`** / event name), **`{status}`** (failure detail for **`run-failure`**).
 
 ```json
 {

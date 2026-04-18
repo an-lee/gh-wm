@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/an-lee/gh-wm/internal/antiloop"
+	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/ghclient"
 	"github.com/an-lee/gh-wm/internal/types"
 )
@@ -20,7 +21,7 @@ func resolveCommentTarget(tc *types.TaskContext, target int) int {
 }
 
 // runCommentFromItem posts add_comment from structured output.
-func runCommentFromItem(_ context.Context, tc *types.TaskContext, item ItemAddComment) error {
+func runCommentFromItem(_ context.Context, task *config.Task, tc *types.TaskContext, item ItemAddComment) error {
 	n := resolveCommentTarget(tc, item.Target)
 	if n <= 0 {
 		return fmt.Errorf("add_comment: no issue or PR number (set target or use a triggering event)")
@@ -29,6 +30,7 @@ func runCommentFromItem(_ context.Context, tc *types.TaskContext, item ItemAddCo
 	if body == "" {
 		return fmt.Errorf("add_comment: empty body")
 	}
+	body = AppendMessagesFooter(task, tc, body)
 	body = body + WMAgentCommentMarkerFooter(tc.TaskName)
 	return postComment(tc, n, body)
 }
