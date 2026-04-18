@@ -153,7 +153,6 @@ flowchart LR
 ### Phase 7 — v2 surface (documented)
 
 - Canonical **`safe-outputs`** keys prefer underscore forms; dash forms accepted with normalization.
-- **`wm.state_labels`** documented alongside future `wm.states` naming.
 - **`tools:`** structured object support in spec (string/array still accepted).
 - **`timeout-minutes`** enforced coherently from `RunTask` callers.
 

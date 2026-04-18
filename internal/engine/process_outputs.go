@@ -73,7 +73,6 @@ func ProcessRunOutputs(ctx context.Context, repoRoot, runDirPath string, event *
 		extractNumbers(event.Payload, tc)
 	}
 
-	wm := task.WM()
 	am, err := ReadActivationMeta(runDirPath)
 	if err != nil {
 		return nil, err
@@ -109,7 +108,6 @@ func ProcessRunOutputs(ctx context.Context, repoRoot, runDirPath string, event *
 			tc:            tc,
 			glob:          glob,
 			task:          task,
-			wm:            wm,
 			repoRoot:      repoRoot,
 			branchCreated: branchCreated,
 			prevBranch:    prevBranch,
@@ -125,7 +123,6 @@ func ProcessRunOutputs(ctx context.Context, repoRoot, runDirPath string, event *
 		tc:            tc,
 		glob:          glob,
 		task:          task,
-		wm:            wm,
 		repoRoot:      repoRoot,
 		branchCreated: branchCreated,
 		prevBranch:    prevBranch,

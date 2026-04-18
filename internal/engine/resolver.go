@@ -21,10 +21,6 @@ func ResolveMatchingTasks(repoRoot string, event *types.GitHubEvent) ([]string, 
 	if antiloop.ShouldSkipAutomatedSender(event) {
 		return nil, nil
 	}
-	stateLabels := antiloop.CollectStateLabelValues(tasks)
-	if antiloop.ShouldSkipIssuesLabeledStateLabel(event, stateLabels) {
-		return nil, nil
-	}
 	var names []string
 	for _, t := range tasks {
 		on := t.OnMap()

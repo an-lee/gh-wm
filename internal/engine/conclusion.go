@@ -26,14 +26,13 @@ type concludeArgs struct {
 	tc            *types.TaskContext
 	glob          *config.GlobalConfig
 	task          *config.Task
-	wm            config.WMExtension
 	repoRoot      string
 	branchCreated bool
 	prevBranch    string
 	rd            *RunDir
 }
 
-// concludeRun runs phase-5 cleanup: state labels, optional branch rollback, checkpoint on success.
+// concludeRun runs phase-5 cleanup: optional branch rollback, checkpoint on success.
 // It appends non-fatal errors to result.Errors.
 func concludeRun(result *types.RunResult, a *concludeArgs) {
 	if result == nil || a == nil {
@@ -48,18 +47,12 @@ func concludeRun(result *types.RunResult, a *concludeArgs) {
 		if err := postCheckpointWithErr(a.tc, result.AgentResult); err != nil {
 			addRunErr(result, fmt.Errorf("checkpoint: %w", err))
 		}
-		if err := ApplyStateDone(a.tc, a.wm); err != nil {
-			addRunErr(result, fmt.Errorf("state done: %w", err))
-		}
 	} else {
 		_ = output.PostConfiguredStatusComment(a.task, a.tc, "run-failure", statusDetailFromErrors(result.Errors))
 		if a.branchCreated && a.prevBranch != "" && a.prevBranch != "HEAD" {
 			if err := gitbranch.Checkout(a.repoRoot, a.prevBranch); err != nil {
 				addRunErr(result, fmt.Errorf("git checkout previous branch: %w", err))
 			}
-		}
-		if err := ApplyStateFailed(a.tc, a.wm); err != nil {
-			addRunErr(result, fmt.Errorf("state failed: %w", err))
 		}
 	}
 

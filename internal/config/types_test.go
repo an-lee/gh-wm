@@ -66,17 +66,6 @@ func TestTaskEngineScheduleString(t *testing.T) {
 	}
 }
 
-func TestTaskWM(t *testing.T) {
-	t.Parallel()
-	tk := &Task{Frontmatter: map[string]any{"wm": map[string]any{
-		"state_labels": map[string]any{"working": "in-progress"},
-	}}}
-	wm := tk.WM()
-	if wm.StateLabels["working"] != "in-progress" {
-		t.Fatalf("%+v", wm)
-	}
-}
-
 func TestTaskToolsYAML(t *testing.T) {
 	t.Parallel()
 	if got := (&Task{Frontmatter: map[string]any{"tools": "x"}}).ToolsYAML(); got != "x" {

@@ -13,7 +13,6 @@ func TestParseTaskFrontmatter_Basic(t *testing.T) {
 		"timeout-minutes": float64(30),
 		"safe-outputs":    map[string]any{"noop": map[string]any{}},
 		"on":              map[string]any{"reaction": "eyes"},
-		"wm":              map[string]any{"state_labels": map[string]any{"working": "a"}},
 	}
 	s, warns, err := ParseTaskFrontmatter(fm)
 	if err != nil {
@@ -25,8 +24,8 @@ func TestParseTaskFrontmatter_Basic(t *testing.T) {
 	if len(s.RawSafeOutputKeys) != 1 || s.RawSafeOutputKeys[0] != "noop" {
 		t.Fatalf("keys: %v", s.RawSafeOutputKeys)
 	}
-	if s.OnReaction != "eyes" || s.WMStateLabels["working"] != "a" {
-		t.Fatalf("on/wm: %+v", s)
+	if s.OnReaction != "eyes" {
+		t.Fatalf("on: %+v", s)
 	}
 	if len(warns) != 0 {
 		t.Fatalf("unexpected warnings: %v", warns)

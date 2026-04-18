@@ -16,8 +16,6 @@ type TaskSpec struct {
 	OnReaction string
 	// RawSafeOutputKeys lists top-level keys under safe-outputs: (dash form).
 	RawSafeOutputKeys []string
-	// WMStateLabels maps working/done/failed keys when wm.state_labels is set.
-	WMStateLabels map[string]string
 }
 
 var knownEngines = map[string]struct{}{
@@ -71,16 +69,6 @@ func ParseTaskFrontmatter(fm map[string]any) (*TaskSpec, []string, error) {
 			s.RawSafeOutputKeys = append(s.RawSafeOutputKeys, k)
 			if strings.Contains(k, "_") {
 				warnings = append(warnings, fmt.Sprintf("safe-outputs key %q uses underscores; gh-aw style prefers dash form (e.g. add-labels). v2 may canonicalize keys.", k))
-			}
-		}
-	}
-	if wm, ok := fm["wm"].(map[string]any); ok && wm != nil {
-		if sl, ok := wm["state_labels"].(map[string]any); ok {
-			s.WMStateLabels = make(map[string]string)
-			for k, v := range sl {
-				if str, ok := v.(string); ok {
-					s.WMStateLabels[k] = str
-				}
 			}
 		}
 	}

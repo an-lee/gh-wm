@@ -16,6 +16,16 @@ import (
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
+func issueOrPRNumber(tc *types.TaskContext) int {
+	if tc == nil {
+		return 0
+	}
+	if tc.IssueNumber > 0 {
+		return tc.IssueNumber
+	}
+	return tc.PRNumber
+}
+
 // RunOptions configures optional behavior for RunTask (e.g. CLI streaming).
 type RunOptions struct {
 	// LogWriter receives a live copy of the agent subprocess combined stdout+stderr.
@@ -35,19 +45,6 @@ func progressf(opts *RunOptions, format string, args ...any) {
 	fmt.Fprintf(opts.ProgressWriter, "wm run: "+format+"\n", args...)
 }
 
-func workingLabelWouldApply(tc *types.TaskContext, wm config.WMExtension) bool {
-	if tc == nil {
-		return false
-	}
-	if strings.TrimSpace(wm.StateLabels["working"]) == "" {
-		return false
-	}
-	if issueOrPRNumber(tc) <= 0 || strings.TrimSpace(tc.Repo) == "" {
-		return false
-	}
-	return true
-}
-
 func addRunErr(r *types.RunResult, err error) {
 	if r == nil || err == nil {
 		return
@@ -55,7 +52,7 @@ func addRunErr(r *types.RunResult, err error) {
 	r.Errors = append(r.Errors, err)
 }
 
-// RunTask executes one task: activation (validation, state, branch prep), agent, validation, safe-outputs, and deferred conclusion (labels, checkpoint, branch rollback).
+// RunTask executes one task: activation (validation, branch prep), agent, validation, safe-outputs, and deferred conclusion (checkpoint, branch rollback).
 func RunTask(ctx context.Context, repoRoot string, taskName string, event *types.GitHubEvent, opts *RunOptions) (*types.RunResult, error) {
 	start := time.Now()
 	result := &types.RunResult{Phase: types.PhaseActivation}
@@ -63,7 +60,6 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 	var tc *types.TaskContext
 	var glob *config.GlobalConfig
 	var task *config.Task
-	var wm config.WMExtension
 	var branchCreated bool
 	var prevBranch string
 	var rd *RunDir
@@ -85,7 +81,6 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 			tc:            tc,
 			glob:          glob,
 			task:          task,
-			wm:            wm,
 			repoRoot:      repoRoot,
 			branchCreated: branchCreated,
 			prevBranch:    prevBranch,
@@ -149,21 +144,9 @@ func RunTask(ctx context.Context, repoRoot string, taskName string, event *types
 	logPhase(taskName, types.PhaseActivation)
 	progressf(opts, "activation: run directory %s", rd.Path)
 
-	wm = task.WM()
 	loadCheckpointHint(tc)
 	if strings.TrimSpace(tc.CheckpointHint) != "" {
 		progressf(opts, "activation: checkpoint hint loaded (injected into prompt)")
-	}
-
-	if workingLabelWouldApply(tc, wm) {
-		n := issueOrPRNumber(tc)
-		lbl := strings.TrimSpace(wm.StateLabels["working"])
-		progressf(opts, "activation: applying working label %q to #%d", lbl, n)
-	}
-	if err := ApplyStateWorking(tc, wm); err != nil {
-		addRunErr(result, err)
-	} else if workingLabelWouldApply(tc, wm) {
-		progressf(opts, "activation: working label step finished")
 	}
 
 	applyOnReactionBestEffort(opts, task, tc, result)

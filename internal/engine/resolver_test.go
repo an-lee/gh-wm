@@ -103,60 +103,6 @@ x
 	}
 }
 
-func TestResolveMatchingTasks_SkipStateLabeledEvent(t *testing.T) {
-	t.Parallel()
-	root := t.TempDir()
-	wm := filepath.Join(root, ".wm")
-	if err := os.MkdirAll(filepath.Join(wm, "tasks"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(wm, "config.yml"), []byte(`version: 1
-engine: claude
-max_turns: 10
-`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	task := `---
-on:
-  issues:
-    types: [labeled]
----
-
-x
-`
-	if err := os.WriteFile(filepath.Join(wm, "tasks", "impl.md"), []byte(task), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	task2 := `---
-on:
-  issues:
-    types: [opened]
-wm:
-  state_labels:
-    working: "agent:working"
----
-
-y
-`
-	if err := os.WriteFile(filepath.Join(wm, "tasks", "other.md"), []byte(task2), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	ev := &types.GitHubEvent{
-		Name: "issues",
-		Payload: map[string]any{
-			"action": "labeled",
-			"label":  map[string]any{"name": "agent:working"},
-		},
-	}
-	names, err := ResolveMatchingTasks(root, ev)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(names) != 0 {
-		t.Fatalf("state label event should match no tasks, got %v", names)
-	}
-}
-
 func TestResolveForcedTask(t *testing.T) {
 	t.Parallel()
 	root := writeMinimalRepo(t)

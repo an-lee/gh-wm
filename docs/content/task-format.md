@@ -152,17 +152,9 @@ The agent prompt includes an **Available Outputs** section whenever `safe-output
 | `tools:` | Serialized to env **`WM_TASK_TOOLS`** for the agent subprocess (JSON if structured). |
 | `permissions:`, `network:`, `imports:` | Not interpreted. |
 
-## `wm:` extension (gh-wm–specific)
+### Migration: removed `wm.state_labels`
 
-```yaml
-wm:
-  state_labels:
-    working: "agent:working"
-    done: "agent:review"
-    failed: "agent:failed"
-```
-
-If set, [`engine/state.go`](../../internal/engine/state.go) adds/removes these labels around the run (requires `GITHUB_REPOSITORY` and an issue/PR number in the event).
+Earlier versions supported optional **`wm.state_labels`** (working / done / failed) for automatic issue labels during runs. That feature was **removed**—label-based run state proved fragile. Use **`on.issues.labels`** (or slash commands / schedule) for precise triggers, and **`gh wm emit`** (e.g. **`add-labels`**) when the agent should change labels explicitly.
 
 ## Checkpoint comments (optional)
 

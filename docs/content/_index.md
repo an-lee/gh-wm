@@ -22,12 +22,12 @@ This documentation is the **canonical reference** for how the project works and 
 | [architecture.md](architecture.md) | End-to-end flow: GitHub Actions → `resolve` → matrix `run`, Go packages, and **RunTask pipeline (detailed reference)** (reads/writes per phase). |
 | [architecture-review.md](architecture-review.md) | Design review, target module layout, phased refactor roadmap (v2). |
 | [v2.md](v2.md) | Consolidated v2 breaking / deprecation notes (engine, safe-outputs, timeout, artifacts, GitHub transport). |
-| [task-format.md](task-format.md) | `.wm/config.yml`, `.wm/tasks/<name>.md` frontmatter, `on:` trigger semantics, `wm:` extensions. |
+| [task-format.md](task-format.md) | `.wm/config.yml`, `.wm/tasks/<name>.md` frontmatter, `on:` trigger semantics, `safe-outputs:`. |
 | [cli-reference.md](cli-reference.md) | Every `gh wm` / `gh-wm` subcommand, flags, and environment variables. |
 | [development.md](development.md) | Repo layout, extension points, build/test, and conventions for contributors. |
 
 ## One-sentence mental model
 
-**GitHub delivers an event → `gh wm resolve` lists matching task names → Actions runs `gh wm run --task <name>` per match; each run runs the agent (default: `claude -p`), then applies agent-written **`output.json`** safe outputs when `safe-outputs:` is configured, and `wm.state_labels` updates.**
+**GitHub delivers an event → `gh wm resolve` lists matching task names → Actions runs `gh wm run --task <name>` per match; each run runs the agent (default: `claude -p`), then applies validated safe outputs from **`gh wm emit`** / legacy **`output.json`** when `safe-outputs:` is configured.**
 
 For install and a minimal user quick start, see the repository [README](../../README.md).
