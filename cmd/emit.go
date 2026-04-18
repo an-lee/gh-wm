@@ -37,6 +37,7 @@ func init() {
 		emitClosePRCmd,
 		emitAddReviewerCmd,
 		emitCreatePullRequestReviewCommentCmd,
+		emitSubmitPullRequestReviewCmd,
 		emitReplyPullRequestReviewCommentCmd,
 		emitResolvePullRequestReviewThreadCmd,
 		emitPushToPullRequestBranchCmd,
@@ -103,6 +104,12 @@ func init() {
 	_ = emitCreatePullRequestReviewCommentCmd.MarkFlagRequired("side")
 	emitCreatePullRequestReviewCommentCmd.Flags().Int("start-line", 0, "for multi-line comments; must be <= line")
 	emitCreatePullRequestReviewCommentCmd.Flags().Int("target", 0, "PR number (default: WM_PR_NUMBER / WM_ISSUE_NUMBER)")
+
+	emitSubmitPullRequestReviewCmd.Flags().String("event", "", "APPROVE, REQUEST_CHANGES, or COMMENT (required)")
+	_ = emitSubmitPullRequestReviewCmd.MarkFlagRequired("event")
+	emitSubmitPullRequestReviewCmd.Flags().String("body", "", "summary body (optional)")
+	emitSubmitPullRequestReviewCmd.Flags().String("commit-id", "", "head commit SHA (optional; defaults to PR head)")
+	emitSubmitPullRequestReviewCmd.Flags().Int("target", 0, "PR number (default: WM_PR_NUMBER / WM_ISSUE_NUMBER)")
 
 	emitReplyPullRequestReviewCommentCmd.Flags().String("body", "", "reply body (required)")
 	_ = emitReplyPullRequestReviewCommentCmd.MarkFlagRequired("body")
@@ -364,6 +371,25 @@ var emitCreatePullRequestReviewCommentCmd = &cobra.Command{
 			item["start_line"] = startLine
 		}
 		return runEmit(cmd.Context(), output.KindCreatePullRequestReviewComment, item)
+	},
+}
+
+var emitSubmitPullRequestReviewCmd = &cobra.Command{
+	Use:   "submit-pull-request-review",
+	Short: "Submit a pull request review (APPROVE, REQUEST_CHANGES, or COMMENT)",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		event, _ := cmd.Flags().GetString("event")
+		body, _ := cmd.Flags().GetString("body")
+		commitID, _ := cmd.Flags().GetString("commit-id")
+		target, _ := cmd.Flags().GetInt("target")
+		item := map[string]any{"event": event, "target": target}
+		if strings.TrimSpace(body) != "" {
+			item["body"] = body
+		}
+		if strings.TrimSpace(commitID) != "" {
+			item["commit_id"] = commitID
+		}
+		return runEmit(cmd.Context(), output.KindSubmitPullRequestReview, item)
 	},
 }
 

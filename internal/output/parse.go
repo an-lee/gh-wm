@@ -120,6 +120,8 @@ func ParseOutputKind(s string) OutputKind {
 		return KindAddReviewer
 	case "create_pull_request_review_comment":
 		return KindCreatePullRequestReviewComment
+	case "submit_pull_request_review":
+		return KindSubmitPullRequestReview
 	case "reply_to_pull_request_review_comment":
 		return KindReplyToPullRequestReviewComment
 	case "resolve_pull_request_review_thread":
@@ -218,6 +220,15 @@ func mapToCreatePullRequestReviewComment(m map[string]any) ItemCreatePullRequest
 		Side:      scalar.StringField(m, "side"),
 		StartLine: scalar.IntField(m, "start_line"),
 		Target:    intTargetPR(m),
+	}
+}
+
+func mapToSubmitPullRequestReview(m map[string]any) ItemSubmitPullRequestReview {
+	return ItemSubmitPullRequestReview{
+		Event:    scalar.StringField(m, "event"),
+		Body:     scalar.StringField(m, "body"),
+		CommitID: scalar.StringField(m, "commit_id"),
+		Target:   intTargetPR(m),
 	}
 }
 

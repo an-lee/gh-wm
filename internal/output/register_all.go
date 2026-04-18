@@ -21,6 +21,7 @@ func init() {
 	registerKind(KindClosePullRequest, execKindClosePullRequest)
 	registerKind(KindAddReviewer, execKindAddReviewer)
 	registerKind(KindCreatePullRequestReviewComment, execKindCreatePullRequestReviewComment)
+	registerKind(KindSubmitPullRequestReview, execKindSubmitPullRequestReview)
 	registerKind(KindReplyToPullRequestReviewComment, execKindReplyToPullRequestReviewComment)
 	registerKind(KindResolvePullRequestReviewThread, execKindResolvePullRequestReviewThread)
 	registerKind(KindPushToPullRequestBranch, execKindPushToPullRequestBranch)
@@ -31,9 +32,9 @@ func execKindCreatePullRequest(ctx context.Context, glob *config.GlobalConfig, t
 	return runCreatePullRequestItem(ctx, glob, task, tc, p, item)
 }
 
-func execKindAddComment(ctx context.Context, _ *config.GlobalConfig, _ *config.Task, tc *types.TaskContext, _ *Policy, raw map[string]any) error {
+func execKindAddComment(ctx context.Context, _ *config.GlobalConfig, task *config.Task, tc *types.TaskContext, _ *Policy, raw map[string]any) error {
 	item := mapToAddComment(raw)
-	return runCommentFromItem(ctx, tc, item)
+	return runCommentFromItem(ctx, task, tc, item)
 }
 
 func execKindAddLabels(ctx context.Context, _ *config.GlobalConfig, _ *config.Task, tc *types.TaskContext, p *Policy, raw map[string]any) error {
@@ -90,9 +91,9 @@ func execKindAddReviewer(ctx context.Context, _ *config.GlobalConfig, _ *config.
 	return runAddReviewers(ctx, tc, item)
 }
 
-func execKindCreatePullRequestReviewComment(ctx context.Context, _ *config.GlobalConfig, _ *config.Task, tc *types.TaskContext, _ *Policy, raw map[string]any) error {
+func execKindCreatePullRequestReviewComment(ctx context.Context, _ *config.GlobalConfig, task *config.Task, tc *types.TaskContext, _ *Policy, raw map[string]any) error {
 	item := mapToCreatePullRequestReviewComment(raw)
-	return runCreatePullRequestReviewComment(ctx, tc, item)
+	return runCreatePullRequestReviewComment(ctx, task, tc, item)
 }
 
 func execKindReplyToPullRequestReviewComment(ctx context.Context, _ *config.GlobalConfig, _ *config.Task, tc *types.TaskContext, _ *Policy, raw map[string]any) error {

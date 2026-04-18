@@ -155,6 +155,7 @@ func loadPersistedAgentResult(runDirPath string) (*types.AgentResult, error) {
 			AgentStdoutPath    string `json:"agent_stdout_path,omitempty"`
 			OutputFilePath     string `json:"output_file_path,omitempty"`
 			SafeOutputFilePath string `json:"safe_output_file_path,omitempty"`
+			LastResponseText   string `json:"last_response_text,omitempty"`
 		} `json:"agent_result"`
 	}
 	if err := json.Unmarshal(b, &file); err != nil {
@@ -179,6 +180,7 @@ func loadPersistedAgentResult(runDirPath string) (*types.AgentResult, error) {
 		AgentStdoutPath:    file.AgentResult.AgentStdoutPath,
 		OutputFilePath:     file.AgentResult.OutputFilePath,
 		SafeOutputFilePath: file.AgentResult.SafeOutputFilePath,
+		LastResponseText:   file.AgentResult.LastResponseText,
 	}
 	rd := &RunDir{Path: runDirPath}
 	if ar.OutputFilePath == "" {

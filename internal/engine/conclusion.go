@@ -14,6 +14,13 @@ import (
 	"github.com/an-lee/gh-wm/internal/types"
 )
 
+func statusDetailFromErrors(errs []error) string {
+	if len(errs) == 0 {
+		return "failed"
+	}
+	return fmt.Sprintf("failed (%s)", errs[0].Error())
+}
+
 type concludeArgs struct {
 	runSucceeded  bool
 	tc            *types.TaskContext
@@ -37,6 +44,7 @@ func concludeRun(result *types.RunResult, a *concludeArgs) {
 	}
 
 	if a.runSucceeded {
+		_ = output.PostConfiguredStatusComment(a.task, a.tc, "run-success", "")
 		if err := postCheckpointWithErr(a.tc, result.AgentResult); err != nil {
 			addRunErr(result, fmt.Errorf("checkpoint: %w", err))
 		}
@@ -44,6 +52,7 @@ func concludeRun(result *types.RunResult, a *concludeArgs) {
 			addRunErr(result, fmt.Errorf("state done: %w", err))
 		}
 	} else {
+		_ = output.PostConfiguredStatusComment(a.task, a.tc, "run-failure", statusDetailFromErrors(result.Errors))
 		if a.branchCreated && a.prevBranch != "" && a.prevBranch != "HEAD" {
 			if err := gitbranch.Checkout(a.repoRoot, a.prevBranch); err != nil {
 				addRunErr(result, fmt.Errorf("git checkout previous branch: %w", err))

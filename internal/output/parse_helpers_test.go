@@ -380,6 +380,8 @@ func TestParseOutputKind_AllKinds(t *testing.T) {
 		{"add-reviewer", KindAddReviewer},
 		{"create_pull_request_review_comment", KindCreatePullRequestReviewComment},
 		{"create-pull-request-review-comment", KindCreatePullRequestReviewComment},
+		{"submit_pull_request_review", KindSubmitPullRequestReview},
+		{"submit-pull-request-review", KindSubmitPullRequestReview},
 		{"reply_to_pull_request_review_comment", KindReplyToPullRequestReviewComment},
 		{"reply-to-pull-request-review-comment", KindReplyToPullRequestReviewComment},
 		{"resolve_pull_request_review_thread", KindResolvePullRequestReviewThread},

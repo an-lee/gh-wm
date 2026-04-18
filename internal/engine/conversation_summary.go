@@ -3,6 +3,7 @@ package engine
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"os"
 	"path/filepath"
 	"sort"
@@ -20,6 +21,8 @@ type ClaudeConversationStats struct {
 	EventsByType map[string]int
 	ParseErrors  int
 	LastResult   *claudeResultSnapshot
+	// RawLines holds non-empty lines from conversation.jsonl (or one line for conversation.json) for step-summary display.
+	RawLines []string
 }
 
 type claudeResultSnapshot struct {
@@ -36,6 +39,8 @@ type claudeResultSnapshot struct {
 	CacheReadInputTokens int
 	HasUsage             bool
 	ModelIDs             []string
+	// ResultText is the final assistant text from the Claude "result" event (field "result").
+	ResultText string
 }
 
 func pickFloatM(m map[string]any, keys ...string) (float64, bool) {
@@ -105,8 +110,17 @@ func extractResultSnapshot(ev map[string]any) *claudeResultSnapshot {
 		}
 		sort.Strings(r.ModelIDs)
 	}
+	if s, ok := ev["result"].(string); ok {
+		r.ResultText = s
+	}
 	return r
 }
+
+const (
+	conversationJSONLMaxSummaryLines = 60
+	conversationJSONLHeadLines       = 30
+	conversationJSONLTailLines       = 30
+)
 
 func parseClaudeConversationJSONL(b []byte) *ClaudeConversationStats {
 	stats := &ClaudeConversationStats{EventsByType: make(map[string]int)}
@@ -115,6 +129,7 @@ func parseClaudeConversationJSONL(b []byte) *ClaudeConversationStats {
 		if line == "" {
 			continue
 		}
+		stats.RawLines = append(stats.RawLines, line)
 		var ev map[string]any
 		if err := json.Unmarshal([]byte(line), &ev); err != nil {
 			stats.ParseErrors++
@@ -139,6 +154,7 @@ func parseClaudeConversationJSON(b []byte) (*ClaudeConversationStats, error) {
 	}
 	stats := &ClaudeConversationStats{EventsByType: make(map[string]int)}
 	stats.EventCount = 1
+	stats.RawLines = []string{strings.TrimSpace(string(b))}
 	t, _ := ev["type"].(string)
 	if t != "" {
 		stats.EventsByType[t] = 1
@@ -197,6 +213,20 @@ func formatEventTypesLine(stats *ClaudeConversationStats) string {
 	return strings.Join(parts, ", ")
 }
 
+// formatTruncatedConversationLinesForSummary joins JSONL lines with head/tail truncation for step summary <pre>.
+func formatTruncatedConversationLinesForSummary(lines []string) string {
+	if len(lines) == 0 {
+		return ""
+	}
+	if len(lines) <= conversationJSONLMaxSummaryLines {
+		return strings.Join(lines, "\n")
+	}
+	n := len(lines) - conversationJSONLHeadLines - conversationJSONLTailLines
+	head := strings.Join(lines[:conversationJSONLHeadLines], "\n")
+	tail := strings.Join(lines[len(lines)-conversationJSONLTailLines:], "\n")
+	return head + fmt.Sprintf("\n\n... %d lines omitted ...\n\n", n) + tail
+}
+
 // markdownClaudeStepSummary returns markdown for GITHUB_STEP_SUMMARY (no trailing newline required).
 func markdownClaudeStepSummary(taskName string, result *types.RunResult, glob *config.GlobalConfig, stats *ClaudeConversationStats) string {
 	var b strings.Builder
@@ -251,6 +281,15 @@ func markdownClaudeStepSummary(taskName string, result *types.RunResult, glob *c
 			}
 		}
 	}
+	if stats != nil && stats.LastResult != nil && strings.TrimSpace(stats.LastResult.ResultText) != "" {
+		fmt.Fprintf(&b, "\n<details><summary>Agent response</summary>\n\n%s\n\n</details>\n",
+			stats.LastResult.ResultText)
+	}
+	if stats != nil && len(stats.RawLines) > 0 {
+		trunc := formatTruncatedConversationLinesForSummary(stats.RawLines)
+		fmt.Fprintf(&b, "\n<details><summary>Conversation log (truncated)</summary>\n\n<pre>\n%s\n</pre>\n\n</details>\n",
+			html.EscapeString(trunc))
+	}
 	return b.String()
 }
 
@@ -278,7 +317,7 @@ func appendClaudeGitHubStepSummary(result *types.RunResult, a *concludeArgs) {
 	if err != nil || stats == nil {
 		return
 	}
-	if stats.EventCount == 0 && stats.LastResult == nil && stats.ParseErrors == 0 {
+	if stats.EventCount == 0 && stats.LastResult == nil && stats.ParseErrors == 0 && len(stats.RawLines) == 0 {
 		return
 	}
 	md := markdownClaudeStepSummary(a.task.Name, result, a.glob, stats)

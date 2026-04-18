@@ -16,6 +16,7 @@ const (
 	KindClosePullRequest                OutputKind = "close_pull_request"
 	KindAddReviewer                     OutputKind = "add_reviewer"
 	KindCreatePullRequestReviewComment  OutputKind = "create_pull_request_review_comment"
+	KindSubmitPullRequestReview         OutputKind = "submit_pull_request_review"
 	KindReplyToPullRequestReviewComment OutputKind = "reply_to_pull_request_review_comment"
 	KindResolvePullRequestReviewThread  OutputKind = "resolve_pull_request_review_thread"
 	KindPushToPullRequestBranch         OutputKind = "push_to_pull_request_branch"
@@ -95,12 +96,20 @@ type ItemAddReviewer struct {
 // ItemCreatePullRequestReviewComment fields for create_pull_request_review_comment (inline review comment).
 type ItemCreatePullRequestReviewComment struct {
 	Body      string `json:"body"`
-	CommitID  string `json:"commit_id"`
+	CommitID  string `json:"commit_id,omitempty"`
 	Path      string `json:"path"`
 	Line      int    `json:"line"`
-	Side      string `json:"side"` // LEFT or RIGHT
+	Side      string `json:"side,omitempty"` // LEFT or RIGHT
 	StartLine int    `json:"start_line,omitempty"`
 	Target    int    `json:"target"`
+}
+
+// ItemSubmitPullRequestReview fields for submit_pull_request_review.
+type ItemSubmitPullRequestReview struct {
+	Event    string `json:"event"`
+	Body     string `json:"body,omitempty"`
+	CommitID string `json:"commit_id,omitempty"`
+	Target   int    `json:"target"`
 }
 
 // ItemReplyToPullRequestReviewComment fields for reply_to_pull_request_review_comment.

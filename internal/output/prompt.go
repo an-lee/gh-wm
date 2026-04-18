@@ -33,6 +33,8 @@ func emitSubcommand(kind OutputKind) string {
 		return "add-reviewer"
 	case KindCreatePullRequestReviewComment:
 		return "create-pull-request-review-comment"
+	case KindSubmitPullRequestReview:
+		return "submit-pull-request-review"
 	case KindReplyToPullRequestReviewComment:
 		return "reply-to-pull-request-review-comment"
 	case KindResolvePullRequestReviewThread:
@@ -101,6 +103,7 @@ func AvailableOutputsSection(glob *config.GlobalConfig, task *config.Task) strin
 		{fmClosePullRequest, KindClosePullRequest, "optional `--comment`, optional `--target`"},
 		{fmAddReviewer, KindAddReviewer, "`--reviewers` (repeat or comma-separated), optional `--target`"},
 		{fmCreatePullRequestReviewComment, KindCreatePullRequestReviewComment, "`--body`, `--commit-id`, `--path`, `--line`, `--side` (LEFT|RIGHT), optional `--start-line`, optional `--target`"},
+		{fmSubmitPullRequestReview, KindSubmitPullRequestReview, "`--event` (APPROVE|REQUEST_CHANGES|COMMENT), optional `--body`, optional `--commit-id`, optional `--target`"},
 		{fmReplyToPullRequestReviewComment, KindReplyToPullRequestReviewComment, "`--body`, `--comment-id`, optional `--target`"},
 		{fmResolvePullRequestReviewThread, KindResolvePullRequestReviewThread, "`--thread-id`, optional `--target`"},
 		{fmPushToPullRequestBranch, KindPushToPullRequestBranch, "optional `--target` (PR number; else `WM_PR_NUMBER`); requires checkout on PR head; runs `git push`"},

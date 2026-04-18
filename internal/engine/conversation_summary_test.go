@@ -3,6 +3,7 @@ package engine
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -149,7 +150,7 @@ func TestParseClaudeConversationArtifacts_PrefersJSONL(t *testing.T) {
 
 func TestMarkdownClaudeStepSummary(t *testing.T) {
 	t.Parallel()
-	stats := parseClaudeConversationJSONL([]byte(`{"type":"result","subtype":"success","total_cost_usd":0.042,"num_turns":12,"usage":{"input_tokens":100,"output_tokens":200}}`))
+	stats := parseClaudeConversationJSONL([]byte(`{"type":"result","subtype":"success","total_cost_usd":0.042,"num_turns":12,"usage":{"input_tokens":100,"output_tokens":200},"result":"Done reviewing."}`))
 	res := &types.RunResult{Success: true, Duration: 5 * time.Second}
 	md := markdownClaudeStepSummary("my-task", res, &config.GlobalConfig{Model: "sonnet"}, stats)
 	if !strings.Contains(md, "my-task") || !strings.Contains(md, "Pipeline success") {
@@ -160,6 +161,39 @@ func TestMarkdownClaudeStepSummary(t *testing.T) {
 	}
 	if !strings.Contains(md, "0.042000") || !strings.Contains(md, "12") {
 		t.Fatalf("expected cost/turns: %s", md)
+	}
+	if !strings.Contains(md, "Agent response") || !strings.Contains(md, "Done reviewing.") {
+		t.Fatalf("expected agent response section: %s", md)
+	}
+	if !strings.Contains(md, "Conversation log (truncated)") || !strings.Contains(md, "<pre>") {
+		t.Fatalf("expected conversation log section: %s", md)
+	}
+}
+
+func TestFormatTruncatedConversationLinesForSummary_Truncates(t *testing.T) {
+	t.Parallel()
+	var lines []string
+	for i := 0; i < 70; i++ {
+		lines = append(lines, strings.Repeat("x", 10)+strconv.Itoa(i))
+	}
+	out := formatTruncatedConversationLinesForSummary(lines)
+	if !strings.Contains(out, "lines omitted") {
+		t.Fatalf("expected omission marker: %s", out)
+	}
+	if !strings.Contains(out, "xxxxxxxxxx0") || !strings.Contains(out, "xxxxxxxxxx69") {
+		t.Fatalf("expected head and tail: %s", out)
+	}
+}
+
+func TestFormatTruncatedConversationLinesForSummary_ShortNoTruncate(t *testing.T) {
+	t.Parallel()
+	lines := []string{"a", "b"}
+	out := formatTruncatedConversationLinesForSummary(lines)
+	if strings.Contains(out, "omitted") {
+		t.Fatalf("unexpected truncate: %s", out)
+	}
+	if out != "a\nb" {
+		t.Fatalf("got %q", out)
 	}
 }
 

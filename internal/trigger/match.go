@@ -35,6 +35,9 @@ func MatchOnOR(event *types.GitHubEvent, on map[string]any) bool {
 	if pr, ok := on["pull_request"].(map[string]any); ok && matchPullRequest(event, pr) {
 		return true
 	}
+	if prc, ok := on["pull_request_review_comment"].(map[string]any); ok && matchPullRequestReviewComment(event, prc) {
+		return true
+	}
 	if sc, ok := on["slash_command"].(map[string]any); ok && matchSlashCommand(event, sc) {
 		return true
 	}
@@ -166,10 +169,14 @@ func matchPullRequest(event *types.GitHubEvent, pr map[string]any) bool {
 }
 
 func matchSlashCommand(event *types.GitHubEvent, sc map[string]any) bool {
-	if event.Name != "issue_comment" {
+	if IssueCommentBodyFromWMAgent(event.Payload) {
 		return false
 	}
-	if IssueCommentBodyFromWMAgent(event.Payload) {
+	events := stringSliceFromAny(sc["events"])
+	if len(events) == 0 {
+		events = []string{"issue_comment"}
+	}
+	if !slashCommandEventMatches(events, event.Name) {
 		return false
 	}
 	name, _ := sc["name"].(string)
@@ -181,6 +188,46 @@ func matchSlashCommand(event *types.GitHubEvent, sc map[string]any) bool {
 	prefix := "/" + strings.TrimPrefix(name, "/")
 	body = strings.TrimSpace(body)
 	return strings.HasPrefix(body, prefix) || strings.HasPrefix(body, prefix+" ")
+}
+
+func slashCommandEventMatches(events []string, eventName string) bool {
+	for _, e := range events {
+		e = strings.TrimSpace(strings.ToLower(e))
+		if e == "pull_request_comment" {
+			e = "issue_comment"
+		}
+		if e == "issue_comment" && eventName == "issue_comment" {
+			return true
+		}
+		if e == "pull_request_review_comment" && eventName == "pull_request_review_comment" {
+			return true
+		}
+	}
+	return false
+}
+
+func matchPullRequestReviewComment(event *types.GitHubEvent, block map[string]any) bool {
+	if event.Name != "pull_request_review_comment" {
+		return false
+	}
+	if IssueCommentBodyFromWMAgent(event.Payload) {
+		return false
+	}
+	action, _ := event.Payload["action"].(string)
+	typesVal, _ := block["types"].([]any)
+	if len(typesVal) > 0 {
+		ok := false
+		for _, t := range typesVal {
+			if s, ok2 := t.(string); ok2 && s == action {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func matchScheduleBlock(event *types.GitHubEvent, sched any) bool {

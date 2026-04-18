@@ -62,4 +62,6 @@ type AgentResult struct {
 	OutputFilePath string
 	// SafeOutputFilePath is the NDJSON log from `gh-wm emit` (output.jsonl), merged with OutputFilePath in RunSuccessOutputs.
 	SafeOutputFilePath string
+	// LastResponseText is the final assistant text from Claude print-mode conversation.json(l) (result.result), when available.
+	LastResponseText string
 }

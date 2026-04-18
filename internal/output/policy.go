@@ -22,6 +22,7 @@ const (
 	fmClosePullRequest                = "close-pull-request"
 	fmAddReviewer                     = "add-reviewer"
 	fmCreatePullRequestReviewComment  = "create-pull-request-review-comment"
+	fmSubmitPullRequestReview         = "submit-pull-request-review"
 	fmReplyToPullRequestReviewComment = "reply-to-pull-request-review-comment"
 	fmResolvePullRequestReviewThread  = "resolve-pull-request-review-thread"
 	fmPushToPullRequestBranch         = "push-to-pull-request-branch"
@@ -53,6 +54,8 @@ func kindToFrontmatter(kind OutputKind) string {
 		return fmAddReviewer
 	case KindCreatePullRequestReviewComment:
 		return fmCreatePullRequestReviewComment
+	case KindSubmitPullRequestReview:
+		return fmSubmitPullRequestReview
 	case KindReplyToPullRequestReviewComment:
 		return fmReplyToPullRequestReviewComment
 	case KindResolvePullRequestReviewThread:
@@ -70,7 +73,8 @@ func kindToFrontmatter(kind OutputKind) string {
 func defaultMaxPerKind(kind OutputKind) int {
 	switch kind {
 	case KindCreatePullRequest, KindAddComment, KindCreateIssue,
-		KindUpdatePullRequest, KindUpdateIssue, KindCloseIssue, KindPushToPullRequestBranch:
+		KindUpdatePullRequest, KindUpdateIssue, KindCloseIssue, KindPushToPullRequestBranch,
+		KindSubmitPullRequestReview:
 		return 1
 	case KindClosePullRequest:
 		return 10

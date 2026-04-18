@@ -70,7 +70,7 @@ GitHub’s `GITHUB_EVENT_NAME` must align with the keys below (e.g. `issues`, no
 | `issues` | `issues` | Matches `payload.action` against `types:` (e.g. `labeled`, `opened`). Empty `types` → always match. Optional **`labels:`** (list of names): when set, only **`labeled`** actions match, and **`payload.label.name`** must equal one of the listed names (use this to avoid tasks re-firing on unrelated or state-machine labels). |
 | `issue_comment` | `issue_comment` | Optionally restricts `types:` (e.g. `created`). |
 | `pull_request` | `pull_request` or `pull_request_target` | Matches `payload.action` to `types:` (e.g. `review_requested`). Empty `types` → always match. |
-| `slash_command` | `issue_comment` | Body must start with `/name` or `/name …` where `name` comes from `slash_command.name`. |
+| `slash_command` | `issue_comment` or `pull_request_review_comment` | Body must start with `/name` or `/name …` where `name` comes from `slash_command.name`. |
 | `schedule` | `schedule` | At resolve, any task with `on.schedule` matches a schedule event; use `WM_SCHEDULE_CRON` to narrow (see [architecture](architecture.md)). |
 | `workflow_dispatch` | `workflow_dispatch` | Presence of key is enough; inputs are not matched per-field yet. |
 
@@ -88,7 +88,7 @@ If **`gh api`** fails (including permissions), the error is recorded but the run
 
 ### Generated `wm-agent.yml` triggers
 
-`gh wm init` and `gh wm upgrade` build the workflow **`on:`** block from a **union** over all tasks ([`gen.CollectTriggersFromTasksDir`](../../internal/gen/triggers.go)): **`issues`**, **`issue_comment`**, and **`pull_request`** each get a merged **`types:`** list (task-only filters such as **`labels:`** are not copied into the workflow—resolve still enforces them). **`slash_command`** implies **`issue_comment`** with **`types: [created]`**; **`schedule`** unions normalized crons; **`workflow_dispatch`** is always included for manual runs. Keys with no GitHub Actions workflow equivalent (e.g. **`reaction:`**) are ignored for generation; **`reaction:`** is still applied at run time as described above.
+`gh wm init` and `gh wm upgrade` build the workflow **`on:`** block from a **union** over all tasks ([`gen.CollectTriggersFromTasksDir`](../../internal/gen/triggers.go)): **`issues`**, **`issue_comment`**, **`pull_request`**, and **`pull_request_review_comment`** each get a merged **`types:`** list (task-only filters such as **`labels:`** are not copied into the workflow—resolve still enforces them). **`slash_command`** implies **`issue_comment`** with **`types: [created]`** for conversation comments and can also imply **`pull_request_review_comment`** with **`types: [created]`** when configured for PR review comments; **`schedule`** unions normalized crons; **`workflow_dispatch`** is always included for manual runs. Keys with no GitHub Actions workflow equivalent (e.g. **`reaction:`**) are ignored for generation; **`reaction:`** is still applied at run time as described above.
 
 ### Schedule strings
 
@@ -111,7 +111,7 @@ If there is **no** NDJSON and **no** legacy `output.json`, the safe-output phase
 
 **Legacy:** writing a single JSON document to **`WM_OUTPUT_FILE`** (`output.json` with **`items`**) is still supported and **merged** after NDJSON lines (`output.jsonl` first, then legacy `items`).
 
-Keys under **`safe-outputs:`** declare what operations are **allowed**; each item has a **`type`** using **underscores** (gh-aw style): **`create_pull_request`**, **`add_comment`**, **`add_labels`**, **`remove_labels`**, **`create_issue`**, **`update_pull_request`**, **`update_issue`**, **`close_issue`**, **`close_pull_request`**, **`add_reviewer`**, **`create_pull_request_review_comment`**, **`reply_to_pull_request_review_comment`**, **`resolve_pull_request_review_thread`**, **`push_to_pull_request_branch`**, **`noop`**, **`missing_tool`**, **`missing_data`**. Dash forms in **`type`** (e.g. `create-pull-request`) are accepted too.
+Keys under **`safe-outputs:`** declare what operations are **allowed**; each item has a **`type`** using **underscores** (gh-aw style): **`create_pull_request`**, **`add_comment`**, **`add_labels`**, **`remove_labels`**, **`create_issue`**, **`update_pull_request`**, **`update_issue`**, **`close_issue`**, **`close_pull_request`**, **`add_reviewer`**, **`create_pull_request_review_comment`**, **`submit_pull_request_review`**, **`reply_to_pull_request_review_comment`**, **`resolve_pull_request_review_thread`**, **`push_to_pull_request_branch`**, **`noop`**, **`missing_tool`**, **`missing_data`**. Dash forms in **`type`** (e.g. `create-pull-request`) are accepted too.
 
 For **issue/PR numbers**, JSON may use **`target`** (preferred) or gh-aw-style aliases: **`issue_number`**, **`pull_request_number`**, **`item_number`**. The first **strictly positive** value wins in a fixed order starting with **`target`**.
 
@@ -120,6 +120,8 @@ For **issue/PR numbers**, JSON may use **`target`** (preferred) or gh-aw-style a
 **`noop`:** In addition to **`{"type":"noop","message":"…"}`**, a gh-aw-style envelope **`{"noop":{"message":"…"}}`** without a top-level **`type`** is accepted and treated as **`noop`**.
 
 **`push_to_pull_request_branch`** — allowed when **`push-to-pull-request-branch`** is set under **`safe-outputs:`**. At execution time the runner resolves the PR, checks optional **`title-prefix`** and required **`labels`** (from frontmatter) against the PR, requires the **current git branch** to equal the PR’s **head** branch, then runs **`git push -u origin HEAD`** in **`WM_REPO_ROOT`**. Same-repo only; no cross-repo routing.
+
+Optional **`messages:`** (sibling of output keys under **`safe-outputs:`**) configures status comments and optional footer text. Supported keys are **`run-started`**, **`run-success`**, **`run-failure`**, and **`footer`**.
 
 ```json
 {
@@ -131,7 +133,7 @@ For **issue/PR numbers**, JSON may use **`target`** (preferred) or gh-aw-style a
 ```
 
 - A **`type`** is **rejected** (skipped with a log line) if its corresponding **`safe-outputs:`** key is **not** declared (except **`noop`**, which is always allowed).
-- **`max:`** per handler is **enforced** (defaults apply when omitted: e.g. **1** for PR / comment / issue / update / close-issue, **10** for **`close_pull_request`** and **`reply_to_pull_request_review_comment`**, **5** for **`create_pull_request_review_comment`** and **`resolve_pull_request_review_thread`**, **3** for label lists and **`add_reviewer`**).
+- **`max:`** per handler is **enforced** (defaults apply when omitted: e.g. **1** for PR / comment / issue / update / close-issue / submit-review, **10** for **`close_pull_request`** and **`reply_to_pull_request_review_comment`**, **5** for **`create_pull_request_review_comment`** and **`resolve_pull_request_review_thread`**, **3** for label lists and **`add_reviewer`**).
 - **`title-prefix`**: enforced for **`create_pull_request`**, **`create_issue`**, **`update_pull_request`**, and **`update_issue`** titles when a non-empty title is supplied (prefix applied when missing).
 - **`labels`** under **`create-pull-request`** / **`create_issue`**: merged with agent-supplied labels (deduped).
 - **`add-labels`** / **`remove-labels`**: optional **`allowed:`** and **`blocked:`** (glob patterns); **`blocked`** is evaluated first.

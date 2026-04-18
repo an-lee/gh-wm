@@ -174,3 +174,33 @@ func TestRenderOnBlock_WildcardIssues(t *testing.T) {
 		t.Fatal("wildcard issues should not list types")
 	}
 }
+
+func TestCollectTriggersFromTasksDir_SlashCommandReviewCommentOnly(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.md"), []byte(`---
+on:
+  slash_command:
+    name: grumpy
+    events: [pull_request_review_comment]
+---
+
+x
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	wt, err := CollectTriggersFromTasksDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wt.IssueCommentWildcard || len(wt.IssueCommentTypes) > 0 {
+		t.Fatalf("expected no issue_comment trigger, got wildcard=%v types=%v", wt.IssueCommentWildcard, wt.IssueCommentTypes)
+	}
+	if len(wt.PullRequestReviewCommentTypes) != 1 || wt.PullRequestReviewCommentTypes[0] != "created" {
+		t.Fatalf("pull_request_review_comment types: %v", wt.PullRequestReviewCommentTypes)
+	}
+	s := renderOnBlock(wt)
+	if !strings.Contains(s, "pull_request_review_comment:") {
+		t.Fatalf("expected pr review comment in workflow: %s", s)
+	}
+}

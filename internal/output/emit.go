@@ -328,6 +328,18 @@ func validateEmitPayload(kind OutputKind, task *config.Task, tc *types.TaskConte
 			return fmt.Errorf("emit: create_pull_request_review_comment: no PR number or GITHUB_REPOSITORY")
 		}
 		return nil
+	case KindSubmitPullRequestReview:
+		ev := strings.TrimSpace(strings.ToUpper(scalar.StringField(item, "event")))
+		switch ev {
+		case "APPROVE", "REQUEST_CHANGES", "COMMENT":
+		default:
+			return fmt.Errorf("emit: submit_pull_request_review: event must be APPROVE, REQUEST_CHANGES, or COMMENT")
+		}
+		target := intTargetPR(item)
+		if resolvePRTarget(tc, target) <= 0 || tc == nil || strings.TrimSpace(tc.Repo) == "" {
+			return fmt.Errorf("emit: submit_pull_request_review: no PR number or GITHUB_REPOSITORY")
+		}
+		return nil
 	case KindReplyToPullRequestReviewComment:
 		if strings.TrimSpace(scalar.StringField(item, "body")) == "" {
 			return fmt.Errorf("emit: reply_to_pull_request_review_comment: empty body")

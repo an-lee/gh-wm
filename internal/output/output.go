@@ -36,6 +36,11 @@ func RunSuccessOutputs(ctx context.Context, glob *config.GlobalConfig, task *con
 		slog.Warn("wm: safe-outputs: no structured output (implicit noop); use `gh-wm emit noop` or other emit subcommands when safe-outputs is set",
 			"safe_output_file", strings.TrimSpace(res.SafeOutputFilePath),
 			"legacy_output_file", strings.TrimSpace(res.OutputFilePath))
+		if strings.TrimSpace(res.LastResponseText) != "" && (tc.IssueNumber > 0 || tc.PRNumber > 0) {
+			if err := postFallbackComment(tc, res.LastResponseText); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 	return runAgentDrivenOutputs(ctx, glob, task, tc, &AgentOutputFile{Items: merged})

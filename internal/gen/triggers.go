@@ -16,7 +16,10 @@ type WorkflowTriggers struct {
 	IssueCommentTypes    []string
 	PullRequestWildcard  bool
 	PullRequestTypes     []string
-	Schedules            []string
+	// PullRequestReviewComment triggers inline review comment webhooks (e.g. /command on a diff thread).
+	PullRequestReviewCommentWildcard bool
+	PullRequestReviewCommentTypes    []string
+	Schedules                        []string
 	// WorkflowDispatch is always true when rendering (manual runs); set from tasks for API completeness.
 	WorkflowDispatch bool
 }
@@ -34,6 +37,7 @@ func CollectTriggersFromTasksDir(tasksDir string) (WorkflowTriggers, error) {
 	issuesSet := make(map[string]struct{})
 	icSet := make(map[string]struct{})
 	prSet := make(map[string]struct{})
+	prcSet := make(map[string]struct{})
 	var schedules []string
 
 	for _, t := range tasks {
@@ -46,9 +50,21 @@ func CollectTriggersFromTasksDir(tasksDir string) (WorkflowTriggers, error) {
 			wt.WorkflowDispatch = true
 		}
 
-		if _, ok := on["slash_command"]; ok {
-			// Slash commands arrive as issue_comment (created).
-			icSet["created"] = struct{}{}
+		if sc, ok := on["slash_command"].(map[string]any); ok && sc != nil {
+			events := stringSliceFromYAML(sc["events"])
+			if len(events) == 0 {
+				icSet["created"] = struct{}{}
+			} else {
+				for _, e := range events {
+					e = strings.TrimSpace(strings.ToLower(e))
+					if e == "issue_comment" || e == "pull_request_comment" {
+						icSet["created"] = struct{}{}
+					}
+					if e == "pull_request_review_comment" {
+						prcSet["created"] = struct{}{}
+					}
+				}
+			}
 		}
 
 		if m, ok := on["issues"].(map[string]any); ok && m != nil {
@@ -99,6 +115,22 @@ func CollectTriggersFromTasksDir(tasksDir string) (WorkflowTriggers, error) {
 			}
 		}
 
+		if m, ok := on["pull_request_review_comment"].(map[string]any); ok && m != nil {
+			typesVal, hasTypes := m["types"]
+			if !hasTypes {
+				wt.PullRequestReviewCommentWildcard = true
+			} else {
+				sl := stringSliceFromYAML(typesVal)
+				if len(sl) == 0 {
+					wt.PullRequestReviewCommentWildcard = true
+				} else {
+					for _, s := range sl {
+						prcSet[s] = struct{}{}
+					}
+				}
+			}
+		}
+
 		s := t.ScheduleString()
 		if s != "" {
 			schedules = append(schedules, FuzzyNormalizeSchedule(s, t.Path))
@@ -118,6 +150,9 @@ func CollectTriggersFromTasksDir(tasksDir string) (WorkflowTriggers, error) {
 	}
 	if !wt.PullRequestWildcard {
 		wt.PullRequestTypes = sortedKeys(prSet)
+	}
+	if !wt.PullRequestReviewCommentWildcard {
+		wt.PullRequestReviewCommentTypes = sortedKeys(prcSet)
 	}
 
 	return wt, nil
@@ -175,6 +210,13 @@ func renderOnBlock(t WorkflowTriggers) string {
 	} else if len(t.PullRequestTypes) > 0 {
 		b.WriteString("  pull_request:\n")
 		b.WriteString(fmt.Sprintf("    types: [%s]\n", strings.Join(t.PullRequestTypes, ", ")))
+	}
+
+	if t.PullRequestReviewCommentWildcard {
+		b.WriteString("  pull_request_review_comment:\n")
+	} else if len(t.PullRequestReviewCommentTypes) > 0 {
+		b.WriteString("  pull_request_review_comment:\n")
+		b.WriteString(fmt.Sprintf("    types: [%s]\n", strings.Join(t.PullRequestReviewCommentTypes, ", ")))
 	}
 
 	b.WriteString("  schedule:\n")
