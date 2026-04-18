@@ -378,6 +378,22 @@ func TestHeadHasOpenPR_NoRepo(t *testing.T) {
 // commitsAheadOfBase error path
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// ghRepoForLabels tests
+// ---------------------------------------------------------------------------
+
+func TestGhRepoForLabels_WithRepo(t *testing.T) {
+	t.Parallel()
+	tc := &types.TaskContext{Repo: "my-org/my-repo"}
+	got, err := ghRepoForLabels(tc)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "my-org/my-repo" {
+		t.Fatalf("got %q, want %q", got, "my-org/my-repo")
+	}
+}
+
 func TestCommitsAheadOfBase_InvalidBase(t *testing.T) {
 	t.Parallel()
 	dir := gitRepoOnBaseBranch(t)
