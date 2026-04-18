@@ -22,6 +22,15 @@ func TestKindToFrontmatter_AllKinds(t *testing.T) {
 		{KindAddLabels, "add-labels"},
 		{KindRemoveLabels, "remove-labels"},
 		{KindCreateIssue, "create-issue"},
+		{KindUpdatePullRequest, "update-pull-request"},
+		{KindUpdateIssue, "update-issue"},
+		{KindCloseIssue, "close-issue"},
+		{KindClosePullRequest, "close-pull-request"},
+		{KindAddReviewer, "add-reviewer"},
+		{KindCreatePullRequestReviewComment, "create-pull-request-review-comment"},
+		{KindReplyToPullRequestReviewComment, "reply-to-pull-request-review-comment"},
+		{KindResolvePullRequestReviewThread, "resolve-pull-request-review-thread"},
+		{KindPushToPullRequestBranch, "push-to-pull-request-branch"},
 		{KindNoop, "noop"},
 	}
 	for _, tc := range cases {
@@ -56,6 +65,15 @@ func TestDefaultMaxPerKind_AllKinds(t *testing.T) {
 		{KindAddLabels, 3},
 		{KindRemoveLabels, 3},
 		{KindCreateIssue, 1},
+		{KindUpdatePullRequest, 1},
+		{KindUpdateIssue, 1},
+		{KindCloseIssue, 1},
+		{KindClosePullRequest, 10},
+		{KindAddReviewer, 3},
+		{KindCreatePullRequestReviewComment, 5},
+		{KindReplyToPullRequestReviewComment, 10},
+		{KindResolvePullRequestReviewThread, 5},
+		{KindPushToPullRequestBranch, 1},
 		{KindNoop, 10},
 	}
 	for _, tc := range cases {
@@ -228,7 +246,12 @@ func TestAllowed_TaskWithoutSafeOutputs(t *testing.T) {
 	t.Parallel()
 	task := &config.Task{Name: "no-safe-outputs", Frontmatter: map[string]any{}}
 	p := newPolicy(task)
-	for _, kind := range []OutputKind{KindCreatePullRequest, KindAddComment, KindAddLabels, KindRemoveLabels, KindCreateIssue} {
+	for _, kind := range []OutputKind{
+		KindCreatePullRequest, KindAddComment, KindAddLabels, KindRemoveLabels, KindCreateIssue,
+		KindUpdatePullRequest, KindUpdateIssue, KindCloseIssue, KindClosePullRequest, KindAddReviewer,
+		KindCreatePullRequestReviewComment, KindReplyToPullRequestReviewComment, KindResolvePullRequestReviewThread,
+		KindPushToPullRequestBranch,
+	} {
 		if p.Allowed(kind) {
 			t.Fatalf("task without safe-outputs should not allow %s", kind)
 		}
@@ -1111,5 +1134,57 @@ func TestMergeLabels_SecondDefDedup(t *testing.T) {
 	got := p.MergeLabels(KindAddLabels, nil)
 	if len(got) != 1 || got[0] != "a" {
 		t.Fatalf("expected [a], got %v", got)
+	}
+}
+
+func TestPushPRTitleMatchesPolicy_OK(t *testing.T) {
+	t.Parallel()
+	task := &config.Task{Frontmatter: map[string]any{
+		"safe-outputs": map[string]any{
+			"push-to-pull-request-branch": map[string]any{"title-prefix": "[wm] "},
+		},
+	}}
+	p := newPolicy(task)
+	if err := p.PushPRTitleMatchesPolicy("[wm] fix stuff"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPushPRTitleMatchesPolicy_Bad(t *testing.T) {
+	t.Parallel()
+	task := &config.Task{Frontmatter: map[string]any{
+		"safe-outputs": map[string]any{
+			"push-to-pull-request-branch": map[string]any{"title-prefix": "[wm] "},
+		},
+	}}
+	p := newPolicy(task)
+	if err := p.PushPRTitleMatchesPolicy("no prefix"); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestPushPRHasRequiredLabels_OK(t *testing.T) {
+	t.Parallel()
+	task := &config.Task{Frontmatter: map[string]any{
+		"safe-outputs": map[string]any{
+			"push-to-pull-request-branch": map[string]any{"labels": []any{"a", "b"}},
+		},
+	}}
+	p := newPolicy(task)
+	if err := p.PushPRHasRequiredLabels([]string{"a", "b", "c"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPushPRHasRequiredLabels_Missing(t *testing.T) {
+	t.Parallel()
+	task := &config.Task{Frontmatter: map[string]any{
+		"safe-outputs": map[string]any{
+			"push-to-pull-request-branch": map[string]any{"labels": []any{"need"}},
+		},
+	}}
+	p := newPolicy(task)
+	if err := p.PushPRHasRequiredLabels([]string{"other"}); err == nil {
+		t.Fatal("expected error")
 	}
 }

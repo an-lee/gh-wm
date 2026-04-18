@@ -148,6 +148,37 @@ func TestIntFromMap_NegativeFloat(t *testing.T) {
 	}
 }
 
+func TestIntFieldFirst_PrefersFirstPositive(t *testing.T) {
+	t.Parallel()
+	m := map[string]any{"target": 0, "issue_number": float64(42)}
+	if got := IntFieldFirst(m, "target", "issue_number"); got != 42 {
+		t.Fatalf("got %d, want 42", got)
+	}
+}
+
+func TestIntFieldFirst_TargetWins(t *testing.T) {
+	t.Parallel()
+	m := map[string]any{"target": 3, "issue_number": 99}
+	if got := IntFieldFirst(m, "target", "issue_number"); got != 3 {
+		t.Fatalf("got %d, want 3", got)
+	}
+}
+
+func TestIntFieldFirst_SkipsNonPositive(t *testing.T) {
+	t.Parallel()
+	m := map[string]any{"target": -1, "pull_request_number": 7}
+	if got := IntFieldFirst(m, "target", "pull_request_number"); got != 7 {
+		t.Fatalf("got %d, want 7", got)
+	}
+}
+
+func TestIntFieldFirst_None(t *testing.T) {
+	t.Parallel()
+	if got := IntFieldFirst(map[string]any{}, "target", "issue_number"); got != 0 {
+		t.Fatalf("got %d", got)
+	}
+}
+
 // --- BoolPtrFromMap ---
 
 func TestBoolPtrFromMap_NilMap(t *testing.T) {

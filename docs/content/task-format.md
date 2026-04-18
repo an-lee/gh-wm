@@ -111,7 +111,15 @@ If there is **no** NDJSON and **no** legacy `output.json`, the safe-output phase
 
 **Legacy:** writing a single JSON document to **`WM_OUTPUT_FILE`** (`output.json` with **`items`**) is still supported and **merged** after NDJSON lines (`output.jsonl` first, then legacy `items`).
 
-Keys under **`safe-outputs:`** declare what operations are **allowed**; each item has a **`type`** using **underscores** (gh-aw style): **`create_pull_request`**, **`add_comment`**, **`add_labels`**, **`remove_labels`**, **`create_issue`**, **`noop`**, **`missing_tool`**, **`missing_data`**. Dash forms in **`type`** (e.g. `create-pull-request`) are accepted too.
+Keys under **`safe-outputs:`** declare what operations are **allowed**; each item has a **`type`** using **underscores** (gh-aw style): **`create_pull_request`**, **`add_comment`**, **`add_labels`**, **`remove_labels`**, **`create_issue`**, **`update_pull_request`**, **`update_issue`**, **`close_issue`**, **`close_pull_request`**, **`add_reviewer`**, **`create_pull_request_review_comment`**, **`reply_to_pull_request_review_comment`**, **`resolve_pull_request_review_thread`**, **`push_to_pull_request_branch`**, **`noop`**, **`missing_tool`**, **`missing_data`**. Dash forms in **`type`** (e.g. `create-pull-request`) are accepted too.
+
+For **issue/PR numbers**, JSON may use **`target`** (preferred) or gh-aw-style aliases: **`issue_number`**, **`pull_request_number`**, **`item_number`**. The first **strictly positive** value wins in a fixed order starting with **`target`**.
+
+**`update_issue` / `update_pull_request` — `operation`:** Optional **`operation`** on the item: **`replace`** (default), **`append`**, **`prepend`**, **`replace-island`** (hyphen or underscore accepted). **`replace`** sets the body to the supplied **`body`** string. **`append`** / **`prepend`** load the current title/body from the API, then concatenate. **`replace-island`** replaces the region between **`<!-- gh-wm:island -->`** and **`<!-- /gh-wm:island -->`** in the existing body with **`body`** (markers must be present and in order).
+
+**`noop`:** In addition to **`{"type":"noop","message":"…"}`**, a gh-aw-style envelope **`{"noop":{"message":"…"}}`** without a top-level **`type`** is accepted and treated as **`noop`**.
+
+**`push_to_pull_request_branch`** — allowed when **`push-to-pull-request-branch`** is set under **`safe-outputs:`**. At execution time the runner resolves the PR, checks optional **`title-prefix`** and required **`labels`** (from frontmatter) against the PR, requires the **current git branch** to equal the PR’s **head** branch, then runs **`git push -u origin HEAD`** in **`WM_REPO_ROOT`**. Same-repo only; no cross-repo routing.
 
 ```json
 {
@@ -123,8 +131,8 @@ Keys under **`safe-outputs:`** declare what operations are **allowed**; each ite
 ```
 
 - A **`type`** is **rejected** (skipped with a log line) if its corresponding **`safe-outputs:`** key is **not** declared (except **`noop`**, which is always allowed).
-- **`max:`** per handler is **enforced** (defaults apply when omitted: e.g. **1** for PR / comment / issue, **3** for label lists).
-- **`title-prefix`**: enforced for **`create_pull_request`** and **`create_issue`** titles (agent title is prefixed when missing).
+- **`max:`** per handler is **enforced** (defaults apply when omitted: e.g. **1** for PR / comment / issue / update / close-issue, **10** for **`close_pull_request`** and **`reply_to_pull_request_review_comment`**, **5** for **`create_pull_request_review_comment`** and **`resolve_pull_request_review_thread`**, **3** for label lists and **`add_reviewer`**).
+- **`title-prefix`**: enforced for **`create_pull_request`**, **`create_issue`**, **`update_pull_request`**, and **`update_issue`** titles when a non-empty title is supplied (prefix applied when missing).
 - **`labels`** under **`create-pull-request`** / **`create_issue`**: merged with agent-supplied labels (deduped).
 - **`add-labels`** / **`remove-labels`**: optional **`allowed:`** and **`blocked:`** (glob patterns); **`blocked`** is evaluated first.
 
