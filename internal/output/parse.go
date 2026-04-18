@@ -108,10 +108,26 @@ func ParseOutputKind(s string) OutputKind {
 		return KindRemoveLabels
 	case "create_issue":
 		return KindCreateIssue
+	case "update_pull_request":
+		return KindUpdatePullRequest
+	case "update_issue":
+		return KindUpdateIssue
+	case "close_issue":
+		return KindCloseIssue
+	case "close_pull_request":
+		return KindClosePullRequest
+	case "add_reviewer":
+		return KindAddReviewer
 	case "create_pull_request_review_comment":
 		return KindCreatePullRequestReviewComment
 	case "submit_pull_request_review":
 		return KindSubmitPullRequestReview
+	case "reply_to_pull_request_review_comment":
+		return KindReplyToPullRequestReviewComment
+	case "resolve_pull_request_review_thread":
+		return KindResolvePullRequestReviewThread
+	case "push_to_pull_request_branch":
+		return KindPushToPullRequestBranch
 	case "noop":
 		return KindNoop
 	case "missing_tool":
@@ -135,14 +151,14 @@ func mapToCreatePR(m map[string]any) ItemCreatePullRequest {
 func mapToAddComment(m map[string]any) ItemAddComment {
 	return ItemAddComment{
 		Body:   scalar.StringField(m, "body"),
-		Target: scalar.IntField(m, "target"),
+		Target: intTargetComment(m),
 	}
 }
 
 func mapToLabels(m map[string]any) ItemLabels {
 	return ItemLabels{
 		Labels: scalar.StringSliceField(m, "labels"),
-		Target: scalar.IntField(m, "target"),
+		Target: intTargetComment(m),
 	}
 }
 
@@ -153,6 +169,86 @@ func mapToCreateIssue(m map[string]any) ItemCreateIssue {
 		Labels:    scalar.StringSliceField(m, "labels"),
 		Assignees: scalar.StringSliceField(m, "assignees"),
 	}
+}
+
+func mapToUpdateIssue(m map[string]any) ItemUpdateIssue {
+	return ItemUpdateIssue{
+		Title:     scalar.StringField(m, "title"),
+		Body:      scalar.StringField(m, "body"),
+		Target:    intTargetIssue(m),
+		Operation: scalar.StringField(m, "operation"),
+	}
+}
+
+func mapToUpdatePullRequest(m map[string]any) ItemUpdatePullRequest {
+	return ItemUpdatePullRequest{
+		Title:     scalar.StringField(m, "title"),
+		Body:      scalar.StringField(m, "body"),
+		Target:    intTargetPR(m),
+		Operation: scalar.StringField(m, "operation"),
+	}
+}
+
+func mapToCloseIssue(m map[string]any) ItemCloseIssue {
+	return ItemCloseIssue{
+		Comment:     scalar.StringField(m, "comment"),
+		StateReason: scalar.StringField(m, "state_reason"),
+		Target:      intTargetIssue(m),
+	}
+}
+
+func mapToClosePullRequest(m map[string]any) ItemClosePullRequest {
+	return ItemClosePullRequest{
+		Comment: scalar.StringField(m, "comment"),
+		Target:  intTargetPR(m),
+	}
+}
+
+func mapToAddReviewer(m map[string]any) ItemAddReviewer {
+	return ItemAddReviewer{
+		Reviewers: scalar.StringSliceField(m, "reviewers"),
+		Target:    intTargetPR(m),
+	}
+}
+
+func mapToCreatePullRequestReviewComment(m map[string]any) ItemCreatePullRequestReviewComment {
+	return ItemCreatePullRequestReviewComment{
+		Body:      scalar.StringField(m, "body"),
+		CommitID:  scalar.StringField(m, "commit_id"),
+		Path:      scalar.StringField(m, "path"),
+		Line:      scalar.IntField(m, "line"),
+		Side:      scalar.StringField(m, "side"),
+		StartLine: scalar.IntField(m, "start_line"),
+		Target:    intTargetPR(m),
+	}
+}
+
+func mapToSubmitPullRequestReview(m map[string]any) ItemSubmitPullRequestReview {
+	return ItemSubmitPullRequestReview{
+		Event:    scalar.StringField(m, "event"),
+		Body:     scalar.StringField(m, "body"),
+		CommitID: scalar.StringField(m, "commit_id"),
+		Target:   intTargetPR(m),
+	}
+}
+
+func mapToReplyToPullRequestReviewComment(m map[string]any) ItemReplyToPullRequestReviewComment {
+	return ItemReplyToPullRequestReviewComment{
+		Body:      scalar.StringField(m, "body"),
+		CommentID: scalar.IntField(m, "comment_id"),
+		Target:    intTargetPR(m),
+	}
+}
+
+func mapToResolvePullRequestReviewThread(m map[string]any) ItemResolvePullRequestReviewThread {
+	return ItemResolvePullRequestReviewThread{
+		ThreadID: scalar.StringField(m, "thread_id"),
+		Target:   intTargetPR(m),
+	}
+}
+
+func mapToPushToPullRequestBranch(m map[string]any) ItemPushToPullRequestBranch {
+	return ItemPushToPullRequestBranch{Target: intTargetPR(m)}
 }
 
 func mapToNoop(m map[string]any) ItemNoop {
@@ -170,25 +266,5 @@ func mapToMissingData(m map[string]any) ItemMissingData {
 	return ItemMissingData{
 		What:   scalar.StringField(m, "what"),
 		Reason: scalar.StringField(m, "reason"),
-	}
-}
-
-func mapToCreatePullRequestReviewComment(m map[string]any) ItemCreatePullRequestReviewComment {
-	return ItemCreatePullRequestReviewComment{
-		Body:     scalar.StringField(m, "body"),
-		Path:     scalar.StringField(m, "path"),
-		Line:     scalar.IntField(m, "line"),
-		Side:     scalar.StringField(m, "side"),
-		CommitID: scalar.StringField(m, "commit_id"),
-		Target:   scalar.IntField(m, "target"),
-	}
-}
-
-func mapToSubmitPullRequestReview(m map[string]any) ItemSubmitPullRequestReview {
-	return ItemSubmitPullRequestReview{
-		Event:    scalar.StringField(m, "event"),
-		Body:     scalar.StringField(m, "body"),
-		CommitID: scalar.StringField(m, "commit_id"),
-		Target:   scalar.IntField(m, "target"),
 	}
 }

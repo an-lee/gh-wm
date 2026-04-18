@@ -318,6 +318,38 @@ func TestMapToNoop_Empty(t *testing.T) {
 	}
 }
 
+func TestMapToUpdateIssue_IssueNumberAlias(t *testing.T) {
+	t.Parallel()
+	got := mapToUpdateIssue(map[string]any{"title": "t", "body": "b", "issue_number": float64(99)})
+	if got.Target != 99 {
+		t.Fatalf("Target: got %d, want 99", got.Target)
+	}
+}
+
+func TestMapToUpdatePullRequest_PullRequestNumberAlias(t *testing.T) {
+	t.Parallel()
+	got := mapToUpdatePullRequest(map[string]any{"title": "t", "pull_request_number": 12})
+	if got.Target != 12 {
+		t.Fatalf("Target: got %d, want 12", got.Target)
+	}
+}
+
+func TestMapToUpdateIssue_Operation(t *testing.T) {
+	t.Parallel()
+	got := mapToUpdateIssue(map[string]any{"body": "x", "operation": "append", "issue_number": 1})
+	if got.Operation != "append" {
+		t.Fatalf("Operation: got %q", got.Operation)
+	}
+}
+
+func TestMapToAddComment_TargetAliasPrecedence(t *testing.T) {
+	t.Parallel()
+	got := mapToAddComment(map[string]any{"body": "x", "target": 1, "issue_number": 99})
+	if got.Target != 1 {
+		t.Fatalf("Target: got %d, want 1", got.Target)
+	}
+}
+
 // --- ParseOutputKind edge cases ---
 
 func TestParseOutputKind_AllKinds(t *testing.T) {
@@ -336,10 +368,26 @@ func TestParseOutputKind_AllKinds(t *testing.T) {
 		{"remove-labels", KindRemoveLabels},
 		{"create_issue", KindCreateIssue},
 		{"create-issue", KindCreateIssue},
+		{"update_pull_request", KindUpdatePullRequest},
+		{"update-pull-request", KindUpdatePullRequest},
+		{"update_issue", KindUpdateIssue},
+		{"update-issue", KindUpdateIssue},
+		{"close_issue", KindCloseIssue},
+		{"close-issue", KindCloseIssue},
+		{"close_pull_request", KindClosePullRequest},
+		{"close-pull-request", KindClosePullRequest},
+		{"add_reviewer", KindAddReviewer},
+		{"add-reviewer", KindAddReviewer},
 		{"create_pull_request_review_comment", KindCreatePullRequestReviewComment},
 		{"create-pull-request-review-comment", KindCreatePullRequestReviewComment},
 		{"submit_pull_request_review", KindSubmitPullRequestReview},
 		{"submit-pull-request-review", KindSubmitPullRequestReview},
+		{"reply_to_pull_request_review_comment", KindReplyToPullRequestReviewComment},
+		{"reply-to-pull-request-review-comment", KindReplyToPullRequestReviewComment},
+		{"resolve_pull_request_review_thread", KindResolvePullRequestReviewThread},
+		{"resolve-pull-request-review-thread", KindResolvePullRequestReviewThread},
+		{"push_to_pull_request_branch", KindPushToPullRequestBranch},
+		{"push-to-pull-request-branch", KindPushToPullRequestBranch},
 		{"noop", KindNoop},
 		{"unknown_type", ""},
 		{"", ""},

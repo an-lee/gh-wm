@@ -57,6 +57,7 @@ func runAgentDrivenOutputs(ctx context.Context, glob *config.GlobalConfig, task 
 		if raw == nil {
 			continue
 		}
+		raw = normalizeNestedNoopItem(raw)
 		kind := ParseOutputKind(ItemType(raw))
 		if kind == "" {
 			slog.Info("wm: safe-output: unknown item type, skipping", "type", ItemType(raw))

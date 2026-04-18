@@ -150,12 +150,17 @@ func applyPolicyMutations(task *config.Task, p *Policy, kind OutputKind, item ma
 		t = p.ApplyTitlePrefix(KindCreatePullRequest, t)
 		item["title"] = t
 		item["labels"] = toStringSliceAny(p.MergeLabels(KindCreatePullRequest, scalar.StringSliceField(item, "labels")))
-	case KindCreatePullRequestReviewComment:
-		if strings.TrimSpace(scalar.StringField(item, "side")) == "" {
-			block := p.fmBlock(KindCreatePullRequestReviewComment)
-			if s := strings.TrimSpace(scalar.StringFromMap(block, "side")); s != "" {
-				item["side"] = s
-			}
+	case KindUpdateIssue:
+		t := strings.TrimSpace(scalar.StringField(item, "title"))
+		if t != "" {
+			t = p.ApplyTitlePrefix(KindUpdateIssue, t)
+			item["title"] = t
+		}
+	case KindUpdatePullRequest:
+		t := strings.TrimSpace(scalar.StringField(item, "title"))
+		if t != "" {
+			t = p.ApplyTitlePrefix(KindUpdatePullRequest, t)
+			item["title"] = t
 		}
 	default:
 		// no in-map mutations
@@ -184,7 +189,7 @@ func validateEmitPayload(kind OutputKind, task *config.Task, tc *types.TaskConte
 		if body == "" {
 			return fmt.Errorf("emit: add_comment: empty body")
 		}
-		target := scalar.IntField(item, "target")
+		target := intTargetComment(item)
 		n := resolveCommentTarget(tc, target)
 		if n <= 0 {
 			return fmt.Errorf("emit: add_comment: no issue or PR number (set --target or run with issue/PR context)")
@@ -204,7 +209,7 @@ func validateEmitPayload(kind OutputKind, task *config.Task, tc *types.TaskConte
 				return fmt.Errorf("emit: add_labels: label %q not allowed by policy", label)
 			}
 		}
-		target := scalar.IntField(item, "target")
+		target := intTargetComment(item)
 		n := resolveLabelTarget(tc, target)
 		if n <= 0 || tc == nil || strings.TrimSpace(tc.Repo) == "" {
 			return fmt.Errorf("emit: add_labels: no issue/PR number or repository")
@@ -224,7 +229,7 @@ func validateEmitPayload(kind OutputKind, task *config.Task, tc *types.TaskConte
 				return fmt.Errorf("emit: remove_labels: label %q not allowed by policy", label)
 			}
 		}
-		target := scalar.IntField(item, "target")
+		target := intTargetComment(item)
 		n := resolveLabelTarget(tc, target)
 		if n <= 0 || tc == nil || strings.TrimSpace(tc.Repo) == "" {
 			return fmt.Errorf("emit: remove_labels: no issue/PR number or repository")
@@ -244,18 +249,81 @@ func validateEmitPayload(kind OutputKind, task *config.Task, tc *types.TaskConte
 			return fmt.Errorf("emit: create_pull_request: WM_REPO_ROOT / repo path not set")
 		}
 		return nil
+	case KindUpdateIssue:
+		title := strings.TrimSpace(scalar.StringField(item, "title"))
+		body := strings.TrimSpace(scalar.StringField(item, "body"))
+		if title == "" && body == "" {
+			return fmt.Errorf("emit: update_issue: need non-empty title and/or body")
+		}
+		if op := scalar.StringField(item, "operation"); op != "" && !isValidUpdateOperation(op) {
+			return fmt.Errorf("emit: update_issue: invalid operation %q (use replace, append, prepend, replace-island)", op)
+		}
+		target := intTargetIssue(item)
+		if resolveIssueTarget(tc, target) <= 0 || tc == nil || strings.TrimSpace(tc.Repo) == "" {
+			return fmt.Errorf("emit: update_issue: no issue number or GITHUB_REPOSITORY")
+		}
+		return nil
+	case KindUpdatePullRequest:
+		title := strings.TrimSpace(scalar.StringField(item, "title"))
+		body := strings.TrimSpace(scalar.StringField(item, "body"))
+		if title == "" && body == "" {
+			return fmt.Errorf("emit: update_pull_request: need non-empty title and/or body")
+		}
+		if op := scalar.StringField(item, "operation"); op != "" && !isValidUpdateOperation(op) {
+			return fmt.Errorf("emit: update_pull_request: invalid operation %q (use replace, append, prepend, replace-island)", op)
+		}
+		target := intTargetPR(item)
+		if resolvePRTarget(tc, target) <= 0 || tc == nil || strings.TrimSpace(tc.Repo) == "" {
+			return fmt.Errorf("emit: update_pull_request: no PR/issue number or GITHUB_REPOSITORY")
+		}
+		return nil
+	case KindCloseIssue:
+		target := intTargetIssue(item)
+		if resolveIssueTarget(tc, target) <= 0 || tc == nil || strings.TrimSpace(tc.Repo) == "" {
+			return fmt.Errorf("emit: close_issue: no issue number or GITHUB_REPOSITORY")
+		}
+		if sr := strings.TrimSpace(scalar.StringField(item, "state_reason")); sr != "" && !validIssueCloseReason(sr) {
+			return fmt.Errorf("emit: close_issue: state_reason must be completed, not_planned, or duplicate")
+		}
+		return nil
+	case KindClosePullRequest:
+		target := intTargetPR(item)
+		if resolvePRTarget(tc, target) <= 0 || tc == nil || strings.TrimSpace(tc.Repo) == "" {
+			return fmt.Errorf("emit: close_pull_request: no PR number or GITHUB_REPOSITORY")
+		}
+		return nil
+	case KindAddReviewer:
+		reviewers := scalar.StringSliceField(item, "reviewers")
+		if len(reviewers) == 0 {
+			return fmt.Errorf("emit: add_reviewer: empty reviewers")
+		}
+		target := intTargetPR(item)
+		if resolvePRTarget(tc, target) <= 0 || tc == nil || strings.TrimSpace(tc.Repo) == "" {
+			return fmt.Errorf("emit: add_reviewer: no PR number or GITHUB_REPOSITORY")
+		}
+		return nil
 	case KindCreatePullRequestReviewComment:
-		path := strings.TrimSpace(scalar.StringField(item, "path"))
-		if path == "" {
+		if strings.TrimSpace(scalar.StringField(item, "body")) == "" {
+			return fmt.Errorf("emit: create_pull_request_review_comment: empty body")
+		}
+		if strings.TrimSpace(scalar.StringField(item, "commit_id")) == "" {
+			return fmt.Errorf("emit: create_pull_request_review_comment: empty commit_id")
+		}
+		if strings.TrimSpace(scalar.StringField(item, "path")) == "" {
 			return fmt.Errorf("emit: create_pull_request_review_comment: empty path")
 		}
 		if scalar.IntField(item, "line") <= 0 {
 			return fmt.Errorf("emit: create_pull_request_review_comment: line must be positive")
 		}
-		if strings.TrimSpace(scalar.StringField(item, "body")) == "" {
-			return fmt.Errorf("emit: create_pull_request_review_comment: empty body")
+		if _, err := normalizeReviewCommentSide(scalar.StringField(item, "side")); err != nil {
+			return fmt.Errorf("emit: create_pull_request_review_comment: %w", err)
 		}
-		target := scalar.IntField(item, "target")
+		start := scalar.IntField(item, "start_line")
+		line := scalar.IntField(item, "line")
+		if start > 0 && start > line {
+			return fmt.Errorf("emit: create_pull_request_review_comment: start_line must be <= line")
+		}
+		target := intTargetPR(item)
 		if resolvePRTarget(tc, target) <= 0 || tc == nil || strings.TrimSpace(tc.Repo) == "" {
 			return fmt.Errorf("emit: create_pull_request_review_comment: no PR number or GITHUB_REPOSITORY")
 		}
@@ -267,12 +335,53 @@ func validateEmitPayload(kind OutputKind, task *config.Task, tc *types.TaskConte
 		default:
 			return fmt.Errorf("emit: submit_pull_request_review: event must be APPROVE, REQUEST_CHANGES, or COMMENT")
 		}
-		target := scalar.IntField(item, "target")
+		target := intTargetPR(item)
 		if resolvePRTarget(tc, target) <= 0 || tc == nil || strings.TrimSpace(tc.Repo) == "" {
 			return fmt.Errorf("emit: submit_pull_request_review: no PR number or GITHUB_REPOSITORY")
 		}
 		return nil
+	case KindReplyToPullRequestReviewComment:
+		if strings.TrimSpace(scalar.StringField(item, "body")) == "" {
+			return fmt.Errorf("emit: reply_to_pull_request_review_comment: empty body")
+		}
+		if scalar.IntField(item, "comment_id") <= 0 {
+			return fmt.Errorf("emit: reply_to_pull_request_review_comment: invalid comment_id")
+		}
+		target := intTargetPR(item)
+		if resolvePRTarget(tc, target) <= 0 || tc == nil || strings.TrimSpace(tc.Repo) == "" {
+			return fmt.Errorf("emit: reply_to_pull_request_review_comment: no PR number or GITHUB_REPOSITORY")
+		}
+		return nil
+	case KindResolvePullRequestReviewThread:
+		if strings.TrimSpace(scalar.StringField(item, "thread_id")) == "" {
+			return fmt.Errorf("emit: resolve_pull_request_review_thread: empty thread_id")
+		}
+		target := intTargetPR(item)
+		if resolvePRTarget(tc, target) <= 0 || tc == nil || strings.TrimSpace(tc.Repo) == "" {
+			return fmt.Errorf("emit: resolve_pull_request_review_thread: no PR number or GITHUB_REPOSITORY")
+		}
+		return nil
+	case KindPushToPullRequestBranch:
+		if tc == nil || strings.TrimSpace(tc.RepoPath) == "" {
+			return fmt.Errorf("emit: push_to_pull_request_branch: WM_REPO_ROOT / repo path not set")
+		}
+		target := intTargetPR(item)
+		if resolvePRTarget(tc, target) <= 0 || strings.TrimSpace(tc.Repo) == "" {
+			return fmt.Errorf("emit: push_to_pull_request_branch: no PR number (set --target or WM_PR_NUMBER)")
+		}
+		return nil
 	default:
 		return fmt.Errorf("emit: unknown kind %q", kind)
+	}
+}
+
+func validIssueCloseReason(s string) bool {
+	x := strings.TrimSpace(strings.ToLower(strings.ReplaceAll(s, "-", "_")))
+	x = strings.ReplaceAll(x, " ", "_")
+	switch x {
+	case "completed", "not_planned", "duplicate":
+		return true
+	default:
+		return false
 	}
 }

@@ -114,6 +114,18 @@ func IntField(m map[string]any, key string) int {
 	return IntFromMap(m, key)
 }
 
+// IntFieldFirst walks keys in order and returns the first strictly positive int from m.
+// Use with "target" first so explicit target wins over gh-aw aliases (issue_number, etc.).
+func IntFieldFirst(m map[string]any, keys ...string) int {
+	for _, key := range keys {
+		n := IntField(m, key)
+		if n > 0 {
+			return n
+		}
+	}
+	return 0
+}
+
 // BoolPtrField extracts *bool from item map (parse.go).
 func BoolPtrField(m map[string]any, key string) *bool {
 	return BoolPtrFromMap(m, key)

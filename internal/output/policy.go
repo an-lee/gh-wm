@@ -11,14 +11,22 @@ import (
 
 // Frontmatter keys (dash form) used in safe-outputs:
 const (
-	fmCreatePullRequest              = "create-pull-request"
-	fmAddComment                     = "add-comment"
-	fmAddLabels                      = "add-labels"
-	fmRemoveLabels                   = "remove-labels"
-	fmCreateIssue                    = "create-issue"
-	fmCreatePullRequestReviewComment = "create-pull-request-review-comment"
-	fmSubmitPullRequestReview        = "submit-pull-request-review"
-	fmNoop                           = "noop"
+	fmCreatePullRequest               = "create-pull-request"
+	fmAddComment                      = "add-comment"
+	fmAddLabels                       = "add-labels"
+	fmRemoveLabels                    = "remove-labels"
+	fmCreateIssue                     = "create-issue"
+	fmUpdatePullRequest               = "update-pull-request"
+	fmUpdateIssue                     = "update-issue"
+	fmCloseIssue                      = "close-issue"
+	fmClosePullRequest                = "close-pull-request"
+	fmAddReviewer                     = "add-reviewer"
+	fmCreatePullRequestReviewComment  = "create-pull-request-review-comment"
+	fmSubmitPullRequestReview         = "submit-pull-request-review"
+	fmReplyToPullRequestReviewComment = "reply-to-pull-request-review-comment"
+	fmResolvePullRequestReviewThread  = "resolve-pull-request-review-thread"
+	fmPushToPullRequestBranch         = "push-to-pull-request-branch"
+	fmNoop                            = "noop"
 )
 
 // kindToFrontmatter maps JSON type (underscore) to frontmatter key (dash).
@@ -34,10 +42,26 @@ func kindToFrontmatter(kind OutputKind) string {
 		return fmRemoveLabels
 	case KindCreateIssue:
 		return fmCreateIssue
+	case KindUpdatePullRequest:
+		return fmUpdatePullRequest
+	case KindUpdateIssue:
+		return fmUpdateIssue
+	case KindCloseIssue:
+		return fmCloseIssue
+	case KindClosePullRequest:
+		return fmClosePullRequest
+	case KindAddReviewer:
+		return fmAddReviewer
 	case KindCreatePullRequestReviewComment:
 		return fmCreatePullRequestReviewComment
 	case KindSubmitPullRequestReview:
 		return fmSubmitPullRequestReview
+	case KindReplyToPullRequestReviewComment:
+		return fmReplyToPullRequestReviewComment
+	case KindResolvePullRequestReviewThread:
+		return fmResolvePullRequestReviewThread
+	case KindPushToPullRequestBranch:
+		return fmPushToPullRequestBranch
 	case KindNoop:
 		return fmNoop
 	default:
@@ -48,10 +72,18 @@ func kindToFrontmatter(kind OutputKind) string {
 // defaultMaxPerKind when frontmatter omits max:
 func defaultMaxPerKind(kind OutputKind) int {
 	switch kind {
-	case KindCreatePullRequest, KindAddComment, KindCreateIssue, KindSubmitPullRequestReview:
+	case KindCreatePullRequest, KindAddComment, KindCreateIssue,
+		KindUpdatePullRequest, KindUpdateIssue, KindCloseIssue, KindPushToPullRequestBranch,
+		KindSubmitPullRequestReview:
 		return 1
-	case KindCreatePullRequestReviewComment:
+	case KindClosePullRequest:
+		return 10
+	case KindAddReviewer:
+		return 3
+	case KindCreatePullRequestReviewComment, KindResolvePullRequestReviewThread:
 		return 5
+	case KindReplyToPullRequestReviewComment:
+		return 10
 	case KindAddLabels, KindRemoveLabels:
 		return 3
 	case KindNoop:
@@ -253,4 +285,51 @@ func (p *Policy) RemoveLabelAllowed(label string) bool {
 		}
 	}
 	return false
+}
+
+// PushPRTitleMatchesPolicy returns an error if title-prefix is set in safe-outputs and the PR title does not start with it.
+func (p *Policy) PushPRTitleMatchesPolicy(title string) error {
+	if p == nil {
+		return nil
+	}
+	block := p.fmBlock(KindPushToPullRequestBranch)
+	if block == nil {
+		return nil
+	}
+	prefix := strings.TrimSpace(scalar.StringFromMap(block, "title-prefix"))
+	if prefix == "" {
+		return nil
+	}
+	t := strings.TrimSpace(title)
+	if strings.HasPrefix(t, prefix) {
+		return nil
+	}
+	return fmt.Errorf("push_to_pull_request_branch: PR title %q does not start with required prefix %q", t, prefix)
+}
+
+// PushPRHasRequiredLabels returns an error if safe-outputs lists labels and the PR is missing any of them.
+func (p *Policy) PushPRHasRequiredLabels(prLabelNames []string) error {
+	if p == nil {
+		return nil
+	}
+	block := p.fmBlock(KindPushToPullRequestBranch)
+	if block == nil {
+		return nil
+	}
+	required := scalar.StringSliceFromMap(block, "labels")
+	if len(required) == 0 {
+		return nil
+	}
+	have := make(map[string]struct{})
+	for _, l := range prLabelNames {
+		if l != "" {
+			have[l] = struct{}{}
+		}
+	}
+	for _, r := range required {
+		if _, ok := have[r]; !ok {
+			return fmt.Errorf("push_to_pull_request_branch: PR missing required label %q", r)
+		}
+	}
+	return nil
 }

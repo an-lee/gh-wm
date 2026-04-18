@@ -32,6 +32,23 @@ func TestRunSuccessOutputs_MergesNDJSONBeforeLegacyJSON(t *testing.T) {
 	}
 }
 
+func TestRunSuccessOutputs_NestedNoopEnvelope(t *testing.T) {
+	t.Parallel()
+	p := filepath.Join(t.TempDir(), "output.json")
+	if err := os.WriteFile(p, []byte(`{"items":[{"noop":{"message":"nested noop"}}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	g := &config.GlobalConfig{}
+	task := &config.Task{Frontmatter: map[string]any{"safe-outputs": map[string]any{
+		"noop": map[string]any{},
+	}}}
+	tc := &types.TaskContext{RepoPath: t.TempDir(), Repo: "o/r", IssueNumber: 1}
+	res := &types.AgentResult{OutputFilePath: p}
+	if err := RunSuccessOutputs(context.Background(), g, task, tc, res); err != nil {
+		t.Fatalf("nested noop: %v", err)
+	}
+}
+
 func TestRunSuccessOutputs_AgentDrivenNoop(t *testing.T) {
 	t.Parallel()
 	p := filepath.Join(t.TempDir(), "output.json")
