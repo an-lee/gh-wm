@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 )
 
 // AddIssueLabel adds a label to an issue or PR (same issue API).
@@ -78,4 +79,59 @@ func CreateIssue(ctx context.Context, repo, title, body string, labels, assignee
 		payload["assignees"] = assignees
 	}
 	return PostJSON(ctx, path, payload)
+}
+
+// UpdateIssue PATCHes title and/or body. Empty strings are omitted from the payload.
+func UpdateIssue(ctx context.Context, repo string, number int, title, body string) error {
+	owner, name, err := splitRepo(repo)
+	if err != nil {
+		return err
+	}
+	path := fmt.Sprintf("repos/%s/%s/issues/%d", owner, name, number)
+	payload := map[string]any{}
+	if t := strings.TrimSpace(title); t != "" {
+		payload["title"] = t
+	}
+	if strings.TrimSpace(body) != "" {
+		payload["body"] = body
+	}
+	if len(payload) == 0 {
+		return fmt.Errorf("update issue: nothing to update")
+	}
+	return PatchJSON(ctx, path, payload)
+}
+
+// CloseIssue closes an issue; optional comment is posted first. stateReason is REST form (completed, not_planned, duplicate) or empty for completed.
+func CloseIssue(ctx context.Context, repo string, number int, comment, stateReason string) error {
+	owner, name, err := splitRepo(repo)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(comment) != "" {
+		if err := PostIssueComment(ctx, repo, number, comment); err != nil {
+			return err
+		}
+	}
+	path := fmt.Sprintf("repos/%s/%s/issues/%d", owner, name, number)
+	reason := normalizeIssueStateReasonREST(stateReason)
+	payload := map[string]any{
+		"state":        "closed",
+		"state_reason": reason,
+	}
+	return PatchJSON(ctx, path, payload)
+}
+
+func normalizeIssueStateReasonREST(s string) string {
+	s = strings.TrimSpace(strings.ToLower(strings.ReplaceAll(s, "-", "_")))
+	s = strings.ReplaceAll(s, " ", "_")
+	switch s {
+	case "", "completed":
+		return "completed"
+	case "not_planned":
+		return "not_planned"
+	case "duplicate":
+		return "duplicate"
+	default:
+		return "completed"
+	}
 }

@@ -195,7 +195,7 @@ See [architecture.md — GitHub Actions token sandbox](architecture.md#github-ac
 
 **Environment (required):** **`WM_REPO_ROOT`**, **`WM_TASK`**, **`WM_SAFE_OUTPUT_FILE`**. Typically also **`GITHUB_REPOSITORY`** and **`WM_ISSUE_NUMBER`** / **`WM_PR_NUMBER`** when commenting or labeling on the triggering thread.
 
-**Subcommands:** `noop`, `add-comment`, `add-labels`, `remove-labels`, `create-issue`, `create-pull-request`, `missing-tool`, `missing-data`. Use **`gh wm emit --help`** and **`gh wm emit <cmd> --help`** for flags.
+**Subcommands:** `noop`, `add-comment`, `add-labels`, `remove-labels`, `create-issue`, `create-pull-request`, `update-issue`, `update-pull-request`, `close-issue`, `close-pull-request`, `add-reviewer`, `missing-tool`, `missing-data`. Use **`gh wm emit --help`** and **`gh wm emit <cmd> --help`** for flags.
 
 See [task-format.md — `safe-outputs:`](task-format.md).
 

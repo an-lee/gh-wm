@@ -15,6 +15,11 @@ func init() {
 	registerKind(KindAddLabels, execKindAddLabels)
 	registerKind(KindRemoveLabels, execKindRemoveLabels)
 	registerKind(KindCreateIssue, execKindCreateIssue)
+	registerKind(KindUpdateIssue, execKindUpdateIssue)
+	registerKind(KindUpdatePullRequest, execKindUpdatePullRequest)
+	registerKind(KindCloseIssue, execKindCloseIssue)
+	registerKind(KindClosePullRequest, execKindClosePullRequest)
+	registerKind(KindAddReviewer, execKindAddReviewer)
 }
 
 func execKindCreatePullRequest(ctx context.Context, glob *config.GlobalConfig, task *config.Task, tc *types.TaskContext, p *Policy, raw map[string]any) error {
@@ -48,4 +53,35 @@ func execKindCreateIssue(ctx context.Context, _ *config.GlobalConfig, _ *config.
 	}
 	item.Labels = p.MergeLabels(KindCreateIssue, item.Labels)
 	return runCreateIssue(ctx, tc, item)
+}
+
+func execKindUpdateIssue(ctx context.Context, _ *config.GlobalConfig, _ *config.Task, tc *types.TaskContext, p *Policy, raw map[string]any) error {
+	item := mapToUpdateIssue(raw)
+	if t := strings.TrimSpace(item.Title); t != "" {
+		item.Title = p.ApplyTitlePrefix(KindUpdateIssue, t)
+	}
+	return runUpdateIssue(ctx, tc, item)
+}
+
+func execKindUpdatePullRequest(ctx context.Context, _ *config.GlobalConfig, _ *config.Task, tc *types.TaskContext, p *Policy, raw map[string]any) error {
+	item := mapToUpdatePullRequest(raw)
+	if t := strings.TrimSpace(item.Title); t != "" {
+		item.Title = p.ApplyTitlePrefix(KindUpdatePullRequest, t)
+	}
+	return runUpdatePullRequest(ctx, tc, item)
+}
+
+func execKindCloseIssue(ctx context.Context, _ *config.GlobalConfig, _ *config.Task, tc *types.TaskContext, _ *Policy, raw map[string]any) error {
+	item := mapToCloseIssue(raw)
+	return runCloseIssue(ctx, tc, item)
+}
+
+func execKindClosePullRequest(ctx context.Context, _ *config.GlobalConfig, _ *config.Task, tc *types.TaskContext, _ *Policy, raw map[string]any) error {
+	item := mapToClosePullRequest(raw)
+	return runClosePullRequest(ctx, tc, item)
+}
+
+func execKindAddReviewer(ctx context.Context, _ *config.GlobalConfig, _ *config.Task, tc *types.TaskContext, _ *Policy, raw map[string]any) error {
+	item := mapToAddReviewer(raw)
+	return runAddReviewers(ctx, tc, item)
 }

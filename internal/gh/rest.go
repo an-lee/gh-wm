@@ -55,6 +55,28 @@ func PostJSON(ctx context.Context, path string, payload any) error {
 	return nil
 }
 
+// PostJSONChecked POSTs JSON and returns an error if the response status is not 2xx.
+func PostJSONChecked(ctx context.Context, path string, payload any) error {
+	c, err := REST()
+	if err != nil {
+		return err
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	resp, err := c.RequestWithContext(ctx, "POST", path, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("github API POST %s: %s: %s", path, resp.Status, string(body))
+	}
+	return nil
+}
+
 // DeletePath issues DELETE to path (caller must encode path segments).
 func DeletePath(ctx context.Context, path string) error {
 	c, err := REST()
@@ -87,4 +109,26 @@ func GetJSON(ctx context.Context, path string, dest any) error {
 		return err
 	}
 	return json.Unmarshal(b, dest)
+}
+
+// PatchJSON PATCHes a JSON body to a GitHub REST path (e.g. "repos/o/r/issues/1").
+func PatchJSON(ctx context.Context, path string, payload any) error {
+	c, err := REST()
+	if err != nil {
+		return err
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	resp, err := c.RequestWithContext(ctx, "PATCH", path, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("github API PATCH %s: %s: %s", path, resp.Status, string(body))
+	}
+	return nil
 }

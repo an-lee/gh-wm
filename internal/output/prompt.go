@@ -21,6 +21,16 @@ func emitSubcommand(kind OutputKind) string {
 		return "remove-labels"
 	case KindCreateIssue:
 		return "create-issue"
+	case KindUpdatePullRequest:
+		return "update-pull-request"
+	case KindUpdateIssue:
+		return "update-issue"
+	case KindCloseIssue:
+		return "close-issue"
+	case KindClosePullRequest:
+		return "close-pull-request"
+	case KindAddReviewer:
+		return "add-reviewer"
 	case KindNoop:
 		return "noop"
 	case KindMissingTool:
@@ -77,6 +87,11 @@ func AvailableOutputsSection(glob *config.GlobalConfig, task *config.Task) strin
 		{fmAddLabels, KindAddLabels, "`--labels` (repeat or comma-separated), optional `--target`"},
 		{fmRemoveLabels, KindRemoveLabels, "`--labels`, optional `--target`"},
 		{fmCreateIssue, KindCreateIssue, "`--title`, optional `--body`, `--labels`, `--assignees`"},
+		{fmUpdatePullRequest, KindUpdatePullRequest, "optional `--title`, `--body` (at least one), optional `--target`"},
+		{fmUpdateIssue, KindUpdateIssue, "optional `--title`, `--body` (at least one), optional `--target`"},
+		{fmCloseIssue, KindCloseIssue, "optional `--comment`, `--state-reason`, optional `--target`"},
+		{fmClosePullRequest, KindClosePullRequest, "optional `--comment`, optional `--target`"},
+		{fmAddReviewer, KindAddReviewer, "`--reviewers` (repeat or comma-separated), optional `--target`"},
 	}
 
 	for _, row := range order {

@@ -16,6 +16,11 @@ const (
 	fmAddLabels         = "add-labels"
 	fmRemoveLabels      = "remove-labels"
 	fmCreateIssue       = "create-issue"
+	fmUpdatePullRequest = "update-pull-request"
+	fmUpdateIssue       = "update-issue"
+	fmCloseIssue        = "close-issue"
+	fmClosePullRequest  = "close-pull-request"
+	fmAddReviewer       = "add-reviewer"
 	fmNoop              = "noop"
 )
 
@@ -32,6 +37,16 @@ func kindToFrontmatter(kind OutputKind) string {
 		return fmRemoveLabels
 	case KindCreateIssue:
 		return fmCreateIssue
+	case KindUpdatePullRequest:
+		return fmUpdatePullRequest
+	case KindUpdateIssue:
+		return fmUpdateIssue
+	case KindCloseIssue:
+		return fmCloseIssue
+	case KindClosePullRequest:
+		return fmClosePullRequest
+	case KindAddReviewer:
+		return fmAddReviewer
 	case KindNoop:
 		return fmNoop
 	default:
@@ -42,8 +57,13 @@ func kindToFrontmatter(kind OutputKind) string {
 // defaultMaxPerKind when frontmatter omits max:
 func defaultMaxPerKind(kind OutputKind) int {
 	switch kind {
-	case KindCreatePullRequest, KindAddComment, KindCreateIssue:
+	case KindCreatePullRequest, KindAddComment, KindCreateIssue,
+		KindUpdatePullRequest, KindUpdateIssue, KindCloseIssue:
 		return 1
+	case KindClosePullRequest:
+		return 10
+	case KindAddReviewer:
+		return 3
 	case KindAddLabels, KindRemoveLabels:
 		return 3
 	case KindNoop:

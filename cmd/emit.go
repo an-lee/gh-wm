@@ -31,6 +31,11 @@ func init() {
 		emitRemoveLabelsCmd,
 		emitCreateIssueCmd,
 		emitCreatePRCmd,
+		emitUpdateIssueCmd,
+		emitUpdatePRCmd,
+		emitCloseIssueCmd,
+		emitClosePRCmd,
+		emitAddReviewerCmd,
 		emitMissingToolCmd,
 		emitMissingDataCmd,
 	)
@@ -60,6 +65,25 @@ func init() {
 	emitCreatePRCmd.Flags().String("body", "", "PR body")
 	emitCreatePRCmd.Flags().Bool("draft", false, "open as draft")
 	emitCreatePRCmd.Flags().StringSlice("labels", nil, "labels")
+
+	emitUpdateIssueCmd.Flags().String("title", "", "new title (optional if --body set)")
+	emitUpdateIssueCmd.Flags().String("body", "", "new body (optional if --title set)")
+	emitUpdateIssueCmd.Flags().Int("target", 0, "issue number (default: WM_ISSUE_NUMBER / WM_PR_NUMBER)")
+
+	emitUpdatePRCmd.Flags().String("title", "", "new title (optional if --body set)")
+	emitUpdatePRCmd.Flags().String("body", "", "new body (optional if --title set)")
+	emitUpdatePRCmd.Flags().Int("target", 0, "PR number (default: WM_PR_NUMBER / WM_ISSUE_NUMBER)")
+
+	emitCloseIssueCmd.Flags().String("comment", "", "optional closing comment")
+	emitCloseIssueCmd.Flags().String("state-reason", "", "completed|not_planned|duplicate (optional)")
+	emitCloseIssueCmd.Flags().Int("target", 0, "issue number (default: WM_ISSUE_NUMBER / WM_PR_NUMBER)")
+
+	emitClosePRCmd.Flags().String("comment", "", "optional closing comment")
+	emitClosePRCmd.Flags().Int("target", 0, "PR number (default: WM_PR_NUMBER / WM_ISSUE_NUMBER)")
+
+	emitAddReviewerCmd.Flags().StringSlice("reviewers", nil, "logins (repeat or comma-separated)")
+	_ = emitAddReviewerCmd.MarkFlagRequired("reviewers")
+	emitAddReviewerCmd.Flags().Int("target", 0, "PR number (default: WM_PR_NUMBER / WM_ISSUE_NUMBER)")
 
 	emitMissingToolCmd.Flags().String("tool", "", "tool or capability name")
 	emitMissingToolCmd.Flags().String("reason", "", "why it is unavailable")
@@ -211,6 +235,77 @@ var emitCreateIssueCmd = &cobra.Command{
 			item["assignees"] = arr
 		}
 		return runEmit(cmd.Context(), output.KindCreateIssue, item)
+	},
+}
+
+var emitUpdateIssueCmd = &cobra.Command{
+	Use:   "update-issue",
+	Short: "Request editing an issue title/body",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		title, _ := cmd.Flags().GetString("title")
+		body, _ := cmd.Flags().GetString("body")
+		target, _ := cmd.Flags().GetInt("target")
+		return runEmit(cmd.Context(), output.KindUpdateIssue, map[string]any{
+			"title": title, "body": body, "target": target,
+		})
+	},
+}
+
+var emitUpdatePRCmd = &cobra.Command{
+	Use:   "update-pull-request",
+	Short: "Request editing a pull request title/body",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		title, _ := cmd.Flags().GetString("title")
+		body, _ := cmd.Flags().GetString("body")
+		target, _ := cmd.Flags().GetInt("target")
+		return runEmit(cmd.Context(), output.KindUpdatePullRequest, map[string]any{
+			"title": title, "body": body, "target": target,
+		})
+	},
+}
+
+var emitCloseIssueCmd = &cobra.Command{
+	Use:   "close-issue",
+	Short: "Request closing an issue",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		comment, _ := cmd.Flags().GetString("comment")
+		reason, _ := cmd.Flags().GetString("state-reason")
+		target, _ := cmd.Flags().GetInt("target")
+		item := map[string]any{"comment": comment, "target": target}
+		if strings.TrimSpace(reason) != "" {
+			item["state_reason"] = reason
+		}
+		return runEmit(cmd.Context(), output.KindCloseIssue, item)
+	},
+}
+
+var emitClosePRCmd = &cobra.Command{
+	Use:   "close-pull-request",
+	Short: "Request closing a pull request without merging",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		comment, _ := cmd.Flags().GetString("comment")
+		target, _ := cmd.Flags().GetInt("target")
+		return runEmit(cmd.Context(), output.KindClosePullRequest, map[string]any{
+			"comment": comment, "target": target,
+		})
+	},
+}
+
+var emitAddReviewerCmd = &cobra.Command{
+	Use:   "add-reviewer",
+	Short: "Request reviewers on a pull request",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		reviewers, _ := cmd.Flags().GetStringSlice("reviewers")
+		target, _ := cmd.Flags().GetInt("target")
+		item := map[string]any{"target": target}
+		if len(reviewers) > 0 {
+			arr := make([]any, len(reviewers))
+			for i, r := range reviewers {
+				arr[i] = r
+			}
+			item["reviewers"] = arr
+		}
+		return runEmit(cmd.Context(), output.KindAddReviewer, item)
 	},
 }
 

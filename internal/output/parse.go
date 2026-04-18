@@ -108,6 +108,16 @@ func ParseOutputKind(s string) OutputKind {
 		return KindRemoveLabels
 	case "create_issue":
 		return KindCreateIssue
+	case "update_pull_request":
+		return KindUpdatePullRequest
+	case "update_issue":
+		return KindUpdateIssue
+	case "close_issue":
+		return KindCloseIssue
+	case "close_pull_request":
+		return KindClosePullRequest
+	case "add_reviewer":
+		return KindAddReviewer
 	case "noop":
 		return KindNoop
 	case "missing_tool":
@@ -148,6 +158,44 @@ func mapToCreateIssue(m map[string]any) ItemCreateIssue {
 		Body:      scalar.StringField(m, "body"),
 		Labels:    scalar.StringSliceField(m, "labels"),
 		Assignees: scalar.StringSliceField(m, "assignees"),
+	}
+}
+
+func mapToUpdateIssue(m map[string]any) ItemUpdateIssue {
+	return ItemUpdateIssue{
+		Title:  scalar.StringField(m, "title"),
+		Body:   scalar.StringField(m, "body"),
+		Target: scalar.IntField(m, "target"),
+	}
+}
+
+func mapToUpdatePullRequest(m map[string]any) ItemUpdatePullRequest {
+	return ItemUpdatePullRequest{
+		Title:  scalar.StringField(m, "title"),
+		Body:   scalar.StringField(m, "body"),
+		Target: scalar.IntField(m, "target"),
+	}
+}
+
+func mapToCloseIssue(m map[string]any) ItemCloseIssue {
+	return ItemCloseIssue{
+		Comment:     scalar.StringField(m, "comment"),
+		StateReason: scalar.StringField(m, "state_reason"),
+		Target:      scalar.IntField(m, "target"),
+	}
+}
+
+func mapToClosePullRequest(m map[string]any) ItemClosePullRequest {
+	return ItemClosePullRequest{
+		Comment: scalar.StringField(m, "comment"),
+		Target:  scalar.IntField(m, "target"),
+	}
+}
+
+func mapToAddReviewer(m map[string]any) ItemAddReviewer {
+	return ItemAddReviewer{
+		Reviewers: scalar.StringSliceField(m, "reviewers"),
+		Target:    scalar.IntField(m, "target"),
 	}
 }
 

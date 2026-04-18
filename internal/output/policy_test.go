@@ -22,6 +22,11 @@ func TestKindToFrontmatter_AllKinds(t *testing.T) {
 		{KindAddLabels, "add-labels"},
 		{KindRemoveLabels, "remove-labels"},
 		{KindCreateIssue, "create-issue"},
+		{KindUpdatePullRequest, "update-pull-request"},
+		{KindUpdateIssue, "update-issue"},
+		{KindCloseIssue, "close-issue"},
+		{KindClosePullRequest, "close-pull-request"},
+		{KindAddReviewer, "add-reviewer"},
 		{KindNoop, "noop"},
 	}
 	for _, tc := range cases {
@@ -56,6 +61,11 @@ func TestDefaultMaxPerKind_AllKinds(t *testing.T) {
 		{KindAddLabels, 3},
 		{KindRemoveLabels, 3},
 		{KindCreateIssue, 1},
+		{KindUpdatePullRequest, 1},
+		{KindUpdateIssue, 1},
+		{KindCloseIssue, 1},
+		{KindClosePullRequest, 10},
+		{KindAddReviewer, 3},
 		{KindNoop, 10},
 	}
 	for _, tc := range cases {
@@ -228,7 +238,10 @@ func TestAllowed_TaskWithoutSafeOutputs(t *testing.T) {
 	t.Parallel()
 	task := &config.Task{Name: "no-safe-outputs", Frontmatter: map[string]any{}}
 	p := newPolicy(task)
-	for _, kind := range []OutputKind{KindCreatePullRequest, KindAddComment, KindAddLabels, KindRemoveLabels, KindCreateIssue} {
+	for _, kind := range []OutputKind{
+		KindCreatePullRequest, KindAddComment, KindAddLabels, KindRemoveLabels, KindCreateIssue,
+		KindUpdatePullRequest, KindUpdateIssue, KindCloseIssue, KindClosePullRequest, KindAddReviewer,
+	} {
 		if p.Allowed(kind) {
 			t.Fatalf("task without safe-outputs should not allow %s", kind)
 		}

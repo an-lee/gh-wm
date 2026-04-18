@@ -111,7 +111,7 @@ If there is **no** NDJSON and **no** legacy `output.json`, the safe-output phase
 
 **Legacy:** writing a single JSON document to **`WM_OUTPUT_FILE`** (`output.json` with **`items`**) is still supported and **merged** after NDJSON lines (`output.jsonl` first, then legacy `items`).
 
-Keys under **`safe-outputs:`** declare what operations are **allowed**; each item has a **`type`** using **underscores** (gh-aw style): **`create_pull_request`**, **`add_comment`**, **`add_labels`**, **`remove_labels`**, **`create_issue`**, **`noop`**, **`missing_tool`**, **`missing_data`**. Dash forms in **`type`** (e.g. `create-pull-request`) are accepted too.
+Keys under **`safe-outputs:`** declare what operations are **allowed**; each item has a **`type`** using **underscores** (gh-aw style): **`create_pull_request`**, **`add_comment`**, **`add_labels`**, **`remove_labels`**, **`create_issue`**, **`update_pull_request`**, **`update_issue`**, **`close_issue`**, **`close_pull_request`**, **`add_reviewer`**, **`noop`**, **`missing_tool`**, **`missing_data`**. Dash forms in **`type`** (e.g. `create-pull-request`) are accepted too.
 
 ```json
 {
@@ -123,8 +123,8 @@ Keys under **`safe-outputs:`** declare what operations are **allowed**; each ite
 ```
 
 - A **`type`** is **rejected** (skipped with a log line) if its corresponding **`safe-outputs:`** key is **not** declared (except **`noop`**, which is always allowed).
-- **`max:`** per handler is **enforced** (defaults apply when omitted: e.g. **1** for PR / comment / issue, **3** for label lists).
-- **`title-prefix`**: enforced for **`create_pull_request`** and **`create_issue`** titles (agent title is prefixed when missing).
+- **`max:`** per handler is **enforced** (defaults apply when omitted: e.g. **1** for PR / comment / issue / update / close-issue, **10** for **`close_pull_request`**, **3** for label lists and **`add_reviewer`**).
+- **`title-prefix`**: enforced for **`create_pull_request`**, **`create_issue`**, **`update_pull_request`**, and **`update_issue`** titles when a non-empty title is supplied (prefix applied when missing).
 - **`labels`** under **`create-pull-request`** / **`create_issue`**: merged with agent-supplied labels (deduped).
 - **`add-labels`** / **`remove-labels`**: optional **`allowed:`** and **`blocked:`** (glob patterns); **`blocked`** is evaluated first.
 
