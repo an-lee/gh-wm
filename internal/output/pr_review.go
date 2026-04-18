@@ -11,7 +11,6 @@ import (
 )
 
 func execKindSubmitPullRequestReview(ctx context.Context, _ *config.GlobalConfig, task *config.Task, tc *types.TaskContext, _ *Policy, raw map[string]any) error {
-	_ = ctx
 	item := mapToSubmitPullRequestReview(raw)
 	pr := resolvePRTarget(tc, item.Target)
 	if pr <= 0 {
