@@ -33,6 +33,20 @@ func runCommentFromItem(_ context.Context, tc *types.TaskContext, item ItemAddCo
 	return postComment(tc, n, body)
 }
 
+// postFallbackComment posts the agent's last response when no safe-output items were emitted (task has safe-outputs:).
+func postFallbackComment(tc *types.TaskContext, responseText string) error {
+	n := commentTargetNumber(tc)
+	if n <= 0 {
+		return fmt.Errorf("fallback comment: no issue or PR number")
+	}
+	body := strings.TrimSpace(responseText)
+	if body == "" {
+		return nil
+	}
+	full := "No structured output was emitted by the agent. Agent response:\n\n" + body + WMAgentCommentMarkerFooter(tc.TaskName)
+	return postComment(tc, n, full)
+}
+
 func postComment(tc *types.TaskContext, n int, body string) error {
 	if len(body) > maxCommentBody {
 		body = body[:maxCommentBody] + "\n\n…(truncated)"

@@ -125,3 +125,27 @@ func TestRunCommentFromItem_NoNumber(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestPostFallbackComment_NoTarget(t *testing.T) {
+	t.Parallel()
+	tc := &types.TaskContext{RepoPath: t.TempDir(), Repo: "o/r"}
+	if err := postFallbackComment(tc, "hello"); err == nil {
+		t.Fatal("expected error when no issue/PR number")
+	}
+}
+
+func TestRunSuccessOutputs_ImplicitNoopWithLastResponseTextNoIssue(t *testing.T) {
+	t.Parallel()
+	g := &config.GlobalConfig{}
+	task := &config.Task{Frontmatter: map[string]any{"safe-outputs": map[string]any{
+		"add-comment": map[string]any{},
+	}}}
+	tc := &types.TaskContext{RepoPath: t.TempDir()}
+	res := &types.AgentResult{
+		OutputFilePath:   filepath.Join(t.TempDir(), "missing.json"),
+		LastResponseText: "agent said something",
+	}
+	if err := RunSuccessOutputs(context.Background(), g, task, tc, res); err != nil {
+		t.Fatalf("expected success without GitHub target: %v", err)
+	}
+}

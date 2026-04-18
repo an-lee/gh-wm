@@ -165,6 +165,14 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 		}
 		return res, fmt.Errorf("agent: %w", err)
 	}
+	if rd != nil {
+		if agentLog != nil {
+			_ = agentLog.Sync()
+		}
+		if stats, statErr := parseClaudeConversationArtifacts(rd.Path); statErr == nil && stats != nil && stats.LastResult != nil {
+			res.LastResponseText = strings.TrimSpace(stats.LastResult.ResultText)
+		}
+	}
 	return res, nil
 }
 

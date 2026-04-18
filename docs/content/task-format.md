@@ -109,6 +109,8 @@ If **`safe-outputs:`** contains **at least one key**, the **recommended** way to
 
 If there is **no** NDJSON and **no** legacy `output.json`, the safe-output phase **succeeds** with a **warning** (implicit noop). Prefer **`gh wm emit noop --message "…"`** when you want an explicit record.
 
+When that happens and the event has an **issue or PR number**, gh-wm **posts a fallback comment** on that issue/PR with the agent’s **last response text** (from built-in **`claude`** print-mode **`conversation.json` / `conversation.jsonl`**, field **`result`** on the final **`type: result`** line), so a successful run is still visible on GitHub. The same text is stored as **`last_response_text`** on **`agent_result`** in **`result.json`** / **`run.json`** for **`gh wm process-outputs`**. In GitHub Actions, **`GITHUB_STEP_SUMMARY`** also receives a collapsible **Agent response** and **Conversation log (truncated)** section when those artifacts exist.
+
 **Legacy:** writing a single JSON document to **`WM_OUTPUT_FILE`** (`output.json` with **`items`**) is still supported and **merged** after NDJSON lines (`output.jsonl` first, then legacy `items`).
 
 Keys under **`safe-outputs:`** declare what operations are **allowed**; each item has a **`type`** using **underscores** (gh-aw style): **`create_pull_request`**, **`add_comment`**, **`add_labels`**, **`remove_labels`**, **`create_issue`**, **`noop`**, **`missing_tool`**, **`missing_data`**. Dash forms in **`type`** (e.g. `create-pull-request`) are accepted too.

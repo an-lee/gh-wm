@@ -338,6 +338,7 @@ func (r *RunDir) WriteResult(res *types.RunResult) error {
 			AgentStdoutPath    string `json:"agent_stdout_path,omitempty"`
 			OutputFilePath     string `json:"output_file_path,omitempty"`
 			SafeOutputFilePath string `json:"safe_output_file_path,omitempty"`
+			LastResponseText   string `json:"last_response_text,omitempty"`
 		} `json:"agent_result,omitempty"`
 	}{
 		Phase:      string(res.Phase),
@@ -359,6 +360,7 @@ func (r *RunDir) WriteResult(res *types.RunResult) error {
 			AgentStdoutPath    string `json:"agent_stdout_path,omitempty"`
 			OutputFilePath     string `json:"output_file_path,omitempty"`
 			SafeOutputFilePath string `json:"safe_output_file_path,omitempty"`
+			LastResponseText   string `json:"last_response_text,omitempty"`
 		}{
 			Success:            ar.Success,
 			ExitCode:           ar.ExitCode,
@@ -369,6 +371,7 @@ func (r *RunDir) WriteResult(res *types.RunResult) error {
 			AgentStdoutPath:    ar.AgentStdoutPath,
 			OutputFilePath:     ar.OutputFilePath,
 			SafeOutputFilePath: ar.SafeOutputFilePath,
+			LastResponseText:   ar.LastResponseText,
 		}
 	}
 	b, err := json.MarshalIndent(out, "", "  ")
@@ -418,6 +421,7 @@ func (r *RunDir) WriteRunJSON(res *types.RunResult) error {
 			AgentStdoutPath    string `json:"agent_stdout_path,omitempty"`
 			OutputFilePath     string `json:"output_file_path,omitempty"`
 			SafeOutputFilePath string `json:"safe_output_file_path,omitempty"`
+			LastResponseText   string `json:"last_response_text,omitempty"`
 		} `json:"agent_result,omitempty"`
 	}{
 		runMeta:    m,
@@ -438,6 +442,7 @@ func (r *RunDir) WriteRunJSON(res *types.RunResult) error {
 			AgentStdoutPath    string `json:"agent_stdout_path,omitempty"`
 			OutputFilePath     string `json:"output_file_path,omitempty"`
 			SafeOutputFilePath string `json:"safe_output_file_path,omitempty"`
+			LastResponseText   string `json:"last_response_text,omitempty"`
 		}{
 			Success:            ar.Success,
 			ExitCode:           ar.ExitCode,
@@ -448,6 +453,7 @@ func (r *RunDir) WriteRunJSON(res *types.RunResult) error {
 			AgentStdoutPath:    ar.AgentStdoutPath,
 			OutputFilePath:     ar.OutputFilePath,
 			SafeOutputFilePath: ar.SafeOutputFilePath,
+			LastResponseText:   ar.LastResponseText,
 		}
 	}
 	b, err := json.MarshalIndent(out, "", "  ")
