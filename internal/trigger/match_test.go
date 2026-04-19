@@ -300,6 +300,10 @@ func TestScheduleCronMatches(t *testing.T) {
 	if !ScheduleCronMatches(testTaskWithSchedule(p, "weekly"), weeklyCron) {
 		t.Fatal("weekly fuzzy cron")
 	}
+	weeklyMonCron := schedule.FuzzyNormalizeSchedule("weekly on Monday", p)
+	if !ScheduleCronMatches(testTaskWithSchedule(p, "weekly on Monday"), weeklyMonCron) {
+		t.Fatal("weekly on Monday fuzzy cron")
+	}
 	hourlyCron := schedule.FuzzyNormalizeSchedule("hourly", p)
 	if !ScheduleCronMatches(testTaskWithSchedule(p, "hourly"), hourlyCron) {
 		t.Fatal("hourly fuzzy cron")

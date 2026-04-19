@@ -15,6 +15,31 @@ var cronFieldPattern = regexp.MustCompile(`^[\d\*\-/,]+$`)
 // everyNHoursPattern matches "every N hour(s)" for fuzzy schedule expansion (case-insensitive).
 var everyNHoursPattern = regexp.MustCompile(`(?i)^every\s+(\d+)\s+hours?$`)
 
+// weeklyOnPattern matches "weekly on <weekday>" for fuzzy schedule expansion (case-insensitive).
+var weeklyOnPattern = regexp.MustCompile(`(?i)^weekly\s+on\s+(\S+)$`)
+
+// weekdayNameToDOW maps English weekday names/abbreviations to GitHub cron DOW (0=Sunday … 6=Saturday).
+func weekdayNameToDOW(s string) (dow int, ok bool) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "sun", "sunday":
+		return 0, true
+	case "mon", "monday":
+		return 1, true
+	case "tue", "tues", "tuesday":
+		return 2, true
+	case "wed", "weds", "wednesday":
+		return 3, true
+	case "thu", "thur", "thurs", "thursday":
+		return 4, true
+	case "fri", "friday":
+		return 5, true
+	case "sat", "saturday":
+		return 6, true
+	default:
+		return 0, false
+	}
+}
+
 // IsCronExpression reports whether input looks like a 5-field GitHub Actions cron string.
 func IsCronExpression(input string) bool {
 	input = strings.TrimSpace(input)
@@ -94,7 +119,7 @@ func parseEveryNHours(s string) (n int, matched bool) {
 	return v, true
 }
 
-// FuzzyNormalizeSchedule converts gh-aw-style schedule keywords (daily, weekly, hourly) into a
+// FuzzyNormalizeSchedule converts gh-aw-style schedule keywords (daily, weekly, hourly, weekly on <weekday>) into a
 // deterministic cron using the same weighted pool and FNV-1a hashing as github/gh-aw.
 // identifier should be stable (e.g. task file path). Raw 5-field cron expressions are returned whitespace-normalized.
 // "every N hours" (1≤N≤23) expands to M */N * * * with scattered M; N=1 matches hourly; N=24 matches daily.
@@ -116,6 +141,14 @@ func FuzzyNormalizeSchedule(scheduleStr, identifier string) string {
 		}
 		minute := scatteredHourlyMinute(identifier)
 		return fmt.Sprintf("%d */%d * * *", minute, n)
+	}
+	if m := weeklyOnPattern.FindStringSubmatch(scheduleStr); m != nil {
+		dow, ok := weekdayNameToDOW(m[1])
+		if !ok {
+			return scheduleStr
+		}
+		h, min := weightedDailyTimeSlot(identifier)
+		return fmt.Sprintf("%d %d * * %d", min, h, dow)
 	}
 	switch strings.ToLower(scheduleStr) {
 	case "daily":

@@ -98,11 +98,12 @@ In frontmatter, `on.schedule` is a **string** (see [`Task.ScheduleString`](../..
 |-------|-----------------|
 | `daily` | One run per day at a deterministic minute/hour (e.g. `43 5 * * *`) |
 | `weekly` | One run per week: scattered weekday (0–6) + time from the same pool |
+| `weekly on <weekday>` | One run per week on that weekday at a deterministic minute/hour (same UTC time pool as `daily`/`weekly`). Day-of-week follows GitHub cron (0=Sunday … 6=Saturday). Accepts English names (`Monday`, …) and common abbreviations (`mon`, …). Case-insensitive; extra spaces allowed (e.g. `weekly  on  mon`). |
 | `hourly` | `M */1 * * *` with scattered minute `M` in 5–54 |
 | `every N hours` | For `2 ≤ N ≤ 23`: `M */N * * *` with the same scattered `M` as `hourly`. `every 1 hour` / `every 1 hours` matches `hourly`. `every 24 hours` matches `daily`. Case-insensitive; extra spaces allowed (e.g. `every  3  hours`). |
 | other | If it is already a **5-field** cron string, whitespace-normalized and used as-is; otherwise passed through unchanged (must be valid for GitHub Actions if used as cron) |
 
-Out-of-range `every N hours` (`N < 1` or `N > 24`) is passed through unchanged, like an unknown token.
+Out-of-range `every N hours` (`N < 1` or `N > 24`) is passed through unchanged, like an unknown token. A `weekly on …` string with an unrecognized weekday is passed through unchanged.
 
 ## `safe-outputs:` — policy + `gh wm emit`
 

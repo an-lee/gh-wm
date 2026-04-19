@@ -56,6 +56,29 @@ func TestFuzzyNormalizeSchedule_EveryNHours(t *testing.T) {
 	}
 }
 
+func TestFuzzyNormalizeSchedule_WeeklyOnWeekday(t *testing.T) {
+	t.Parallel()
+	id := "/repo/.wm/tasks/doc.md"
+	w1 := FuzzyNormalizeSchedule("weekly on Monday", id)
+	w2 := FuzzyNormalizeSchedule("weekly on Monday", id)
+	if w1 != w2 {
+		t.Fatalf("weekly on Monday not stable: %q vs %q", w1, w2)
+	}
+	fields := strings.Fields(w1)
+	if len(fields) != 5 {
+		t.Fatalf("expected 5 cron fields, got %q", w1)
+	}
+	if fields[4] != "1" {
+		t.Fatalf("Monday should be DOW 1, got last field %q in %q", fields[4], w1)
+	}
+	if FuzzyNormalizeSchedule("WEEKLY  ON  mon", id) != w1 {
+		t.Fatalf("case and spacing: got %q want %q", FuzzyNormalizeSchedule("WEEKLY  ON  mon", id), w1)
+	}
+	if FuzzyNormalizeSchedule("weekly on someday", id) != "weekly on someday" {
+		t.Fatal("unknown weekday should pass through")
+	}
+}
+
 func TestIsCronExpression(t *testing.T) {
 	t.Parallel()
 	if !IsCronExpression("0 0 * * *") {

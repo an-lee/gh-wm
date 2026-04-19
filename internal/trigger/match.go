@@ -238,7 +238,7 @@ func matchScheduleBlock(event *types.GitHubEvent, sched any) bool {
 }
 
 // ScheduleCronMatches checks task schedule vs cron from workflow (for filtering in run).
-// For keywords daily/weekly/hourly and "every N hours" it re-derives the same fuzzy cron as schedule.FuzzyNormalizeSchedule(task.Path).
+// For keywords daily/weekly/hourly, "weekly on <weekday>", and "every N hours" it re-derives the same fuzzy cron as schedule.FuzzyNormalizeSchedule(task.Path).
 func ScheduleCronMatches(task *config.Task, workflowCron string) bool {
 	if task == nil {
 		return false
