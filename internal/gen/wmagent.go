@@ -76,6 +76,8 @@ jobs:
           EVENT_NAME: {{ "${{" }} github.event_name {{ "}}" }}
           EVENT_JSON: {{ "${{" }} toJSON(github.event) {{ "}}" }}
           TASK_NAME: {{ "${{" }} matrix.task {{ "}}" }}
+          WM_RESOLVED_TASKS_JSON: {{ "${{" }} needs.resolve.outputs.tasks {{ "}}" }}
+          WM_HAS_TASKS: {{ "${{" }} needs.resolve.outputs.has_tasks {{ "}}" }}
         run: |
           mkdir -p .wm/runs
           printf '%s' "$EVENT_JSON" > .wm/runs/github-event.json
@@ -133,6 +135,8 @@ jobs:
       task_name: {{ "${{" }} matrix.task {{ "}}" }}
       event_name: {{ "${{" }} github.event_name {{ "}}" }}
       event_json: {{ "${{" }} toJSON(github.event) {{ "}}" }}
+      resolved_tasks_json: {{ "${{" }} needs.resolve.outputs.tasks {{ "}}" }}
+      has_tasks: {{ "${{" }} needs.resolve.outputs.has_tasks {{ "}}" }}
       runs_on: '{{ .RunsOnJSON }}'
       install_claude_code: {{ if .InstallClaudeCode }}true{{ else }}false{{ end }}
       gh_wm_extension_version: {{ printf "%q" .ExtensionVersion }}

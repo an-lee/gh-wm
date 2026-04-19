@@ -12,6 +12,10 @@ Short answers about **how gh-wm works** and **why it is designed this way**. For
 
 Task files use **gh-aw–style** Markdown plus YAML frontmatter (`on:`, `safe-outputs:`, `engine:`, …), so many community patterns port directly. gh-wm does **not** use gh-aw’s compile step (no `.lock.yml`, no `gh aw compile`). Enforcement of gh-aw **numeric limits** in `safe-outputs` may differ; keys still **select** which post-agent steps run. See [Task format](task-format.md).
 
+### Can task bodies use `${{ github.event… }}` like gh-aw?
+
+Yes, within a **restricted allowlist**: gh-wm can **validate** those placeholders on **`gh wm upgrade`**, **`gh wm init`**, and **`gh wm validate`**, and **expand** them at **`gh wm run`** when **`compat.gh_aw_expand`** is enabled (default). Prefer canonical **`wm.sanitized.*`** and **`wm.task_name`**; **`steps.sanitized.outputs.*`** is accepted as a gh-aw alias. Details and **`compat.gh_aw_expressions`** (**error** / **warn** / **off**) are in [Task format — expressions](task-format.md).
+
 ### Why Go and the `gh` CLI instead of a separate service?
 
 The tool stays a **thin coordinator** on top of GitHub: issues, labels, Actions, and PRs—no extra control plane. Authentication follows **`gh auth login`**. See [Architecture — Goals](architecture.md#goals-design-intent).

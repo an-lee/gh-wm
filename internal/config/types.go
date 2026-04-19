@@ -24,7 +24,14 @@ type GlobalConfig struct {
 	Model              string `yaml:"model"`
 	MaxTurns           int    `yaml:"max_turns"`
 	ClaudeOutputFormat string `yaml:"claude_output_format,omitempty"`
-	Workflow           struct {
+	// Compat configures gh-aw–style ${{ }} validation and expansion in task bodies.
+	Compat struct {
+		// GhAWExpressions is error | warn | off (default error). When off, upgrade/init skip body scans.
+		GhAWExpressions string `yaml:"gh_aw_expressions,omitempty"`
+		// GhAWExpand enables runtime expansion of ${{ }} in task bodies at gh wm run (default true).
+		GhAWExpand *bool `yaml:"gh_aw_expand,omitempty"`
+	} `yaml:"compat,omitempty"`
+	Workflow struct {
 		RunsOn               []string  `yaml:"runs_on"`
 		PreSteps             []StepDef `yaml:"pre_steps"`
 		InstallClaudeCode    *bool     `yaml:"install_claude_code,omitempty"`

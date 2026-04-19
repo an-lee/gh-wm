@@ -12,6 +12,16 @@ on:
       event_json:
         required: true
         type: string
+      resolved_tasks_json:
+        description: JSON array of task names from resolve (prompt expansion)
+        required: false
+        type: string
+        default: ""
+      has_tasks:
+        description: has_tasks output from resolve job
+        required: false
+        type: string
+        default: ""
       runs_on:
         description: JSON array of runner labels for runs-on
         required: false
@@ -72,6 +82,8 @@ jobs:
           EVENT_NAME: ${{ inputs.event_name }}
           EVENT_JSON: ${{ inputs.event_json }}
           TASK_NAME: ${{ inputs.task_name }}
+          WM_RESOLVED_TASKS_JSON: ${{ inputs.resolved_tasks_json }}
+          WM_HAS_TASKS: ${{ inputs.has_tasks }}
         run: |
           mkdir -p .wm/runs
           printf '%s' "$EVENT_JSON" > .wm/runs/github-event.json

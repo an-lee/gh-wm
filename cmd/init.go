@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/an-lee/gh-wm/internal/compat/awexpr"
 	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/gen"
 	"github.com/an-lee/gh-wm/internal/templates"
@@ -31,6 +32,21 @@ func runInit(_ *cobra.Command, _ []string) error {
 		return err
 	}
 	if err := templates.WriteStarterTasks(filepath.Join(wm, "tasks")); err != nil {
+		return err
+	}
+	tasks, err := config.LoadTasksDir(filepath.Join(wm, "tasks"))
+	if err != nil {
+		return err
+	}
+	globVal, err := config.LoadGlobalOnly(cwd)
+	if err != nil {
+		return err
+	}
+	mode := awexpr.ParseGhAWExpressionsMode(config.CompatGhAWExpressions(globVal))
+	warnf := func(path, msg string) {
+		fmt.Fprintf(os.Stderr, "wm: %s: %s\n", path, msg)
+	}
+	if err := awexpr.ValidateTasks(tasks, mode, warnf); err != nil {
 		return err
 	}
 	ghDir := filepath.Join(cwd, ".github", "workflows")

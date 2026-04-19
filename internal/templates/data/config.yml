@@ -1,5 +1,10 @@
 version: 1
 
+# Optional: gh-aw–style ${{ }} in task markdown bodies (.wm/tasks/*.md).
+# compat:
+#   gh_aw_expressions: error   # error | warn | off — upgrade/init/validate scan task bodies
+#   gh_aw_expand: true        # expand allowed ${{ }} at gh wm run (default true)
+
 workflow:
   runs_on:
     - ubuntu-latest

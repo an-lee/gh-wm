@@ -25,6 +25,7 @@ func TestWriteWMAgent(t *testing.T) {
 		"owner/name", "0 1 * * *", "agent-resolve.yml", `runs_on: '["ubuntu-latest"]'`,
 		"install_claude_code: true", `gh_wm_extension_version: ""`, "task_name:", "force_task:", "has_tasks == 'true'",
 		"concurrency:", "cancel-in-progress: false", "github-actions[bot]",
+		"resolved_tasks_json:", "has_tasks:",
 	} {
 		if !strings.Contains(s, p) {
 			t.Fatalf("missing %q in %s", p, s)
@@ -139,6 +140,8 @@ func TestWriteWMAgent_PreStepsInline(t *testing.T) {
 		"process-outputs",
 		"concurrency:",
 		"github-actions[bot]",
+		"WM_RESOLVED_TASKS_JSON:",
+		"WM_HAS_TASKS:",
 	} {
 		if !strings.Contains(s, p) {
 			t.Fatalf("missing %q in generated yaml", p)

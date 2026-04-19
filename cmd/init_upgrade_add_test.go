@@ -43,6 +43,28 @@ func TestInitCommand(t *testing.T) {
 	}
 }
 
+func TestValidateCommand(t *testing.T) {
+	root := t.TempDir()
+	wm := filepath.Join(root, ".wm", "tasks")
+	if err := os.MkdirAll(wm, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".wm", "config.yml"), []byte("version: 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wm, "ok.md"), []byte("---\non:\n  issues: {}\n---\n\n# Hi ${{ github.repository }}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	chdirTemp(t, root)
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"validate"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestUpgradeCommand(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		prependFakeGh(t, `

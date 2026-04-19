@@ -105,6 +105,22 @@ func ParseGlobal(data []byte) (*GlobalConfig, error) {
 	return &g, nil
 }
 
+// CompatGhAWExpand reports whether task-body ${{ }} expansion is enabled (default true).
+func CompatGhAWExpand(g *GlobalConfig) bool {
+	if g == nil || g.Compat.GhAWExpand == nil {
+		return true
+	}
+	return *g.Compat.GhAWExpand
+}
+
+// CompatGhAWExpressions returns compat.gh_aw_expressions trimmed (empty means default error mode in awexpr.ParseGhAWExpressionsMode).
+func CompatGhAWExpressions(g *GlobalConfig) string {
+	if g == nil {
+		return ""
+	}
+	return strings.TrimSpace(g.Compat.GhAWExpressions)
+}
+
 // DefaultGlobal fills defaults
 func DefaultGlobal(g *GlobalConfig) *GlobalConfig {
 	if g == nil {
