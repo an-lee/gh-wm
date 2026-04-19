@@ -82,7 +82,7 @@ jobs:
           gh wm run --repo-root . --task "$TASK_NAME" --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json --agent-only
       - name: Pack workspace for outputs job
         run: tar -czf "{{ "${{" }} runner.temp {{ "}}" }}/wm-workspace.tar.gz" -C "$GITHUB_WORKSPACE" .
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: wm-workspace-{{ "${{" }} matrix.task {{ "}}" }}-{{ "${{" }} github.run_id {{ "}}" }}
           path: {{ "${{" }} runner.temp {{ "}}" }}/wm-workspace.tar.gz
@@ -106,7 +106,7 @@ jobs:
         run: gh extension install {{ .OwnerRepo }}{{ if .ExtensionVersion }} --pin {{ printf "%q" .ExtensionVersion }}{{ end }} --force
         env:
           GH_TOKEN: {{ "${{" }} github.token {{ "}}" }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: wm-workspace-{{ "${{" }} matrix.task {{ "}}" }}-{{ "${{" }} github.run_id {{ "}}" }}
           path: {{ "${{" }} runner.temp {{ "}}" }}

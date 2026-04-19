@@ -80,7 +80,7 @@ jobs:
       - name: Pack workspace for outputs job
         run: tar -czf "${{ runner.temp }}/wm-workspace.tar.gz" -C "$GITHUB_WORKSPACE" .
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: wm-workspace-${{ inputs.task_name }}-${{ github.run_id }}
           path: ${{ runner.temp }}/wm-workspace.tar.gz
@@ -108,7 +108,7 @@ jobs:
             gh extension install an-lee/gh-wm --force
           fi
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: wm-workspace-${{ inputs.task_name }}-${{ github.run_id }}
           path: ${{ runner.temp }}
