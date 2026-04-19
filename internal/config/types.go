@@ -26,7 +26,7 @@ type GlobalConfig struct {
 	ClaudeOutputFormat string `yaml:"claude_output_format,omitempty"`
 	// Compat configures gh-aw–style ${{ }} validation and expansion in task bodies.
 	Compat struct {
-		// GhAWExpressions is error | warn | off (default error). When off, upgrade/init skip body scans.
+		// GhAWExpressions is error | warn | off (default error). When off, compile/init skip body scans.
 		GhAWExpressions string `yaml:"gh_aw_expressions,omitempty"`
 		// GhAWExpand enables runtime expansion of ${{ }} in task bodies at gh wm run (default true).
 		GhAWExpand *bool `yaml:"gh_aw_expand,omitempty"`

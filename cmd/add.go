@@ -30,7 +30,7 @@ var addCmd = &cobra.Command{
   gh wm add ./path/to/task.md
     Copies a local file (no source: unless already in frontmatter).
 
-After a successful add, gh wm upgrade runs automatically so wm-agent.yml matches the new task.`,
+After a successful add, gh wm compile runs automatically so wm-agent.yml matches the new task.`,
 	Args: cobra.ExactArgs(1),
 	RunE: runAdd,
 }
@@ -118,7 +118,7 @@ func runAdd(_ *cobra.Command, args []string) error {
 		return err
 	}
 	fmt.Fprintf(os.Stderr, "Wrote %s\n", dest)
-	return runUpgrade(nil, nil)
+	return runCompile(nil, nil)
 }
 
 // injectSource inserts source: <ref> immediately after the opening --- line.

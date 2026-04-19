@@ -6,25 +6,11 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
 
-func fakeGhForAdd(t *testing.T) {
-	t.Helper()
-	if runtime.GOOS != "windows" {
-		prependFakeGh(t, `
-if [ "$1" = "extension" ] && [ "$2" = "upgrade" ] && [ "$3" = "an-lee/gh-wm" ]; then
-  exit 0
-fi
-exit 1
-`)
-	}
-}
-
 func TestAddCommand_HTTP(t *testing.T) {
-	fakeGhForAdd(t)
 	content := `---
 on:
   issues: {}
@@ -69,7 +55,6 @@ from url
 }
 
 func TestAddCommand_GitHubShorthand(t *testing.T) {
-	fakeGhForAdd(t)
 	content := `---
 on:
   issues: {}
@@ -128,7 +113,6 @@ from workflows
 }
 
 func TestAddCommand_GitHubShorthand_WmFallback(t *testing.T) {
-	fakeGhForAdd(t)
 	content := `---
 on:
   issues: {}

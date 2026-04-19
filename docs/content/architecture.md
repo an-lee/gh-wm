@@ -49,7 +49,7 @@ Optional **checkpoints** ([`internal/checkpoint`](../../internal/checkpoint/chec
 
 | Concern | Location | Role |
 |---------|----------|------|
-| CLI entry | [`cmd/`](../../cmd/) | Cobra commands: `init`, `upgrade`, `update`, `assign`, `resolve`, `run`, `process-outputs`, `emit`, `status`, `logs`, `add`. |
+| CLI entry | [`cmd/`](../../cmd/) | Cobra commands: `init`, `compile`, `upgrade`, `update`, `assign`, `resolve`, `run`, `process-outputs`, `emit`, `status`, `logs`, `add`. |
 | Config + tasks | [`internal/config/`](../../internal/config/) | Load `.wm/config.yml`, parse `.wm/tasks/*.md` frontmatter ([`frontmatter.go`](../../internal/config/frontmatter.go)). |
 | Event → task names | [`internal/trigger/match.go`](../../internal/trigger/match.go) | `MatchOnOR`: implements `on:` OR-semantics against [`types.GitHubEvent`](../../internal/types/types.go). |
 | Orchestration | [`internal/engine/`](../../internal/engine/) | `ResolveMatchingTasks` and `ResolveForcedTask` ([`resolver.go`](../../internal/engine/resolver.go)) — forced resolve pins one task by filename without evaluating `on:` (matches local `gh wm run`); `RunTask` ([`runner.go`](../../internal/engine/runner.go)), per-run dirs ([`rundir.go`](../../internal/engine/rundir.go)), activation checks ([`activation.go`](../../internal/engine/activation.go)), output validation ([`validation.go`](../../internal/engine/validation.go)), conclusion/defer ([`conclusion.go`](../../internal/engine/conclusion.go)), `runAgent` ([`agent.go`](../../internal/engine/agent.go)). |
@@ -61,7 +61,7 @@ Optional **checkpoints** ([`internal/checkpoint`](../../internal/checkpoint/chec
 
 ## GitHub Actions: reusable workflows and generated `wm-agent.yml`
 
-Business repos use an **auto-generated** `wm-agent.yml` (from `gh wm init` / `gh wm upgrade`). Runner labels come from **`workflow.runs_on`** in [`.wm/config.yml`](task-format.md); optional **`workflow.install_claude_code`** (default **true**) controls whether CI installs the **Claude Code** CLI before **`gh-wm run`**; optional **`workflow.gh_wm_extension_version`** passes **`--pin`** to **`gh extension install`** (tag or commit; see **`gh help extension install`**); optional **`workflow.pre_steps`** lists prerequisite Actions steps (toolchains, deps); `upgrade` rewrites `wm-agent.yml` when you change them.
+Business repos use an **auto-generated** `wm-agent.yml` (from `gh wm init` / `gh wm compile`). Runner labels come from **`workflow.runs_on`** in [`.wm/config.yml`](task-format.md); optional **`workflow.install_claude_code`** (default **true**) controls whether CI installs the **Claude Code** CLI before **`gh-wm run`**; optional **`workflow.gh_wm_extension_version`** passes **`--pin`** to **`gh extension install`** (tag or commit; see **`gh help extension install`**); optional **`workflow.pre_steps`** lists prerequisite Actions steps (toolchains, deps); `compile` rewrites `wm-agent.yml` when you change them.
 
 - **Resolve** always uses reusable **`agent-resolve.yml`**.
 - **Run** uses reusable **`agent-run.yml`** when **`workflow.pre_steps` is empty**. If **`workflow.pre_steps` is set**, the generator embeds the same checkout → pre-steps → **`gh extension install`** → (optional) Claude Code install → **`gh wm run --agent-only`** → pack workspace → artifact → **`gh wm process-outputs`** sequence **inline** in `wm-agent.yml` (reusable workflows cannot take arbitrary step YAML as inputs).
@@ -211,7 +211,7 @@ Checkpoint failures are appended to `RunResult.Errors` and do not always change 
 | Kind | Where |
 |------|--------|
 | `RunResult` / errors | In-memory for the process; CLI prints `phase=`, **`artifacts=`**, and `failure phase:` on **stderr** |
-| Per-run artifacts | **`.wm/runs/<id>/`** (or **`WM_RUN_DIR/<id>/`**): `prompt.md`; optional **`output.jsonl`** (`gh wm emit`); combined agent stdout/stderr (**`agent-stdout.log`** by default, or **`conversation.json`** / **`conversation.jsonl`** when **`claude_output_format`** / **`WM_CLAUDE_OUTPUT_FORMAT`** is **`json`** / **`stream-json`** for built-in **`claude`**); `meta.json` (phase updates); `result.json` (final snapshot); **`run.json`** (merged meta + outcome for tooling). Ignore **`runs/`** under **`.wm/`** via **`.wm/.gitignore`** (`gh wm init` / `gh wm upgrade` ensure that file). |
+| Per-run artifacts | **`.wm/runs/<id>/`** (or **`WM_RUN_DIR/<id>/`**): `prompt.md`; optional **`output.jsonl`** (`gh wm emit`); combined agent stdout/stderr (**`agent-stdout.log`** by default, or **`conversation.json`** / **`conversation.jsonl`** when **`claude_output_format`** / **`WM_CLAUDE_OUTPUT_FORMAT`** is **`json`** / **`stream-json`** for built-in **`claude`**); `meta.json` (phase updates); `result.json` (final snapshot); **`run.json`** (merged meta + outcome for tooling). Ignore **`runs/`** under **`.wm/`** via **`.wm/.gitignore`** (`gh wm init` / `gh wm compile` ensure that file). |
 | Agent tail in memory | Last **64 KiB** of combined output in `AgentResult` when a run dir is used (full output remains in the per-run agent log file above) |
 | Repo state | Whatever git / the agent wrote under `--repo-root` |
 | Coordination | GitHub: labels, issue/PR comments, PRs — the main external persistence |

@@ -15,7 +15,7 @@ var validateRepoRoot string
 var validateCmd = &cobra.Command{
 	Use:   "validate",
 	Short: "Validate task markdown bodies for gh-aw–compatible ${{ }} expressions",
-	Long:  "Scans .wm/tasks/*.md bodies (same rules as gh wm upgrade). Uses compat.gh_aw_expressions from .wm/config.yml (error | warn | off).",
+	Long:  "Scans .wm/tasks/*.md bodies (same rules as gh wm compile). Uses compat.gh_aw_expressions from .wm/config.yml (error | warn | off).",
 	RunE:  runValidate,
 }
 

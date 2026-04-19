@@ -30,8 +30,11 @@ safe-outputs:
     run-success: "😤 Fine. [{workflow_name}]({run_url}) finished the review. It wasn't completely terrible. I guess. 🙄"
     run-failure: "😤 Great. [{workflow_name}]({run_url}) {status}. As if my day couldn't get any worse..."
 
-## timeout-minutes: 10
+timeout-minutes: 10
+
 engine: claude
+
+---
 
 # Grumpy Code Reviewer 🔥
 
@@ -63,13 +66,13 @@ Review the code changes in this pull request with your characteristic grumpy tho
 
 If you have already posted a review for this same invocation context, **stop** (avoid duplicate work). In CI, **run-started** / **run-success** / **run-failure** messages may also be posted from `safe-outputs.messages` — do not re-run the same review just because you see those.
 
-Optional: with `**WM_CHECKPOINT=1*`*, prior checkpoint comments may be loaded into the prompt; use them to avoid repeating yourself.
+Optional: with `**WM_CHECKPOINT=1`**, prior checkpoint comments may be loaded into the prompt; use them to avoid repeating yourself.
 
 ### Step 2: Fetch Pull Request Details
 
-Use `**gh**` (or the REST API) to load the PR and changed files:
+Use `**gh`** (or the REST API) to load the PR and changed files:
 
-- Resolve the PR with number from `**WM_PR_NUMBER**` (or `**WM_ISSUE_NUMBER**`) in `**GITHUB_REPOSITORY**`
+- Resolve the PR with number from `**WM_PR_NUMBER*`* (or `**WM_ISSUE_NUMBER**`) in `**GITHUB_REPOSITORY**`
 - List files changed and inspect the diff
 
 ### Step 3: Analyze the Code

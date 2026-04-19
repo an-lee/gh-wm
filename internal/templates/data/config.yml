@@ -2,7 +2,7 @@ version: 1
 
 # Optional: gh-aw–style ${{ }} in task markdown bodies (.wm/tasks/*.md).
 # compat:
-#   gh_aw_expressions: error   # error | warn | off — upgrade/init/validate scan task bodies
+#   gh_aw_expressions: error   # error | warn | off — compile/init/validate scan task bodies
 #   gh_aw_expand: true        # expand allowed ${{ }} at gh wm run (default true)
 
 workflow:
@@ -13,7 +13,7 @@ workflow:
   # Optional: gh extension install --pin value (release tag or commit). When unset, latest. See gh help extension install.
   # gh_wm_extension_version: v1.2.3
   # Optional: prerequisite steps before gh-wm runs (toolchains, deps, engine CLI).
-  # When set, `gh wm upgrade` generates an inline run job (not reusable agent-run.yml).
+  # When set, `gh wm compile` generates an inline run job (not reusable agent-run.yml).
   # pre_steps:
   #   - uses: jdx/mise-action@v4
   #     with:
