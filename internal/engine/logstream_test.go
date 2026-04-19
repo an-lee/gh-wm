@@ -594,7 +594,7 @@ func TestPickFloat_NoMatch(t *testing.T) {
 
 func TestPickInt_NoMatch(t *testing.T) {
 	t.Parallel()
-	_, ok := pickInt(map[string]any{"foo": "bar"}, "turns", "num_turns)
+	_, ok := pickInt(map[string]any{"foo": "bar"}, "turns", "num_turns"
 	if ok {
 		t.Fatal("expected false for non-numeric value")
 	}
