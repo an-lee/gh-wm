@@ -28,6 +28,10 @@ if [ "$1" = "label" ] && [ "$2" = "list" ]; then
   echo '[]'
   exit 0
 fi
+# gh label create <name> --repo ...
+if [ "$1" = "label" ] && [ "$2" = "create" ]; then
+  exit 0
+fi
 # gh api -X POST /repos/.../issues
 if [ "$1" = "api" ]; then
   printf '%s' "$*" | grep -q "POST.*repos.*issues"

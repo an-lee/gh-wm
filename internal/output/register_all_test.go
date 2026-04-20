@@ -192,28 +192,7 @@ func TestExecKindCreatePullRequest_NoGitRepo(t *testing.T) {
 	}
 }
 
-// testRunCreateIssue is a stand-in that intercepts ghclient calls.
-type fakeCreateIssueCall struct {
-	err error
-}
-
-func (f fakeCreateIssueCall) CreateIssue(repo, title, body string, labels, assignees []string) error {
-	return f.err
-}
-
-// testRunCreateIssue_intercepted tests runCreateIssue logic by wrapping runCreateIssue
-// and swapping the ghclient import. Since we can't inject a fake ghclient directly,
-// we test error-returning paths only: empty title, empty repo.
-
-func TestRunCreateIssue_EmptyTitle(t *testing.T) {
-	t.Parallel()
-	tc := &types.TaskContext{Repo: "o/r"}
-	item := ItemCreateIssue{Title: "  ", Body: "body"}
-	err := runCreateIssue(context.Background(), tc, item)
-	if err == nil {
-		t.Fatal("expected error")
-	}
-}
+// runCreateIssue: empty title is covered in issue_test.go.
 
 func TestRunCreateIssue_EmptyRepo(t *testing.T) {
 	t.Parallel()

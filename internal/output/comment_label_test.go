@@ -26,7 +26,6 @@ func TestPostComment_MissingRepo(t *testing.T) {
 }
 
 func TestPostComment_Truncation(t *testing.T) {
-	t.Parallel()
 	installFakeGHForComment(t)
 	tc := &types.TaskContext{Repo: "o/r"}
 	// Body exactly maxCommentBody bytes → no truncation.
@@ -99,7 +98,8 @@ func TestResolveCommentTarget_Explicit(t *testing.T) {
 
 func TestResolveCommentTarget_ZeroUsesIssue(t *testing.T) {
 	t.Parallel()
-	tc := &types.TaskContext{IssueNumber: 5, PRNumber: 2}
+	// commentTargetNumber prefers PR when set; use PRNumber 0 to exercise IssueNumber.
+	tc := &types.TaskContext{IssueNumber: 5, PRNumber: 0}
 	got := resolveCommentTarget(tc, 0)
 	if got != 5 {
 		t.Fatalf("zero target should use IssueNumber: got %d, want 5", got)
@@ -211,7 +211,7 @@ func TestRunAddLabelsFromItem_DisallowedLabel(t *testing.T) {
 	t.Parallel()
 	task := &config.Task{Frontmatter: map[string]any{
 		"safe-outputs": map[string]any{"add-labels": map[string]any{
-			"allow": []any{"bug"},
+			"allowed": []any{"bug"},
 		}},
 	}}
 	p := newPolicy(task)
@@ -226,7 +226,6 @@ func TestRunAddLabelsFromItem_DisallowedLabel(t *testing.T) {
 }
 
 func TestRunAddLabelsFromItem_MixedAllowedAndEmpty(t *testing.T) {
-	t.Parallel()
 	installFakeGHForLabels(t)
 	task := &config.Task{Frontmatter: map[string]any{
 		"safe-outputs": map[string]any{"add-labels": map[string]any{}},

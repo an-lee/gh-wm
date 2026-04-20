@@ -84,7 +84,6 @@ func TestApplyOnReactionBestEffort_EmptyContent(t *testing.T) {
 	t.Parallel()
 	task := &config.Task{Frontmatter: map[string]any{"on": map[string]any{"reaction": ""}}}
 	tc := &types.TaskContext{}
-	event := &types.GitHubEvent{Name: "issues"}
 	result := &types.RunResult{}
 	applyOnReactionBestEffort(nil, task, tc, result)
 	if len(result.Errors) != 0 {
@@ -96,7 +95,6 @@ func TestApplyOnReactionBestEffort_WhitespaceContent(t *testing.T) {
 	t.Parallel()
 	task := &config.Task{Frontmatter: map[string]any{"on": map[string]any{"reaction": "   "}}}
 	tc := &types.TaskContext{Repo: "o/r"}
-	event := &types.GitHubEvent{Name: "issues"}
 	result := &types.RunResult{}
 	applyOnReactionBestEffort(nil, task, tc, result)
 	if len(result.Errors) != 0 {
@@ -108,7 +106,6 @@ func TestApplyOnReactionBestEffort_EmptyRepo(t *testing.T) {
 	t.Parallel()
 	task := &config.Task{Frontmatter: map[string]any{"on": map[string]any{"reaction": "+1"}}}
 	tc := &types.TaskContext{Repo: "  "}
-	event := &types.GitHubEvent{Name: "issues"}
 	result := &types.RunResult{}
 	applyOnReactionBestEffort(nil, task, tc, result)
 	if len(result.Errors) != 0 {
@@ -131,7 +128,6 @@ func TestApplyOnReactionBestEffort_EmptyEventName(t *testing.T) {
 	t.Parallel()
 	task := &config.Task{Frontmatter: map[string]any{"on": map[string]any{"reaction": "+1"}}}
 	tc := &types.TaskContext{Repo: "o/r"}
-	event := &types.GitHubEvent{Name: "  "}
 	result := &types.RunResult{}
 	applyOnReactionBestEffort(nil, task, tc, result)
 	if len(result.Errors) != 0 {
@@ -143,7 +139,6 @@ func TestApplyOnReactionBestEffort_NoCommentIDOrIssueNumber(t *testing.T) {
 	t.Parallel()
 	task := &config.Task{Frontmatter: map[string]any{"on": map[string]any{"reaction": "+1"}}}
 	tc := &types.TaskContext{Repo: "o/r"}
-	event := &types.GitHubEvent{Name: "issues"}
 	result := &types.RunResult{}
 	applyOnReactionBestEffort(nil, task, tc, result)
 	// No comment ID and no issue/PR number → returns without calling ghclient.
@@ -155,8 +150,7 @@ func TestApplyOnReactionBestEffort_NoCommentIDOrIssueNumber(t *testing.T) {
 func TestApplyOnReactionBestEffort_IssueCommentWithCommentID(t *testing.T) {
 	withFakeGHReactions(t)
 	task := &config.Task{Frontmatter: map[string]any{"on": map[string]any{"reaction": "+1"}}}
-	tc := &types.TaskContext{Repo: "o/r", CommentID: 12345}
-	event := &types.GitHubEvent{Name: "issue_comment"}
+	tc := &types.TaskContext{Repo: "o/r", CommentID: 12345, Event: &types.GitHubEvent{Name: "issue_comment"}}
 	result := &types.RunResult{}
 	applyOnReactionBestEffort(nil, task, tc, result)
 	if len(result.Errors) != 0 {
@@ -167,8 +161,7 @@ func TestApplyOnReactionBestEffort_IssueCommentWithCommentID(t *testing.T) {
 func TestApplyOnReactionBestEffort_IssuesWithIssueNumber(t *testing.T) {
 	withFakeGHReactions(t)
 	task := &config.Task{Frontmatter: map[string]any{"on": map[string]any{"reaction": "🎉"}}}
-	tc := &types.TaskContext{Repo: "o/r", IssueNumber: 42}
-	event := &types.GitHubEvent{Name: "issues"}
+	tc := &types.TaskContext{Repo: "o/r", IssueNumber: 42, Event: &types.GitHubEvent{Name: "issues"}}
 	result := &types.RunResult{}
 	applyOnReactionBestEffort(nil, task, tc, result)
 	if len(result.Errors) != 0 {
@@ -179,8 +172,7 @@ func TestApplyOnReactionBestEffort_IssuesWithIssueNumber(t *testing.T) {
 func TestApplyOnReactionBestEffort_PullRequestWithPRNumber(t *testing.T) {
 	withFakeGHReactions(t)
 	task := &config.Task{Frontmatter: map[string]any{"on": map[string]any{"reaction": "+1"}}}
-	tc := &types.TaskContext{Repo: "o/r", PRNumber: 99}
-	event := &types.GitHubEvent{Name: "pull_request"}
+	tc := &types.TaskContext{Repo: "o/r", PRNumber: 99, Event: &types.GitHubEvent{Name: "pull_request"}}
 	result := &types.RunResult{}
 	applyOnReactionBestEffort(nil, task, tc, result)
 	if len(result.Errors) != 0 {
@@ -191,8 +183,7 @@ func TestApplyOnReactionBestEffort_PullRequestWithPRNumber(t *testing.T) {
 func TestApplyOnReactionBestEffort_GhClientError(t *testing.T) {
 	// Without fake gh for reactions, ghclient calls fail and error is recorded.
 	task := &config.Task{Frontmatter: map[string]any{"on": map[string]any{"reaction": "+1"}}}
-	tc := &types.TaskContext{Repo: "o/r", IssueNumber: 1}
-	event := &types.GitHubEvent{Name: "issues"}
+	tc := &types.TaskContext{Repo: "o/r", IssueNumber: 1, Event: &types.GitHubEvent{Name: "issues"}}
 	result := &types.RunResult{}
 	applyOnReactionBestEffort(nil, task, tc, result)
 	if len(result.Errors) == 0 {

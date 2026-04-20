@@ -477,7 +477,7 @@ func TestFormatResultEvent_WithCostAndTurns(t *testing.T) {
 func TestFormatResultEvent_IntCost(t *testing.T) {
 	t.Parallel()
 	ev := map[string]any{
-		"type":    "result",
+		"type":     "result",
 		"cost_usd": 42,
 	}
 	got := formatStreamJSONEvent(ev, nil)
@@ -489,7 +489,7 @@ func TestFormatResultEvent_IntCost(t *testing.T) {
 func TestFormatResultEvent_Int64Cost(t *testing.T) {
 	t.Parallel()
 	ev := map[string]any{
-		"type":    "result",
+		"type":     "result",
 		"cost_usd": int64(99),
 	}
 	got := formatStreamJSONEvent(ev, nil)
@@ -567,7 +567,7 @@ func TestToolInputHint_MultipleKeys(t *testing.T) {
 	m := map[string]any{
 		"file_path": "/path/to/file",
 		"pattern":   "*.go",
-		"query":    "something",
+		"query":     "something",
 	}
 	got := toolInputHint(m)
 	if !strings.HasPrefix(got, "/path/to/file") {
@@ -594,7 +594,7 @@ func TestPickFloat_NoMatch(t *testing.T) {
 
 func TestPickInt_NoMatch(t *testing.T) {
 	t.Parallel()
-	_, ok := pickInt(map[string]any{"foo": "bar"}, "turns", "num_turns"
+	_, ok := pickInt(map[string]any{"foo": "bar"}, "turns", "num_turns")
 	if ok {
 		t.Fatal("expected false for non-numeric value")
 	}
@@ -640,8 +640,8 @@ func TestLogStreamWriter_NilWriter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n != 5 {
-		t.Fatalf("n=%d, want 5", n)
+	if n != 6 {
+		t.Fatalf("n=%d, want 6", n)
 	}
 }
 

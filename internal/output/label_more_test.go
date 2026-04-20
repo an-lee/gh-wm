@@ -24,6 +24,9 @@ if [ "$1" = "label" ] && [ "$2" = "list" ]; then
   echo '[{"name":"a"},{"name":"b"}]'
   exit 0
 fi
+if [ "$1" = "label" ] && [ "$2" = "create" ]; then
+  exit 0
+fi
 if [ "$1" = "api" ]; then
   if echo "$*" | grep -q 'POST' && echo "$*" | grep -q '/issues/'; then
     exit 0
