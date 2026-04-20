@@ -44,7 +44,7 @@ Set where reusable workflows live (default `an-lee/gh-wm`):
 
 ```bash
 export GH_WM_REPO=your-org/gh-wm
-gh wm upgrade
+gh wm compile
 ```
 
 ## Commands
@@ -52,9 +52,10 @@ gh wm upgrade
 | Command                   | Purpose                                                       |
 | ------------------------- | ------------------------------------------------------------- |
 | `gh wm init`              | Scaffold `.wm/`, tasks, and `wm-agent.yml`                    |
-| `gh wm upgrade`           | `gh extension upgrade` (best-effort) + regenerate `wm-agent.yml` |
+| `gh wm compile`           | Regenerate `wm-agent.yml` from tasks and `.wm/config.yml`     |
+| `gh wm upgrade`           | Run `gh extension upgrade` for the `gh-wm` extension          |
 | `gh wm update`            | Re-fetch tasks that have `source:` (URL or `owner/repo/path`)   |
-| `gh wm add <…>`           | Add a task `.md` (`owner/repo/task`, URL, or path); runs `upgrade` after |
+| `gh wm add <…>`           | Add a task `.md` (`owner/repo/task`, URL, or path); runs `compile` after |
 | `gh wm assign <n>`        | Add label (default `agent`) to issue `#n`                     |
 | `gh wm resolve`           | List task names matching `GITHUB_EVENT` / payload             |
 | `gh wm run --task <name>` | Run one task (agent + optional `safe-outputs`)                 |
@@ -80,7 +81,7 @@ Tasks are `.wm/tasks/<name>.md` with YAML frontmatter compatible with [GitHub Ag
 2. **Resolve job** runs `gh wm resolve` → JSON list of matching tasks.
 3. **Matrix job** runs `gh wm run --task <name>` in parallel for each match (`fail-fast: false`).
 
-After changing any task’s `on:` triggers, run **`gh wm upgrade`** to refresh `wm-agent.yml`.
+After changing any task’s `on:` triggers, run **`gh wm compile`** to refresh `wm-agent.yml`.
 
 Details: [docs/content/architecture.md](docs/content/architecture.md).
 

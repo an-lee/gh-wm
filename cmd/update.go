@@ -115,7 +115,7 @@ func runUpdate(_ *cobra.Command, args []string) error {
 		updated++
 	}
 	if updated > 0 {
-		fmt.Fprintln(os.Stderr, "Run: gh wm upgrade")
+		fmt.Fprintln(os.Stderr, "Run: gh wm compile")
 	}
 	return nil
 }

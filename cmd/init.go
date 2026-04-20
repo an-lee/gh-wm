@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/an-lee/gh-wm/internal/config"
-	"github.com/an-lee/gh-wm/internal/gen"
 	"github.com/an-lee/gh-wm/internal/templates"
 	"github.com/spf13/cobra"
 )
@@ -33,28 +31,7 @@ func runInit(_ *cobra.Command, _ []string) error {
 	if err := templates.WriteStarterTasks(filepath.Join(wm, "tasks")); err != nil {
 		return err
 	}
-	ghDir := filepath.Join(cwd, ".github", "workflows")
-	if err := os.MkdirAll(ghDir, 0o755); err != nil {
-		return err
-	}
-	triggers, err := gen.CollectTriggersFromTasksDir(filepath.Join(wm, "tasks"))
-	if err != nil {
-		return err
-	}
-	repo := os.Getenv("GH_WM_REPO")
-	if repo == "" {
-		repo = "an-lee/gh-wm"
-	}
-	glob, _, err := config.Load(cwd)
-	if err != nil {
-		return err
-	}
-	runsOn := config.WorkflowRunsOnLabels(glob)
-	preSteps := glob.Workflow.PreSteps
-	if err := gen.WriteWMAgent(ghDir, repo, triggers, runsOn, preSteps, config.WorkflowInstallClaudeCode(glob), config.WorkflowGhWMExtensionVersion(glob)); err != nil {
-		return err
-	}
-	if err := ensureWmGitignoreRuns(wm); err != nil {
+	if err := regenerateWMAgentFromCwd(); err != nil {
 		return err
 	}
 	fmt.Fprintln(os.Stderr, "Initialized .wm/ and .github/workflows/wm-agent.yml")

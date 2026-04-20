@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/an-lee/gh-wm/internal/compat/awexpr"
 	"github.com/an-lee/gh-wm/internal/config"
 	"github.com/an-lee/gh-wm/internal/engine/engines"
 	"github.com/an-lee/gh-wm/internal/output"
@@ -26,6 +27,13 @@ func runAgent(ctx context.Context, glob *config.GlobalConfig, task *config.Task,
 	prompt := strings.TrimSpace(task.Body)
 	if prompt == "" {
 		prompt = task.Name + ": process repository event."
+	} else if glob != nil && config.CompatGhAWExpand(glob) && tc != nil {
+		ctxExpr := awexpr.BuildContext(tc)
+		expanded, err := awexpr.Expand(prompt, ctxExpr)
+		if err != nil {
+			return &types.AgentResult{Success: false, ExitCode: -1, Stderr: err.Error()}, fmt.Errorf("expand task body: %w", err)
+		}
+		prompt = expanded
 	}
 	var contextFiles []string
 	if glob != nil {

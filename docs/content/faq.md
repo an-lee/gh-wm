@@ -12,6 +12,10 @@ Short answers about **how gh-wm works** and **why it is designed this way**. For
 
 Task files use **gh-aw–style** Markdown plus YAML frontmatter (`on:`, `safe-outputs:`, `engine:`, …), so many community patterns port directly. gh-wm does **not** use gh-aw’s compile step (no `.lock.yml`, no `gh aw compile`). Enforcement of gh-aw **numeric limits** in `safe-outputs` may differ; keys still **select** which post-agent steps run. See [Task format](task-format.md).
 
+### Can task bodies use `${{ github.event… }}` like gh-aw?
+
+Yes, within a **restricted allowlist**: gh-wm can **validate** those placeholders on **`gh wm compile`**, **`gh wm init`**, and **`gh wm validate`**, and **expand** them at **`gh wm run`** when **`compat.gh_aw_expand`** is enabled (default). Prefer canonical **`wm.sanitized.*`** and **`wm.task_name`**; **`steps.sanitized.outputs.*`** is accepted as a gh-aw alias. Details and **`compat.gh_aw_expressions`** (**error** / **warn** / **off**) are in [Task format — expressions](task-format.md).
+
 ### Why Go and the `gh` CLI instead of a separate service?
 
 The tool stays a **thin coordinator** on top of GitHub: issues, labels, Actions, and PRs—no extra control plane. Authentication follows **`gh auth login`**. See [Architecture — Goals](architecture.md#goals-design-intent).
@@ -49,14 +53,14 @@ In GitHub Actions, the **agent** phase often runs with a **read-only** `GITHUB_T
 
 ## Workflows and repo setup
 
-### Why is `wm-agent.yml` generated? Why `gh wm upgrade` after changing triggers?
+### Why is `wm-agent.yml` generated? Why `gh wm compile` after changing triggers?
 
-**`wm-agent.yml`** is **generated** from your tasks’ union of **`on:`** keys (issue types, schedules, etc.) plus config. Editing triggers in `.wm/tasks/*.md` does not update the caller workflow until you run **`gh wm upgrade`** (or **`init`** on a fresh repo). See [Architecture — wm-agent.yml](architecture.md) and [Task format](task-format.md).
+**`wm-agent.yml`** is **generated** from your tasks’ union of **`on:`** keys (issue types, schedules, etc.) plus config. Editing triggers in `.wm/tasks/*.md` does not update the caller workflow until you run **`gh wm compile`** (or **`init`** on a fresh repo). See [Architecture — wm-agent.yml](architecture.md) and [Task format](task-format.md).
 
 ### What do `init`, `add`, and `update` do?
 
 - **`gh wm init`** scaffolds `.wm/config.yml`, starter tasks, and the generated workflow.
-- **`gh wm add`** pulls in a task from another repo or URL and runs upgrade afterward.
+- **`gh wm add`** pulls in a task from another repo or URL and runs **`compile`** afterward.
 - **`gh wm update`** re-fetches tasks that declare **`source:`**.
 
 See the repository [README](../../README.md) and [CLI reference](cli-reference.md).

@@ -32,8 +32,9 @@ Local and CI builds without linker flags report **`dev`**. Release assets built 
 
 1. Create `.wm/tasks/`.
 2. Write embedded `config.yml` and starter tasks ([`internal/templates`](../../internal/templates/)).
-3. Collect **workflow `on:` triggers** from `.wm/tasks` (union of `issues` / `issue_comment` / `pull_request` types, `slash_command` → `issue_comment`, `schedule` crons, and always **`workflow_dispatch`**) via [`gen.CollectTriggersFromTasksDir`](../../internal/gen/triggers.go), then generate `wm-agent.yml` via [`gen.WriteWMAgent`](../../internal/gen/wmagent.go), including **`workflow.runs_on`** from `.wm/config.yml` (default `ubuntu-latest` if unset), **`workflow.install_claude_code`** (default **true**: install Claude Code in CI before **`gh wm run`**), and optional **`workflow.gh_wm_extension_version`** (when set, CI runs **`gh extension install owner/repo --pin <ref>`** per **`gh help extension install`**). Reusable workflows ensure **`gh`** via the composite **[`install-gh-cli`](../../.github/actions/install-gh-cli/action.yml)** action, then install **`gh-wm`** with **`gh extension install`** (see [`agent-resolve.yml`](../../.github/workflows/agent-resolve.yml) / [`agent-run.yml`](../../.github/workflows/agent-run.yml)).
-4. Ensure **`.wm/.gitignore`** contains **`runs/`** (per-run artifact dirs from `gh wm run`) — creates or appends that file when needed.
+3. Validate task **markdown bodies** for gh-aw–compatible **`${{ }}`** expressions (see [Task format — expressions](task-format.md)) using **`compat.gh_aw_expressions`** in `.wm/config.yml` (default **`error`**).
+4. Collect **workflow `on:` triggers** from `.wm/tasks` (union of `issues` / `issue_comment` / `pull_request` types, `slash_command` → `issue_comment`, `schedule` crons, and always **`workflow_dispatch`**) via [`gen.CollectTriggersFromTasksDir`](../../internal/gen/triggers.go), then generate `wm-agent.yml` via [`gen.WriteWMAgent`](../../internal/gen/wmagent.go) (same pipeline as **`gh wm compile`**), including **`workflow.runs_on`** from `.wm/config.yml` (default `ubuntu-latest` if unset), **`workflow.install_claude_code`** (default **true**: install Claude Code in CI before **`gh wm run`**), and optional **`workflow.gh_wm_extension_version`** (when set, CI runs **`gh extension install owner/repo --pin <ref>`** per **`gh help extension install`**). Reusable workflows ensure **`gh`** via the composite **[`install-gh-cli`](../../.github/actions/install-gh-cli/action.yml)** action, then install **`gh-wm`** with **`gh extension install`** (see [`agent-resolve.yml`](../../.github/workflows/agent-resolve.yml) / [`agent-run.yml`](../../.github/workflows/agent-run.yml)).
+5. Ensure **`.wm/.gitignore`** contains **`runs/`** (per-run artifact dirs from `gh wm run`) — creates or appends that file when needed.
 
 **`workflow.pre_steps` (optional):** A list of GitHub Actions job steps (`name`, `uses`, `run`, `with`, `env`, `if`) run **after** checkout and **before** installing `gh-wm` and running the task. Use this for toolchains (e.g. [`jdx/mise-action`](https://github.com/jdx/mise-action)), dependency installs, or installing the agent CLI. When **`pre_steps` is non-empty**, the generated `wm-agent.yml` uses an **inline** `run` job (steps embedded in the file) instead of calling the reusable [`agent-run.yml`](../../.github/workflows/agent-run.yml) workflow, because reusable workflows cannot accept arbitrary step YAML as inputs.
 
@@ -45,13 +46,33 @@ Local and CI builds without linker flags report **`dev`**. Release assets built 
 
 ---
 
+## `compile`
+
+**Purpose:** Validate task bodies for **`${{ }}`** (same rules as **`gh wm validate`**; see **`compat.gh_aw_expressions`** in [Task format](task-format.md)), then regenerate `.github/workflows/wm-agent.yml` from current tasks (task-driven **`on:`** union, same as **`init`** step 4), **`workflow.runs_on`**, **`workflow.gh_wm_extension_version`**, and **`workflow.pre_steps`** in `.wm/config.yml` (when present), and `GH_WM_REPO`.
+
+**Usage:** `gh wm compile`
+
+If `.wm/config.yml` is missing, runner labels default to **`ubuntu-latest`** when generating `wm-agent.yml`. **`workflow.pre_steps`** follows the same rules as under **`init`** above. **`compile`** also ensures **`.wm/.gitignore`** lists **`runs/`** (same as the last step under **`init`**), so older repos pick up the ignore rule without re-running **`init`**.
+
+**Breaking change:** Earlier versions folded this into **`gh wm upgrade`**. **`upgrade`** no longer rewrites **`wm-agent.yml`** — use **`compile`** after changing tasks, schedules, or workflow-related config.
+
+---
+
 ## `upgrade`
 
-**Purpose:** Run **`gh extension upgrade an-lee/gh-wm`** (best-effort: if it fails, e.g. the CLI was not installed as a `gh` extension, a message is printed and the command continues), then regenerate `.github/workflows/wm-agent.yml` from current tasks (task-driven **`on:`** union, same as **`init`** step 3), **`workflow.runs_on`**, **`workflow.gh_wm_extension_version`**, and **`workflow.pre_steps`** in `.wm/config.yml` (when present), and `GH_WM_REPO`.
+**Purpose:** Run **`gh extension upgrade an-lee/gh-wm`** so the installed **`gh-wm`** extension matches the latest release (or your pinned source). If the upgrade fails (for example the CLI was not installed as a `gh` extension), the command prints **`gh`**’s output and exits with a non-zero status.
 
 **Usage:** `gh wm upgrade`
 
-If `.wm/config.yml` is missing, runner labels default to **`ubuntu-latest`** when generating `wm-agent.yml`. **`workflow.pre_steps`** follows the same rules as under **`init`** above. **`upgrade`** also ensures **`.wm/.gitignore`** lists **`runs/`** (same as step 5 under **`init`**), so older repos pick up the ignore rule without re-running **`init`**.
+---
+
+## `validate`
+
+**Purpose:** Scan **`.wm/tasks/*.md` bodies** for gh-aw–compatible **`${{ }}`** expressions without upgrading the extension or rewriting `wm-agent.yml`. Use in CI (e.g. after editing tasks).
+
+**Usage:** `gh wm validate` — **`--repo-root`** defaults to **`.`** (same as other commands).
+
+Behavior matches **`compat.gh_aw_expressions`** in `.wm/config.yml` (**`error`** / **`warn`** / **`off`**). See [Task format — expressions](task-format.md).
 
 ---
 
@@ -64,7 +85,7 @@ If `.wm/config.yml` is missing, runner labels default to **`ubuntu-latest`** whe
 - `gh wm update` — update every `.wm/tasks/*.md` that has a non-empty `source:` field.
 - `gh wm update <task-name> …` — update only the named tasks (filename without `.md`, or with `.md`).
 
-Tasks created with **`gh wm add`** (URL, **`owner/repo/task`** shorthand, or path) get a **`source:`** when appropriate so **`gh wm update`** can re-fetch. **`gh wm add`** runs **`gh wm upgrade`** automatically after a successful write. After **`gh wm update`**, run **`gh wm upgrade`** to refresh `wm-agent.yml` if task **`on:`** triggers, schedules, or other generator inputs changed.
+Tasks created with **`gh wm add`** (URL, **`owner/repo/task`** shorthand, or path) get a **`source:`** when appropriate so **`gh wm update`** can re-fetch. **`gh wm add`** runs **`gh wm compile`** automatically after a successful write. After **`gh wm update`**, run **`gh wm compile`** to refresh `wm-agent.yml` if task **`on:`** triggers, schedules, or other generator inputs changed.
 
 See [`cmd/update.go`](../../cmd/update.go).
 
@@ -96,7 +117,7 @@ See [`cmd/update.go`](../../cmd/update.go).
 - **`https://…` or `http://…`** — Downloads the file; **`source:`** is the same URL (unless already set in the file).
 - **Local path** — Copies the file; no **`source:`** is injected unless the file already has one.
 
-Writes `<cwd>/.wm/tasks/<basename>.md`, then runs **`gh wm upgrade`** (same as the **`upgrade`** command: best-effort extension self-upgrade and regenerate **`wm-agent.yml`**). See [`cmd/add.go`](../../cmd/add.go) and [`cmd/github.go`](../../cmd/github.go).
+Writes `<cwd>/.wm/tasks/<basename>.md`, then runs **`gh wm compile`** so **`wm-agent.yml`** matches the new task. See [`cmd/add.go`](../../cmd/add.go) and [`cmd/github.go`](../../cmd/github.go).
 
 ---
 
@@ -136,7 +157,7 @@ Writes `<cwd>/.wm/tasks/<basename>.md`, then runs **`gh wm upgrade`** (same as t
 | `--payload`      | `$GITHUB_EVENT_PATH` | Path to event JSON; if `--payload` and `GITHUB_EVENT_PATH` are both unset, payload defaults to `{}` (local run only) |
 | `--allow-dirty`  | `false`              | Skip the git clean working tree check (local run only) |
 | `--agent-only`   | `false`              | Stop after agent **validation**; do not run **safe-outputs** or **conclusion**. Writes **`result.json`** / **`run.json`** for the partial run. Pair with **`gh wm process-outputs`** in a second CI job (see [architecture.md](architecture.md#github-actions-token-sandbox)). |
-| `--remote`       | `false`              | Run **`gh workflow run`** to trigger **`workflow_dispatch`** on the repo’s **`wm-agent.yml`** with **`-f task_name=<task>`**. Requires the **`gh`** CLI and auth. Repository defaults to **`gh repo view`**; override with **`--repo OWNER/NAME`**. Optional **`--workflow`** (default **`wm-agent.yml`**), **`--ref`** (git ref for the workflow run), and **`--issue`** (passed as **`-f issue_number=`** for the dispatch inputs). After upgrading **`gh-wm`**, run **`gh wm upgrade`** in the target repo so the generated workflow declares the **`task_name`** input; older **`wm-agent.yml`** files may reject unknown **`-f`** fields. **`--remote`** does not send a custom GitHub event payload (the run on Actions sees a normal **`workflow_dispatch`** event, optionally with **`issue_number`**). |
+| `--remote`       | `false`              | Run **`gh workflow run`** to trigger **`workflow_dispatch`** on the repo’s **`wm-agent.yml`** with **`-f task_name=<task>`**. Requires the **`gh`** CLI and auth. Repository defaults to **`gh repo view`**; override with **`--repo OWNER/NAME`**. Optional **`--workflow`** (default **`wm-agent.yml`**), **`--ref`** (git ref for the workflow run), and **`--issue`** (passed as **`-f issue_number=`** for the dispatch inputs). After changing **`gh-wm`** or task inputs, run **`gh wm compile`** in the target repo so the generated workflow declares the **`task_name`** input; older **`wm-agent.yml`** files may reject unknown **`-f`** fields. **`--remote`** does not send a custom GitHub event payload (the run on Actions sees a normal **`workflow_dispatch`** event, optionally with **`issue_number`**). |
 
 **Timeout:** Uses `timeout-minutes` from task frontmatter (default **45**, max **480**). The deadline is applied inside **[`engine.RunTask`](../../internal/engine/runner.go)** (so direct library use gets the same behavior as the CLI). See [`cmd/run.go`](../../cmd/run.go) for the stderr banner.
 
@@ -250,4 +271,4 @@ If none match, prints recent runs with a note. See [`cmd/logs.go`](../../cmd/log
 | `WM_LOG_FORMAT`                          | Set to **`json`** for JSON **`log/slog`** output on stderr (structured pipeline logs). |
 | `GH_WM_REST`                             | Set to **`1`** so **`ghclient`** / label-comment APIs use **`go-gh`** REST instead of **`gh api`** subprocesses ([`internal/gh`](../../internal/gh/)). |
 | `GITHUB_STEP_SUMMARY`                    | GitHub Actions: path to the job summary file; when set, **`run`** may append Claude usage stats from **`conversation.json`** / **`conversation.jsonl`** ([`internal/engine/conversation_summary.go`](../../internal/engine/conversation_summary.go)). |
-| `GH_WM_REPO`                             | `init`, `upgrade` for reusable workflow owner/repo                                |
+| `GH_WM_REPO`                             | `init`, `compile` for reusable workflow owner/repo                                |

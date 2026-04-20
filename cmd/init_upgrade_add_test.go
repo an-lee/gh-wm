@@ -43,15 +43,53 @@ func TestInitCommand(t *testing.T) {
 	}
 }
 
+func TestValidateCommand(t *testing.T) {
+	root := t.TempDir()
+	wm := filepath.Join(root, ".wm", "tasks")
+	if err := os.MkdirAll(wm, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".wm", "config.yml"), []byte("version: 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wm, "ok.md"), []byte("---\non:\n  issues: {}\n---\n\n# Hi ${{ github.repository }}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	chdirTemp(t, root)
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"validate"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestUpgradeCommand(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		prependFakeGh(t, `
+	if runtime.GOOS == "windows" {
+		t.Skip("unix shell fake gh only")
+	}
+	prependFakeGh(t, `
 if [ "$1" = "extension" ] && [ "$2" = "upgrade" ] && [ "$3" = "an-lee/gh-wm" ]; then
   exit 0
 fi
 exit 1
 `)
+	root := t.TempDir()
+	chdirTemp(t, root)
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+	rootCmd.SetArgs([]string{"upgrade"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatal(err)
 	}
+	if _, err := os.Stat(filepath.Join(root, ".github", "workflows", "wm-agent.yml")); err == nil {
+		t.Fatal("upgrade must not write wm-agent.yml")
+	}
+}
+
+func TestCompileCommand(t *testing.T) {
 	root := t.TempDir()
 	wm := filepath.Join(root, ".wm", "tasks")
 	if err := os.MkdirAll(wm, 0o755); err != nil {
@@ -71,7 +109,7 @@ x
 	buf := new(bytes.Buffer)
 	rootCmd.SetOut(buf)
 	rootCmd.SetErr(buf)
-	rootCmd.SetArgs([]string{"upgrade"})
+	rootCmd.SetArgs([]string{"compile"})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +125,7 @@ x
 	}
 }
 
-func TestUpgradeCommand_ExtensionFailsStillWritesWorkflow(t *testing.T) {
+func TestUpgradeCommand_ExtensionFailsReturnsError(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("unix shell fake gh only")
 	}
@@ -118,30 +156,15 @@ x
 	rootCmd.SetOut(buf)
 	rootCmd.SetErr(buf)
 	rootCmd.SetArgs([]string{"upgrade"})
-	if err := rootCmd.Execute(); err != nil {
-		t.Fatalf("upgrade must succeed and still write wm-agent.yml when extension upgrade fails: %v", err)
+	if err := rootCmd.Execute(); err == nil {
+		t.Fatal("upgrade must fail when gh extension upgrade fails")
 	}
-	if _, err := os.Stat(filepath.Join(root, ".github", "workflows", "wm-agent.yml")); err != nil {
-		t.Fatal(err)
-	}
-	wmGi, err := os.ReadFile(filepath.Join(root, ".wm", ".gitignore"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(wmGi), "runs/") {
-		t.Fatalf(".wm/.gitignore should contain runs/, got:\n%s", wmGi)
+	if _, err := os.Stat(filepath.Join(root, ".github", "workflows", "wm-agent.yml")); err == nil {
+		t.Fatal("upgrade must not write wm-agent.yml when extension upgrade fails")
 	}
 }
 
 func TestAddCommand_LocalFile(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		prependFakeGh(t, `
-if [ "$1" = "extension" ] && [ "$2" = "upgrade" ] && [ "$3" = "an-lee/gh-wm" ]; then
-  exit 0
-fi
-exit 1
-`)
-	}
 	srcDir := t.TempDir()
 	src := filepath.Join(srcDir, "task.md")
 	content := `---

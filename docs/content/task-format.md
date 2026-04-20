@@ -54,10 +54,30 @@ Loaded by [`config.Load`](../../internal/config/config.go). Struct: [`GlobalConf
 | `workflow.pre_steps` | Optional list of GitHub Actions job steps (`name`, `uses`, `run`, `with`, `env`, `if`) run before installing `gh-wm` and the task. When non-empty, `wm-agent.yml` embeds an **inline** `run` job instead of calling reusable [`agent-run.yml`](../../.github/workflows/agent-run.yml). See [`cli-reference.md`](cli-reference.md) **`init`**. |
 | `context.files` | Paths **relative to repo root** read and **appended** to the prompt ([`engine/agent.go`](../../internal/engine/agent.go)). Omit **`CLAUDE.md`** when using Claude Code: it loads that file from the repo on its own; listing it here duplicates it in the prompt. |
 | `pr.draft`, `pr.reviewers` | Defaults merged with `safe-outputs.create-pull-request` for `gh pr create`. |
+| `compat.gh_aw_expressions` | Optional: **`error`** (default), **`warn`**, or **`off`**. Controls scanning of **task markdown bodies** for gh-aw–style `${{ }}` placeholders on **`gh wm compile`**, **`gh wm init`**, and **`gh wm validate`**. **`error`** fails on unsupported expressions; **`warn`** logs issues to stderr and continues; **`off`** skips scanning. |
+| `compat.gh_aw_expand` | Optional boolean (default **true**). When **true**, **`gh wm run`** expands allowed `${{ }}` in the task body before calling the agent, using the event payload and CI env (see below). |
 
 Starter template: [`internal/templates/data/config.yml`](../../internal/templates/data/config.yml).
 
 **Machine-readable schema:** [task-schema.json](task-schema.json) (subset of interpreted fields; extra keys are allowed for gh-aw compatibility).
+
+## Task body: `${{ }}` expressions (gh-aw compatibility)
+
+Outside Markdown **fenced code blocks** (triple backticks), gh-wm can **scan** and **expand** GitHub Actions–shaped `${{ … }}` placeholders in the **markdown body** (not in YAML frontmatter). This mirrors [gh-aw templating](https://github.github.io/gh-aw/reference/templating/) intent: allow **`github.event.*`**, **`github.repository`**, **`github.run_id`**, and similar fields; **reject** **`secrets.*`**, **`env.*`**, **`vars.*`**, and functions like **`toJSON()`** in the body. **`{{#if …}}`** / Handlebars blocks are **unsupported** and fail validation.
+
+**Canonical (preferred) names:**
+
+| Expression | Value |
+|------------|--------|
+| `wm.sanitized.text` | Sanitized trigger text (issue/PR title+body; comment body) |
+| `wm.sanitized.title`, `wm.sanitized.body` | Title / body when applicable |
+| `wm.task_name` | Current task name (same as **`WM_TASK`**) |
+
+**gh-aw aliases** (accepted; validator may suggest **`wm.*`**): `steps.sanitized.outputs.text|title|body`.
+
+**Resolve outputs (CI only):** `needs.resolve.outputs.tasks` and `needs.resolve.outputs.has_tasks` expand from env **`WM_RESOLVED_TASKS_JSON`** and **`WM_HAS_TASKS`**, which generated **`wm-agent.yml`** sets from the **`resolve`** job. Local runs leave them empty unless you export those variables.
+
+Top-level **`github.*`** fields are filled from standard **`GITHUB_*`** environment variables when present. **`github.event.*`** walks the webhook JSON passed to **`gh wm run`** (**`--payload`** / **`GITHUB_EVENT_PATH`**). Simple **`||`** chains are supported (first truthy arm wins).
 
 ## `on:` block — what gh-wm implements
 
@@ -88,7 +108,7 @@ If **`gh api`** fails (including permissions), the error is recorded but the run
 
 ### Generated `wm-agent.yml` triggers
 
-`gh wm init` and `gh wm upgrade` build the workflow **`on:`** block from a **union** over all tasks ([`gen.CollectTriggersFromTasksDir`](../../internal/gen/triggers.go)): **`issues`**, **`issue_comment`**, **`pull_request`**, and **`pull_request_review_comment`** each get a merged **`types:`** list (task-only filters such as **`labels:`** are not copied into the workflow—resolve still enforces them). **`slash_command`** implies **`issue_comment`** with **`types: [created]`** for conversation comments and can also imply **`pull_request_review_comment`** with **`types: [created]`** when configured for PR review comments; **`schedule`** unions normalized crons; **`workflow_dispatch`** is always included for manual runs. Keys with no GitHub Actions workflow equivalent (e.g. **`reaction:`**) are ignored for generation; **`reaction:`** is still applied at run time as described above.
+`gh wm init` and `gh wm compile` build the workflow **`on:`** block from a **union** over all tasks ([`gen.CollectTriggersFromTasksDir`](../../internal/gen/triggers.go)): **`issues`**, **`issue_comment`**, **`pull_request`**, and **`pull_request_review_comment`** each get a merged **`types:`** list (task-only filters such as **`labels:`** are not copied into the workflow—resolve still enforces them). **`slash_command`** implies **`issue_comment`** with **`types: [created]`** for conversation comments and can also imply **`pull_request_review_comment`** with **`types: [created]`** when configured for PR review comments; **`schedule`** unions normalized crons; **`workflow_dispatch`** is always included for manual runs. Keys with no GitHub Actions workflow equivalent (e.g. **`reaction:`**) are ignored for generation; **`reaction:`** is still applied at run time as described above.
 
 ### Schedule strings
 

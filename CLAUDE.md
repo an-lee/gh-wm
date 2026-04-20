@@ -33,7 +33,7 @@ Core pipeline: **event → resolve → run agent**.
 
 | Layer | Key files | Purpose |
 |-------|-----------|---------|
-| CLI | `cmd/*.go` | Cobra commands: `init`, `upgrade`, `update`, `add`, `assign`, `resolve`, `run`, `process-outputs`, `emit`, `status`, `logs`, `version` |
+| CLI | `cmd/*.go` | Cobra commands: `init`, `compile`, `upgrade`, `update`, `add`, `assign`, `resolve`, `run`, `process-outputs`, `emit`, `status`, `logs`, `version` |
 | Resolver | `internal/engine/resolver.go` | `ResolveMatchingTasks` — loads `.wm/tasks/*.md`, calls `trigger.MatchOnOR`, returns matches |
 | Trigger | `internal/trigger/match.go` | `MatchOnOR` — OR-semantics over `on:` frontmatter (`issues`, `issue_comment`, `pull_request`, `slash_command`, `schedule`, `workflow_dispatch`) |
 | Runner | `internal/engine/runner.go`, `agent.go`, `rundir.go`, `process_outputs.go` | `RunTask` → `runAgent`; optional **`RunOptions.AgentOnly`** stops before safe-outputs; **`ProcessRunOutputs`** completes safe-outputs + conclusion (CI write token). **`timeout-minutes`** enforced in `RunTask` (default 45) |
@@ -50,7 +50,7 @@ Agent prompt flow: task body + `context.files` + safe-output reference (user mes
 ## Non-obvious constraints
 
 - **Binary name duality**: `go install` produces `gh-wm`; as a `gh` extension it's `gh wm …`. Same binary.
-- **`wm-agent.yml` is generated**: Written by `gh wm init` / `gh wm upgrade` (template in `internal/gen/wmagent.go`). Never hand-edit in consumer repos. `upgrade` also best-effort runs `gh extension upgrade an-lee/gh-wm`.
+- **`wm-agent.yml` is generated**: Written by `gh wm init` / `gh wm compile` (template in `internal/gen/wmagent.go`). Never hand-edit in consumer repos. `gh wm upgrade` runs `gh extension upgrade an-lee/gh-wm` only.
 - **`gh wm update`**: Re-fetches tasks with a `source:` field (URL or `owner/repo/path` shorthand, set by `gh wm add`).
 - **Schedule cron filtering**: All `on.schedule` tasks match at resolve time; `WM_SCHEDULE_CRON` env var further filters to the correct task.
 - **`engine:` frontmatter**: Selects default agent CLI (`claude`, `codex`). The former `copilot` engine name is removed — use `WM_AGENT_CMD` for a custom CLI.

@@ -9,7 +9,7 @@ workflow:
   gh_wm_extension_version: main
 
   # Optional: prerequisite steps before gh-wm runs (toolchains, deps, engine CLI).
-  # When set, `gh wm upgrade` generates an inline run job (not reusable agent-run.yml).
+  # When set, `gh wm compile` generates an inline run job (not reusable agent-run.yml).
   # pre_steps:
   #   - uses: jdx/mise-action@v4
   #     with:
