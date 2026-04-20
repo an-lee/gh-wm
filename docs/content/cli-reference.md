@@ -137,6 +137,8 @@ Writes `<cwd>/.wm/tasks/<basename>.md`, then runs **`gh wm compile`** so **`wm-a
 | `--json`       | `true`               | If true, print JSON array; if false, one name per line |
 | `--force-task` | _(unset)_            | Pin a single task by name; skips event/`on:` matching (same idea as local `run` picking a task). Used for manual runs and CI when the resolve job should return exactly one task. |
 
+**Schedule narrowing:** When **`--event-name`** is **`schedule`**, set **`WM_SCHEDULE_CRON`** to the workflow cron string that fired (same value as **`github.event.schedule`** on Actions). **`agent-resolve.yml`** sets this automatically for reusable resolve. Omit **`WM_SCHEDULE_CRON`** locally to list every task that declares **`on.schedule`**.
+
 ---
 
 ## `run`
@@ -258,7 +260,7 @@ If none match, prints recent runs with a note. See [`cmd/logs.go`](../../cmd/log
 | ---------------------------------------- | --------------------------------------------------------------------------------- |
 | `GITHUB_EVENT_NAME`, `GITHUB_EVENT_PATH` | `resolve`, `run`: event name / payload file when flags omitted; if `GITHUB_EVENT_PATH` unset, payload is `{}` |
 | `GITHUB_REPOSITORY`                      | Agent + `gh` outputs; required for labels/comments                                |
-| `WM_SCHEDULE_CRON`                       | `resolve` schedule narrowing ([`resolver.go`](../../internal/engine/resolver.go)) |
+| `WM_SCHEDULE_CRON`                       | `resolve` schedule narrowing ([`resolver.go`](../../internal/engine/resolver.go)); set in CI by [`agent-resolve.yml`](../../.github/workflows/agent-resolve.yml) from **`github.event.schedule`**. |
 | `WM_AGENT_CMD`                           | Override agent command ([`agent.go`](../../internal/engine/agent.go))             |
 | `WM_ENGINE_CODEX_CMD`                    | Codex CLI prefix when `engine: codex`                                             |
 | `WM_TASK_TOOLS`                          | Set automatically from `tools:` (read by agent)                                   |

@@ -31,6 +31,7 @@ jobs:
   resolve:
     if: {{ "${{" }} github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.actor != 'github-actions[bot]' {{ "}}" }}
     uses: {{ .OwnerRepo }}/.github/workflows/agent-resolve.yml@{{ .Ref }}
+    # WM_SCHEDULE_CRON for schedule runs is set inside agent-resolve.yml (Match tasks env) from github.event.schedule.
     with:
       event_name: {{ "${{" }} github.event_name {{ "}}" }}
       event_json: {{ "${{" }} toJSON(github.event) {{ "}}" }}

@@ -62,6 +62,8 @@ jobs:
           EVENT_NAME: ${{ inputs.event_name }}
           EVENT_JSON: ${{ inputs.event_json }}
           FORCE_TASK: ${{ inputs.force_task }}
+          # So `gh wm resolve` filters `on.schedule` tasks to the cron that fired (see resolver.go + ScheduleCronMatches).
+          WM_SCHEDULE_CRON: ${{ inputs.event_name == 'schedule' && fromJSON(inputs.event_json).schedule || '' }}
         run: |
           if [ -n "${FORCE_TASK:-}" ]; then
             TASKS=$(gh wm resolve --repo-root . --force-task "$FORCE_TASK" --json)

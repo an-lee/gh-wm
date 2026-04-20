@@ -80,7 +80,7 @@ flowchart LR
 
 1. **`agent-resolve.yml`** ([`.github/workflows/agent-resolve.yml`](../../.github/workflows/agent-resolve.yml))  
    - `runs-on` is driven by the **`runs_on` workflow input** (JSON array of labels), with default `["ubuntu-latest"]`; generated `wm-agent.yml` passes labels from `.wm/config.yml`.
-   - Checks out the repo, ensures **`gh`** via the composite **`install-gh-cli`** action (official **`cli/cli`** Linux tarball when **`gh`** is missing on self-hosted runners), installs **`gh-wm`** via **`gh extension install`**, writes the GitHub event JSON to **`.wm/runs/github-event.json`** (under the ignored `runs/` tree; see **`.wm/.gitignore`**) so `git status` stays clean for **`gh wm run`**’s working-tree check, then runs:
+   - Checks out the repo, ensures **`gh`** via the composite **`install-gh-cli`** action (official **`cli/cli`** Linux tarball when **`gh`** is missing on self-hosted runners), installs **`gh-wm`** via **`gh extension install`**, writes the GitHub event JSON to **`.wm/runs/github-event.json`** (under the ignored `runs/` tree; see **`.wm/.gitignore`**) so `git status` stays clean for **`gh wm run`**’s working-tree check, sets **`WM_SCHEDULE_CRON`** from **`github.event.schedule`** when **`event_name`** is **`schedule`** (so only tasks whose normalized cron matches that tick are resolved), then runs:
    - `gh wm resolve --repo-root . --event-name "$EVENT_NAME" --payload .wm/runs/github-event.json --json`  
    - Exposes the printed JSON array as job output `tasks`, and sets **`has_tasks`** to the string **`true`** or **`false`** so the caller can skip the **`run`** job when nothing matched (avoids matrix/`fromJSON` errors on empty input).
 
@@ -111,7 +111,7 @@ The generator adds **workflow-level** defenses so agent side effects (labels, co
 ## Resolve behavior details
 
 - [`engine.ResolveMatchingTasks`](../../internal/engine/resolver.go) applies the loop guards above, then loads all tasks and keeps those where `trigger.MatchOnOR(event, task.OnMap())` is true.
-- **Schedule events**: For `event_name == schedule`, every task that includes `on.schedule` matches at resolve time. Optional filter: if `WM_SCHEDULE_CRON` is set (e.g. to the workflow’s cron string), tasks are further filtered with `trigger.ScheduleCronMatches` (recomputes the same fuzzy cron as `gen.FuzzyNormalizeSchedule` for that task path) so only the intended task runs for that cron.
+- **Schedule events**: For `event_name == schedule`, every task that includes `on.schedule` matches at the `MatchOnOR` layer; **`agent-resolve.yml`** sets **`WM_SCHEDULE_CRON`** from the payload’s **`schedule`** field so **`ResolveMatchingTasks`** can filter with **`trigger.ScheduleCronMatches`** (same fuzzy cron as **`gen.FuzzyNormalizeSchedule`** for that task path). For local **`gh wm resolve`**, set **`WM_SCHEDULE_CRON`** yourself when simulating a schedule tick, or omit it to list every schedule task.
 - **Payload**: Event JSON is read from `--payload` or `GITHUB_EVENT_PATH` when set; if both are unset, the payload defaults to `{}`. Event name comes from `--event-name` or `GITHUB_EVENT_NAME`.
 
 ## Run behavior details

@@ -59,7 +59,7 @@ Agent prompt flow: task body + `context.files` + safe-output reference (user mes
 - **Binary name duality**: `go install` produces `gh-wm`; as a `gh` extension it's `gh wm …`. Same binary.
 - **`wm-agent.yml` is generated**: Written by `gh wm init` / `gh wm compile` (template in `internal/gen/wmagent.go`). Never hand-edit in consumer repos. `gh wm upgrade` runs `gh extension upgrade an-lee/gh-wm` only.
 - **`gh wm update`**: Re-fetches tasks with a `source:` field (URL or `owner/repo/path` shorthand, set by `gh wm add`).
-- **Schedule cron filtering**: All `on.schedule` tasks match at resolve time; `WM_SCHEDULE_CRON` env var further filters to the correct task.
+- **Schedule cron filtering**: All `on.schedule` tasks match at the trigger layer; `WM_SCHEDULE_CRON` filters in `ResolveMatchingTasks`. In CI, `agent-resolve.yml` sets it from `github.event.schedule` when `event_name` is `schedule`.
 - **`engine:` frontmatter**: Selects default agent CLI (`claude`, `codex`). The former `copilot` engine name is removed — use `WM_AGENT_CMD` for a custom CLI.
 - **Per-run `run.json`**: Written alongside `meta.json` / `result.json` (merged snapshot for tooling).
 - **`WM_SAFE_OUTPUT_FILE`**: Per-run `output.jsonl` — `gh wm emit` appends validated lines for safe-outputs. `WM_REPO_ROOT`, `WM_ISSUE_NUMBER`, `WM_PR_NUMBER` assist emit validation.
